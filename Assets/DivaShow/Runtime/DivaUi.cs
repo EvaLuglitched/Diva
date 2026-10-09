@@ -44,6 +44,13 @@ namespace Diva.Show
                 try { cjk = TMP_FontAsset.CreateFontAsset(family, style, 72); } catch (Exception) { cjk = null; }
                 if (cjk) break;
             }
+            // visionOS 的中文系统字体在私有目录里，TMP 读不到：用打包的 Diva CJK（思源黑体的子集，见 Fonts/make_cjk_subset.md）
+            if (!cjk)
+            {
+                var bundled = Resources.Load<Font>("DivaCJK");
+                try { if (bundled) cjk = TMP_FontAsset.CreateFontAsset(bundled, 72, 6, GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, true); }
+                catch (Exception) { cjk = null; }
+            }
             if (cjk)
             {
                 if (sdf && cjk.material) cjk.material.shader = sdf;

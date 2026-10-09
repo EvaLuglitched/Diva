@@ -10,14 +10,17 @@ namespace Diva.VR
     /// 自动驾驶演示：自己选涂装开始，按顺序去完成任务（到了要卷鼻子的地方就做喝水动作），路上看到靶子就"看 + 捏"打，
     /// 大招充满就举手，冲线后结算，过一会儿再来一局。
     /// 用途：Vision Pro 模拟器里没有手部追踪时测试整局；展览时无人值守的演示。
-    /// 打开：启动参数 -divaAutoplay（模拟器：xcrun simctl launch … -divaAutoplay），或者 DivaVRAutopilot.On = true。
+    /// 打开：启动参数 -divaAutoplay，环境变量 DIVA_AUTOPLAY=1（模拟器：SIMCTL_CHILD_DIVA_AUTOPLAY=1 xcrun simctl launch …），或者 DivaVRAutopilot.On = true。
     /// </summary>
     public class DivaVRAutopilot : MonoBehaviour
     {
-        public static bool On { get; set; } = Environment.GetCommandLineArgs().Contains("-divaAutoplay");
+        public static bool On { get; set; } = Requested();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => On = Environment.GetCommandLineArgs().Contains("-divaAutoplay");
+        static void ResetStatics() => On = Requested();
+
+        // iOS / visionOS 的 app 拿不到启动参数，所以也认环境变量：SIMCTL_CHILD_DIVA_AUTOPLAY=1 xcrun simctl launch …
+        static bool Requested() => Environment.GetCommandLineArgs().Contains("-divaAutoplay") || Environment.GetEnvironmentVariable("DIVA_AUTOPLAY") == "1";
 
         DivaShowDirector show;
         DigiPhantLocomotion loco;

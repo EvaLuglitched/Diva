@@ -106,6 +106,7 @@ namespace Diva.VR
             DivaVR.DashAnchor = dash;
             if (!DivaVR.Simulated) HeadsetGraphics();
             if (DivaVRAutopilot.On) gameObject.AddComponent<DivaVRAutopilot>();
+            if (DivaVRCapture.Requested) gameObject.AddComponent<DivaVRCapture>();
             gameObject.AddComponent<DivaVRInput>();
         }
 
