@@ -69,7 +69,7 @@ Plays when entering Play (about 20 s), kart-racer style:
 | 6.5 – 9 s | Swoop down over the course to the start line | lower whoosh |
 | 9 – 13 s | One full orbit of the mech elephant | parts power up one by one (dark → flash → lit) with rising chirps |
 | 13 – 15.5 s | Low hero close-up, pushing in | thrusters ignite: smoke billows out of both nozzles, a dust ring rolls out along the ground, sparks, a pink-orange flash, flames twice as big for a moment, a short camera shake |
-| 15.5 – 20 s | Settles into the game camera | 3 · 2 · 1 · GO! with beeps and a fanfare |
+| 15.5 – 20 s | Settles into the game camera, looking up a little more during 3-2-1 | 3 · 2 · 1 · GO! with beeps and a fanfare; the rocket flies across the sky straight ahead of the elephant (its orbit is timed at the start of the intro) |
 
 The elephant is held on the start line until GO; panels and HUD are hidden until then. **Esc** skips
 to the countdown, **I** replays (ignored when Diva Show is in the scene, since Diva Show starts the intro after

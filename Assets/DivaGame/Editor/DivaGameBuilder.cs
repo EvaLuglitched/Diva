@@ -1371,7 +1371,7 @@ public static class DivaGameBuilder
         Directory.CreateDirectory(folder);
         intro.Prepare();
         var orbit = intro.rocket;
-        float a0 = orbit ? orbit.startAngle * Mathf.Deg2Rad : 0;
+        float a0 = intro.RocketStartAngle();   // as in Play: the rocket passes in front of the elephant during 3-2-1
         var go = new GameObject("Intro preview camera");
         try
         {
@@ -1382,7 +1382,7 @@ public static class DivaGameBuilder
             var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
             camera.targetTexture = rt;
             camera.Render();   // warm-up frame
-            foreach (float t in new[] { 1.5f, 4.6f, 5.4f, 7.6f, 9.6f, 10.8f, 12.2f, 14.2f, 16.1f, 16.8f, 19.0f })
+            foreach (float t in new[] { 1.5f, 4.6f, 5.4f, 7.6f, 9.6f, 10.8f, 12.2f, 14.2f, 16.1f, 16.8f, 17.4f, 18.2f, 19.0f })
             {
                 if (orbit) orbit.SetAngle(a0 + orbit.AngularSpeed * t, 0);
                 intro.ApplyBoot(t);
@@ -1391,6 +1391,12 @@ public static class DivaGameBuilder
                 camera.transform.SetPositionAndRotation(pos, rot);
                 camera.fieldOfView = fov;
                 intro.PreviewUi(t, camera);
+                if (orbit)
+                {
+                    // Where the rocket really is on screen (x, y in 0..1; z = metres in front). Renders can show a stale rocket.
+                    Vector3 vp = camera.WorldToViewportPoint(orbit.PositionAt(a0 + orbit.AngularSpeed * t));
+                    Debug.Log($"DIVA_INTRO_ROCKET t={t:0.0} viewport=({vp.x:0.00}, {vp.y:0.00}) distance={vp.z:0}");
+                }
                 camera.Render();
                 RenderTexture.active = rt;
                 var image = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);

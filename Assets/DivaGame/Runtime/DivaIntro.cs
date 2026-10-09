@@ -38,6 +38,10 @@ namespace Diva
         public const float AerialEnd = 3.5f, RocketEnd = 6.5f, SwoopEnd = 9f, HeroStart = 13f, OrbitEnd = 15.5f;
         public const float BootStart = 9.4f, BootEnd = 11.9f, Ignite = 13.8f;
         public const float CountStart = OrbitEnd + .3f, Go = CountStart + 3, End = Go + 1.2f;
+        /// <summary>When the rocket crosses straight ahead of the gameplay camera, in the middle of 3-2-1.</summary>
+        public const float RocketShow = CountStart + 1.6f;
+        /// <summary>Extra degrees the camera looks up during the countdown to frame the rocket.</summary>
+        const float CountdownLookUp = 7;
 
         public bool Playing { get; private set; }
         public float Time { get; private set; } = -1;
@@ -89,7 +93,12 @@ namespace Diva
                 preview = controller ? controller.GetComponent<DigiPhantCameraPreview>() : null;
                 savedPreview = preview ? preview.showPreview : true;
             }
-            if (rocket) rocketAngle0 = rocket.Angle;
+            if (rocket)
+            {
+                // Put the rocket on its orbit so that it flies across in front of the elephant during 3-2-1.
+                rocketAngle0 = RocketStartAngle();
+                rocket.SetAngle(rocketAngle0, UnityEngine.Time.time);
+            }
             Playing = true;
             Time = 0;
             nextCue = 0;
@@ -106,6 +115,7 @@ namespace Diva
         {
             if (!Playing || Time >= OrbitEnd) return;
             Time = OrbitEnd;
+            if (rocket) rocket.SetAngle(rocketAngle0 + rocket.AngularSpeed * Time, UnityEngine.Time.time);   // keep its countdown pass
             ignited = true;   // no burst when jumping straight to the countdown
             while (nextCue < cues.Count && cues[nextCue].time < Time) nextCue++;
         }
@@ -236,6 +246,24 @@ namespace Diva
             fov = skyCamera ? skyCamera.fieldOfView : 60;
         }
 
+        /// <summary>
+        /// The rocket's orbit angle at intro time 0 that puts it straight ahead of the gameplay camera (where the
+        /// camera's flat forward ray meets the orbit circle) at RocketShow. Needs Prepare() first.
+        /// </summary>
+        public float RocketStartAngle()
+        {
+            if (!rocket) return 0;
+            float now = Application.isPlaying ? rocket.Angle : rocket.startAngle * Mathf.Deg2Rad;
+            if (!locomotion || !locomotion.travelRoot) return now;
+            GamePose(out var pos, out var rot, out _);
+            Vector3 f = Flat(rot * Vector3.forward), p = pos - rocket.centre;
+            p.y = 0;
+            float r = rocket.radius, pf = Vector3.Dot(p, f), q = pf * pf - (p.sqrMagnitude - r * r);
+            if (q < 0) return now;   // camera outside the orbit and looking away: leave it
+            Vector3 hit = p + f * (-pf + Mathf.Sqrt(q));
+            return Mathf.Atan2(hit.z, hit.x) - rocket.AngularSpeed * RocketShow;
+        }
+
         /// <summary>Camera pose at a time on the intro timeline.</summary>
         public void PoseAt(float t, out Vector3 pos, out Quaternion rot, out float fov)
         {
@@ -294,6 +322,9 @@ namespace Diva
                 GamePose(out var gp, out var gr, out float gf);
                 pos = Vector3.Lerp(from, gp, s);
                 rot = Quaternion.Slerp(Quaternion.LookRotation(elephantLook - from), gr, s);
+                // Look up a little more during 3-2-1 so the rocket passing overhead is fully in view, back to the game view by GO.
+                float lift = CountdownLookUp * Ease((t - OrbitEnd) / 1.2f) * (1 - Ease((t - (Go - .6f)) / .6f));
+                rot = Quaternion.AngleAxis(-lift, rot * Vector3.right) * rot;
                 fov = Mathf.Lerp(50, gf, s);
                 return;
             }
