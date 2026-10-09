@@ -34,7 +34,8 @@ namespace Diva.VR
         DivaVRHands hands;
         TextMesh stats;
         float statsTime; int statsFrames;
-        float nextPoseLog;
+        float nextPoseLog, startTime;
+        DivaVRHeadPose headPose;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -86,7 +87,7 @@ namespace Diva.VR
             if (DivaVR.Simulated) gameObject.AddComponent<DivaVRSimulator>();
             else
             {
-                if (cam) cam.gameObject.AddComponent<DivaVRHeadPose>().head = cam.transform;
+                if (cam) { headPose = cam.gameObject.AddComponent<DivaVRHeadPose>(); headPose.head = cam.transform; }
                 hands = gameObject.AddComponent<DivaVRHands>();
             }
             BuildStats(hud);
@@ -135,6 +136,7 @@ namespace Diva.VR
         {
             if (!loco || !loco.travelRoot) { Debug.LogWarning("DIVA_VR: no elephant (DigiPhantLocomotion.travelRoot); the rig stays put."); return; }
             root = loco.travelRoot;
+            startTime = Time.unscaledTime;
             if (seat == Vector3.zero) seat = MeasureSeat();
             yaw = root.eulerAngles.y;
             Debug.Log($"DIVA_VR rig on: seat {seat} eye {eyeHeight} simulated {DivaVR.Simulated}");
@@ -201,7 +203,7 @@ namespace Diva.VR
             if (DivaVRCapture.Requested && Time.unscaledTime > nextPoseLog && cam)
             {
                 nextPoseLog = Time.unscaledTime + 5;
-                Debug.Log($"DIVA_VR pose head.local {cam.transform.localPosition:F3} rot {cam.transform.localEulerAngles:F0} offset {offset.localPosition:F3} eye-above-seat {transform.InverseTransformPoint(cam.transform.position):F3} recentered {recentered}");
+                Debug.Log($"DIVA_VR pose head.local {cam.transform.localPosition:F3} rot {cam.transform.localEulerAngles:F0} offset {offset.localPosition:F3} eye-above-seat {transform.InverseTransformPoint(cam.transform.position):F3} recentered {recentered} pose-valid {(headPose ? headPose.Valid : false)}");
             }
         }
 
@@ -231,7 +233,8 @@ namespace Diva.VR
         {
             if (!cam) return;
             var head = cam.transform.localPosition;
-            if (!DivaVR.Simulated && head == Vector3.zero) return;   // 头显还没给出第一帧位置
+            // 等头显给出第一帧有效的位置（模拟器里头可能就在原点，所以不能用"不为 0"判断）；2 秒还没有就照现在的算
+            if (!DivaVR.Simulated && headPose && !headPose.Valid && Time.unscaledTime - startTime < 2) return;
             // 人一开始面朝哪儿都行：把那个方向转成大象的正前方
             var turn = Quaternion.Euler(0, DivaVR.Simulated ? 0 : -cam.transform.localEulerAngles.y, 0);
             var p = turn * head;
