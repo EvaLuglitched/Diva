@@ -11,7 +11,7 @@ namespace Diva.Show
     ///     调色（对比、冷暗部暖高光）、柔和暗角；过场时加景深（对焦大象）和一点胶片颗粒。
     ///   - 只照大象和机甲的冷色轮廓光（灯光图层），把主角从背景里分出来。
     ///   - 一个覆盖整条赛道的反射探针（开局渲染一次），金属和光面机甲反射的是糖果小镇，不是空天空。
-    ///   - 主摄像机 SMAA 抗锯齿。
+    ///   - 主摄像机 SMAA 抗锯齿；主摄像机原来清成纯色深蓝，看不到 Eva 的程序天空，这里改成显示天空。
     /// 关掉这个组件就回到 Eva 原来的样子。
     /// </summary>
     [DisallowMultipleComponent]
@@ -41,6 +41,8 @@ namespace Diva.Show
         [Tooltip("Rendering layer used only by the elephant and the rim light.")]
         [Range(1, 31)] public int heroLayer = 7;
         public bool townReflections = true;
+        [Tooltip("The main camera clears to a solid colour in the scene, which hides the procedural sky; show the sky instead.")]
+        public bool showSky = true;
 
         /// <summary>0 = gameplay, 1 = cutscene look. Set every frame by DivaShowDirector.</summary>
         [System.NonSerialized] public float cinematic;
@@ -59,6 +61,7 @@ namespace Diva.Show
         float savedAmbient = -1, savedKey = -1;
         Color savedSky, savedEquator, savedGround;
         float pulse, blend;
+        CameraClearFlags previousClear;
         AntialiasingMode previousAa;
         AntialiasingQuality previousAaQuality;
         UniversalAdditionalCameraData cameraData;
@@ -73,6 +76,11 @@ namespace Diva.Show
             BuildRim();
             ScaleLighting();
             if (started && townReflections) BuildProbe();
+            if (targetCamera)
+            {
+                previousClear = targetCamera.clearFlags;
+                if (showSky && RenderSettings.skybox) targetCamera.clearFlags = CameraClearFlags.Skybox;
+            }
             if (targetCamera && targetCamera.TryGetComponent(out cameraData))
             {
                 previousAa = cameraData.antialiasing; previousAaQuality = cameraData.antialiasingQuality;
@@ -103,6 +111,7 @@ namespace Diva.Show
             }
             if (key && savedKey >= 0) { key.intensity = savedKey; savedKey = -1; }
             if (cameraData) { cameraData.antialiasing = previousAa; cameraData.antialiasingQuality = previousAaQuality; }
+            if (targetCamera) targetCamera.clearFlags = previousClear;
         }
 
         void BuildVolume()
@@ -231,7 +240,7 @@ namespace Diva.Show
                 rim.transform.rotation = Quaternion.LookRotation((-f * .7f + side * .45f + Vector3.down * .55f).normalized, Vector3.up);
             }
             if (!profile) return;
-            float dt = Time.unscaledDeltaTime;
+            float dt = DivaClock.DeltaTime;
             blend = Mathf.MoveTowards(blend, cinematicDepthOfField ? Mathf.Clamp01(cinematic) : 0, dt * 2.5f);
             pulse = Mathf.MoveTowards(pulse, 0, dt * 2.2f);
             dof.active = blend > .02f;

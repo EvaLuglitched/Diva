@@ -126,7 +126,7 @@ namespace Diva.Show
 
         void UpdateSlot(SkillSlot s, bool active, float fill, Color color)
         {
-            float flash = Mathf.Clamp01(1 - (Time.unscaledTime - s.flash) / .6f);
+            float flash = Mathf.Clamp01(1 - (DivaClock.Time - s.flash) / .6f);
             var top = Color.Lerp(Ink, DivaUi.WithAlpha(color * .7f, .85f), active ? .85f : flash);
             s.plate.Set(top, DivaUi.WithAlpha(top * .6f, top.a * .5f));
             s.plate.stripe = color;
@@ -160,7 +160,7 @@ namespace Diva.Show
             UpdateSlot(bubbleSlot, demo.State.Drink, bubbleCooldown, new Color(.85f, .6f, 1f));
             ultRing.SetFill(charge / 100f);
             bool ready = charge >= 100;
-            float pulse = .5f + .5f * Mathf.Sin(Time.unscaledTime * 8);
+            float pulse = .5f + .5f * Mathf.Sin(DivaClock.Time * 8);
             ultRing.color = ready ? Color.Lerp(Accent, Color.white, pulse * .6f) : Accent;
             ultBack.color = ready ? DivaUi.WithAlpha(Accent * .5f, .5f + .3f * pulse) : new Color(0, 0, 0, .55f);
             ultPercent.text = ready ? "<size=70%>100</size>" : Mathf.FloorToInt(charge) + "<size=50%>%</size>";
@@ -176,13 +176,13 @@ namespace Diva.Show
             if (show && ScreenPoint(target.AimPoint, out p))
             {
                 lockMarker.anchoredPosition = p;
-                lockMarker.localRotation = Quaternion.Euler(0, 0, Time.unscaledTime * 90);
+                lockMarker.localRotation = Quaternion.Euler(0, 0, DivaClock.Time * 90);
                 lockRing.SetFill(.85f);
                 lockRing.color = demo.State.Shoot ? new Color(1, .35f, .35f) : DivaUi.WithAlpha(Color.white, .8f);
                 lockMarker.localScale = Vector3.one * (demo.State.Shoot ? .85f : 1);
             }
 
-            float comboAge = Time.unscaledTime - lastHitTime;
+            float comboAge = DivaClock.Time - lastHitTime;
             bool comboOn = combo >= 2 && comboAge < ComboWindow;
             comboText.gameObject.SetActive(comboOn); comboLabel.gameObject.SetActive(comboOn);
             if (comboOn)
@@ -196,9 +196,9 @@ namespace Diva.Show
 
             // 速度线只在推进冲刺时出现（一直跑的时候不挡画面）
             float lines = boosting ? Mathf.Clamp01((speed / run - .75f) / .25f) : 0;
-            speedLines.color = new Color(1, 1, 1, Mathf.Lerp(speedLines.color.a, lines * .2f, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 4)));
+            speedLines.color = new Color(1, 1, 1, Mathf.Lerp(speedLines.color.a, lines * .2f, 1 - Mathf.Exp(-DivaClock.DeltaTime * 4)));
             speedLines.uvRect = new Rect(Random.Range(-.01f, .01f), Random.Range(-.01f, .01f), 1, 1);
-            fovKick = Mathf.Lerp(fovKick, boosting ? 8 : 0, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 4));
+            fovKick = Mathf.Lerp(fovKick, boosting ? 8 : 0, 1 - Mathf.Exp(-DivaClock.DeltaTime * 4));
 
             UpdateFeed();
             UpdatePopups();
@@ -230,7 +230,7 @@ namespace Diva.Show
             plate.stripe = color; plate.stripeWidth = 6;
             var t = DivaUi.Text(plate.transform, "Text", new Vector2(1, .5f), new Vector2(-18, 0), new Vector2(530, 44), 28, Color.white, TextAlignmentOptions.Right, false);
             t.text = text;
-            feed.Insert(0, (t, plate, Time.unscaledTime));
+            feed.Insert(0, (t, plate, DivaClock.Time));
             while (feed.Count > 5) { Destroy(feed[feed.Count - 1].plate.gameObject); feed.RemoveAt(feed.Count - 1); }
         }
 
@@ -239,10 +239,10 @@ namespace Diva.Show
             for (int i = feed.Count - 1; i >= 0; i--)
             {
                 var (t, plate, born) = feed[i];
-                float age = Time.unscaledTime - born;
+                float age = DivaClock.Time - born;
                 if (age > 5 || !plate) { if (plate) Destroy(plate.gameObject); feed.RemoveAt(i); continue; }
                 var rt = plate.rectTransform;
-                rt.anchoredPosition = Vector2.Lerp(rt.anchoredPosition, new Vector2(-30, -110 - 52 * i), 1 - Mathf.Exp(-Time.unscaledDeltaTime * 12));
+                rt.anchoredPosition = Vector2.Lerp(rt.anchoredPosition, new Vector2(-30, -110 - 52 * i), 1 - Mathf.Exp(-DivaClock.DeltaTime * 12));
                 float a = Mathf.Clamp01(age / .15f) * (1 - DivaUi.Smooth((age - 4.4f) / .6f));
                 plate.color = DivaUi.WithAlpha(plate.color, .7f * a); t.alpha = a;
                 rt.localScale = new Vector3(Mathf.Lerp(.6f, 1, DivaUi.EaseOut(age / .2f)), 1, 1);
@@ -255,7 +255,7 @@ namespace Diva.Show
             var t = DivaUi.Text(hudRoot, "Popup", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 80), 60, color);
             t.text = text;
             DivaUi.Glow(t, new Color(0, 0, 0, .6f), .4f, .2f, .15f);
-            popups.Add((t, world, Time.unscaledTime));
+            popups.Add((t, world, DivaClock.Time));
         }
 
         void UpdatePopups()
@@ -263,7 +263,7 @@ namespace Diva.Show
             for (int i = popups.Count - 1; i >= 0; i--)
             {
                 var (t, world, born) = popups[i];
-                float age = Time.unscaledTime - born;
+                float age = DivaClock.Time - born;
                 if (age > 1.1f || !t) { if (t) Destroy(t.gameObject); popups.RemoveAt(i); continue; }
                 if (ScreenPoint(world, out var p))
                 {
@@ -297,11 +297,24 @@ namespace Diva.Show
                 pipImage.texture = pipTexture;
             }
             pipShot = shot;
-            pipUntil = Time.unscaledTime + seconds;
+            pipUntil = DivaClock.Time + seconds;
             pipLabel.text = label;
             DivaUi.Glow(pipLabel, DivaUi.WithAlpha(Accent, .9f), .6f, .3f, .1f);
             pipFrame.stripe = Accent;
             SetPip(true);
+        }
+
+        // 特写镜头被路边道具挡住时：先换到另一边，再试升高，最后才拉近
+        Vector3 PipUnblocked(Vector3 look, Vector3 from, Vector3 right)
+        {
+            float d = Vector3.Distance(look, from);
+            bool Clear(Vector3 p) => ClearDistance(look, p, .25f) >= Vector3.Distance(look, p) - .01f;
+            if (Clear(from)) return from;
+            var mirrored = look + Vector3.Reflect(from - look, right.normalized);
+            if (Clear(mirrored)) return mirrored;
+            foreach (var p in new[] { from + Vector3.up * 1.5f, mirrored + Vector3.up * 1.5f })
+                if (Clear(p)) return p;
+            return look + (from - look) / d * Mathf.Max(1.2f, ClearDistance(look, from, .25f));
         }
 
         void SetPip(bool on)
@@ -313,10 +326,10 @@ namespace Diva.Show
         void UpdatePip()
         {
             if (!pipCamera || !pipCamera.enabled) return;
-            if (Time.unscaledTime > pipUntil || Phase != ShowPhase.Play) { SetPip(false); return; }
-            float age = pipUntil - Time.unscaledTime;
+            if (DivaClock.Time > pipUntil || Phase != ShowPhase.Play) { SetPip(false); return; }
+            float age = pipUntil - DivaClock.Time;
             var rt = pipImage.rectTransform;
-            float slide = DivaUi.EaseOut((Time.unscaledTime - (pipUntil - 1.6f)) / .2f);
+            float slide = DivaUi.EaseOut((DivaClock.Time - (pipUntil - 1.6f)) / .2f);
             rt.anchoredPosition = new Vector2(Mathf.Lerp(500, -45, slide), -150);
             pipFrame.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(500, -30, slide), -150);
             pipLabel.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(500, -60, slide), 0);
@@ -336,6 +349,7 @@ namespace Diva.Show
                     look = Vector3.Lerp(look, ElephantCenter + fwd * 1.5f, .35f); break;
             }
             from += right * Mathf.Sin(age * .8f) * .4f;
+            from = PipUnblocked(look, from, right);
             pipCamera.transform.SetPositionAndRotation(from, Quaternion.LookRotation(look - from, Vector3.up));
         }
     }
