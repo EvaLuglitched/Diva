@@ -1,0 +1,28 @@
+{
+    "name": "Diva.VR.VisionOSBuild",
+    "rootNamespace": "Diva.VR.EditorTools",
+    "references": [
+        "Unity.XR.Management",
+        "Unity.XR.Management.Editor",
+        "Unity.XR.VisionOS.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "DIVA_VISIONOS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.xr.visionos",
+            "expression": "3.0.0",
+            "define": "DIVA_VISIONOS"
+        }
+    ],
+    "noEngineReferences": false
+}

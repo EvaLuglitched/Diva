@@ -29,6 +29,9 @@ namespace Diva.VR
         Camera cam;
         float yaw;
         bool placed, recentered;
+        DivaVRHands hands;
+        TextMesh stats;
+        float statsTime; int statsFrames;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -78,7 +81,12 @@ namespace Diva.VR
             DivaVR.HudAnchor = hud;
             DivaVR.HudWidth = hudWidth;
             if (DivaVR.Simulated) gameObject.AddComponent<DivaVRSimulator>();
-            else if (cam) AddTrackedPoseDriver(cam.gameObject);
+            else
+            {
+                if (cam) AddTrackedPoseDriver(cam.gameObject);
+                hands = gameObject.AddComponent<DivaVRHands>();
+            }
+            BuildStats(hud);
             gameObject.AddComponent<DivaVRInput>();
         }
 
@@ -88,6 +96,10 @@ namespace Diva.VR
             var driver = go.AddComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
             driver.trackingType = UnityEngine.InputSystem.XR.TrackedPoseDriver.TrackingType.RotationAndPosition;
             driver.updateType = UnityEngine.InputSystem.XR.TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
+            // 运行时加的组件没有默认绑定（编辑器里加才有），要自己指定头显的位置和朝向
+            driver.positionInput = new UnityEngine.InputSystem.InputActionProperty(new UnityEngine.InputSystem.InputAction("Head Position", binding: "<XRHMD>/centerEyePosition"));
+            driver.rotationInput = new UnityEngine.InputSystem.InputActionProperty(new UnityEngine.InputSystem.InputAction("Head Rotation", binding: "<XRHMD>/centerEyeRotation"));
+            driver.trackingStateInput = new UnityEngine.InputSystem.InputActionProperty(new UnityEngine.InputSystem.InputAction("Head Tracking State", binding: "<XRHMD>/trackingState"));
         }
 
         void Start()
@@ -155,6 +167,28 @@ namespace Diva.VR
             var rot = Quaternion.Euler(0, yaw, 0);
             transform.SetPositionAndRotation(root.TransformPoint(seat), rot);
             if (!recentered) Recenter();
+            UpdateStats();
+        }
+
+        // 仪表盘左下角的小字：帧率和手部追踪状态（调性能用，之后可以关）
+        void BuildStats(Transform hud)
+        {
+            var go = new GameObject("VR Stats", typeof(TextMesh));
+            go.transform.SetParent(hud, false);
+            go.transform.localPosition = new Vector3(-hudWidth * .5f, -.36f, -.01f);
+            stats = go.GetComponent<TextMesh>();
+            stats.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            go.GetComponent<MeshRenderer>().sharedMaterial = stats.font.material;
+            stats.fontSize = 48; stats.characterSize = .006f; stats.anchor = TextAnchor.UpperLeft; stats.color = new Color(1, 1, 1, .7f);
+        }
+
+        void UpdateStats()
+        {
+            if (!stats) return;
+            statsFrames++; statsTime += Time.unscaledDeltaTime;
+            if (statsTime < .5f) return;
+            stats.text = $"{statsFrames / statsTime:0} fps" + (DivaVR.Simulated ? "  simulator" : hands && hands.Tracking ? "  hands ok" : "  no hands");
+            statsFrames = 0; statsTime = 0;
         }
 
         /// <summary>把头对到眼睛的位置：头显里人的头在哪儿都行（站着、坐着），都放到座位上方 eyeHeight 处。</summary>
@@ -168,6 +202,7 @@ namespace Diva.VR
             var p = turn * head;
             offset.localRotation = turn;
             offset.localPosition = new Vector3(-p.x, eyeHeight - head.y, -p.z);
+            if (hands) hands.SetNeutral(head);
             recentered = true;
         }
     }

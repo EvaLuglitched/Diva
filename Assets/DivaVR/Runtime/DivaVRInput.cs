@@ -11,7 +11,7 @@ namespace Diva.VR
     }
 
     /// <summary>
-    /// 把 VR 的操作交给游戏。来源：Vision Pro 的手部追踪（M2 再接），电脑上是模拟器（键盘鼠标）。
+    /// 把 VR 的操作交给游戏。来源：Vision Pro 的手部追踪和头的位置（DivaVRHands），电脑上是模拟器（键盘鼠标）。
     /// 瞄准用"看哪儿打哪儿"：头的水平朝向相对大象正前方的角度，换算成象鼻水炮的瞄准量。
     /// </summary>
     [DefaultExecutionOrder(-50)]   // 在 DigiPhantController（0）调用 DivaDemo.UpdateInputs 之前
@@ -20,6 +20,7 @@ namespace Diva.VR
         DivaDemo demo;
         DigiPhantLocomotion loco;
         DivaVRSimulator simulator;
+        DivaVRHands hands;
 
         /// <summary>这一帧最终交给游戏的操作（给测试和调试看）。</summary>
         public DivaVRFrame Current { get; private set; }
@@ -29,13 +30,16 @@ namespace Diva.VR
             demo = FindAnyObjectByType<DivaDemo>();
             loco = FindAnyObjectByType<DigiPhantLocomotion>();
             simulator = GetComponent<DivaVRSimulator>();
+            hands = GetComponent<DivaVRHands>();
         }
 
         void Update()
         {
             if (!demo) return;
-            var frame = simulator ? simulator.Read() : default;
-            frame.aim = LookAim();
+            var head = DivaVR.Head;
+            var frame = simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
+            // 只有"捏"的时候才用看的方向瞄准：选涂装时随便转头看不会切换涂装，捏住再看左 / 右才切
+            frame.aim = frame.shoot ? LookAim() : 0;
             Current = frame;
             demo.State.ClearPeople();
             demo.State.Accept(1, frame.go, frame.steer, frame.aim, frame.shoot, frame.drink, 1, Time.realtimeSinceStartup, frame.ult);
