@@ -27,20 +27,16 @@ Console 里会有 "Missing Prefab" 提示，这是正常的。装好后就会显
    unzip -o ~/Downloads/Diva_Fab_Assets.zip -d Assets/DivaGame/ThirdParty/
    ```
    不要用会多套一层文件夹的方式解压（例如得到 `Fab/Fab/...` 或 `Fab 2/`）。
-3. **`.meta` 文件必须一起放进去，不能删、不能让 Unity 重新生成。** 场景靠这些 GUID 找到模型。核对：
+3. **`.meta` 文件必须一起放进去，不能删、不能让 Unity 重新生成。** 场景靠这些 GUID 找到模型。逐个核对：
    ```sh
-   grep -h "^guid:" "Assets/DivaGame/ThirdParty/Fab/StylizedRocket/Stylized Rocket.fbx.meta" \
-     Assets/DivaGame/ThirdParty/Fab/StylizedClouds07/stylized_clouds_pack_vol_07.fbx.meta \
-     Assets/DivaGame/ThirdParty/Fab/StylizedRocket/rocket_candy_albedo.png.meta \
-     Assets/DivaGame/ThirdParty/Fab/StylizedRocket/rocket_candy_emission.png.meta
+   cd Assets/DivaGame/ThirdParty/Fab
+   grep -m1 "^guid:" "StylizedRocket/Stylized Rocket.fbx.meta"                 # dbfbb29fe97eb4bca93b74bed0e0c7ef
+   grep -m1 "^guid:" StylizedClouds07/stylized_clouds_pack_vol_07.fbx.meta     # cc75c1e56200b4d7ea355acf99eb339f
+   grep -m1 "^guid:" StylizedRocket/rocket_candy_albedo.png.meta               # 796d4242f4efc4e35ab7d2710453e08a
+   grep -m1 "^guid:" StylizedRocket/rocket_candy_emission.png.meta             # c897385afc4d64c6a9e44fb2f72e3047
+   cd -
    ```
-   应依次输出：
-   ```
-   guid: dbfbb29fe97eb4bca93b74bed0e0c7ef
-   guid: cc75c1e56200b4d7ea355acf99eb339f
-   guid: 796d4242f4efc4e35ab7d2710453e08a
-   guid: c897385afc4d64c6a9e44fb2f72e3047
-   ```
+   每行输出的 guid 应与该行末尾注释里的值相同。
    如果不一致，说明文件放错了或 `.meta` 被重新生成了，重新解压，不要继续。
 4. 打开（或重新打开）Unity 项目和 **`Assets/DigiPhant/Scenes/Diva.unity`**。如果 Unity 在解压前已经开着，
    先 **Assets > Refresh**，再重新打开 Diva 场景。此时天上应该是 Fab 火箭（粉色鼻锥、糖果配色）和
