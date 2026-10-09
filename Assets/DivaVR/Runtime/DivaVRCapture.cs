@@ -76,7 +76,10 @@ namespace Diva.VR
         void OnDestroy() { DivaShowDirector.PhaseChanged -= OnPhase; if (rt) rt.Release(); }
 
         void OnPhase(ShowPhase p) => Queue(p.ToString(), 1.2f);
-        void Queue(string name, float delay) { shotName = name; shotAt = Time.unscaledTime + delay; }
+        /// <summary>过 delay 秒拍一张（传送门开场在关键时刻要拍）。</summary>
+        public void Queue(string name, float delay) { shotName = name; shotAt = Time.unscaledTime + delay; }
+
+        static readonly int RoomPreview = Shader.PropertyToID("_DivaRoomPreview");
 
         void LateUpdate()
         {
@@ -88,7 +91,11 @@ namespace Diva.VR
         {
             if (!DivaVR.Head) return;
             cam.transform.SetPositionAndRotation(DivaVR.Head.position, DivaVR.Head.rotation);
+            // 截图里没有透视：开场时真实房间的地方画成带网格的灰色
+            var room = Shader.GetGlobalVector(RoomPreview);
+            Shader.SetGlobalVector(RoomPreview, new Vector4(.15f, .16f, .2f, 0));
             cam.Render();
+            Shader.SetGlobalVector(RoomPreview, room);
             var prev = RenderTexture.active; RenderTexture.active = rt;
             read.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); read.Apply();
             RenderTexture.active = prev;

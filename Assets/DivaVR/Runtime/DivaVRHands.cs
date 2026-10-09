@@ -65,6 +65,20 @@ namespace Diva.VR
 
         public bool Tracking => hands != null && hands.running && (hands.leftHand.isTracked || hands.rightHand.isTracked);
 
+        /// <summary>现在举过头顶的手有几只（0–2），给"双手举高"的提示用。</summary>
+        public int HandsUp { get; private set; }
+        /// <summary>双手举高保持了多久（0–1，1 = 够了）。</summary>
+        public float UltProgress => ultSince < 0 ? 0 : Mathf.Clamp01((Time.unscaledTime - ultSince) / Mathf.Max(.01f, ultHold));
+
+        /// <summary>追踪到的食指尖（世界空间）。space：追踪空间（摄像机的父节点）。</summary>
+        public void Fingertips(Transform space, List<Vector3> tips)
+        {
+            tips.Clear();
+            if (hands == null || !hands.running || !space) return;
+            foreach (var hand in new[] { hands.leftHand, hands.rightHand })
+                if (hand.isTracked && hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var pose)) tips.Add(space.TransformPoint(pose.position));
+        }
+
         /// <summary>记下坐好时头的位置（追踪空间），之后的前倾和左右倾都相对它算。</summary>
         public void SetNeutral(Vector3 headLocal) { neutral = headLocal; hasNeutral = true; }
 
@@ -102,6 +116,7 @@ namespace Diva.VR
                 if (hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out var wrist) && space.TransformPoint(wrist.position).y > head.position.y + ultAbove) up++;
             }
             if (f.drink) f.shoot = false;   // 手在嘴边捏合不算喷水
+            HandsUp = up;
             if (up == 2) { if (ultSince < 0) ultSince = Time.unscaledTime; }
             else ultSince = -1;
             f.ult = ultSince >= 0 && Time.unscaledTime - ultSince >= ultHold;

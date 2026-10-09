@@ -16,6 +16,9 @@ namespace Diva.VR
         /// <summary>模拟的头朝向（度）。后台测试可以直接设。</summary>
         public float yaw, pitch;
 
+        /// <summary>U 键按着时算两只手都举高了（给"双手举高"的提示用）。</summary>
+        public int HandsUp => Read().ult ? 2 : 0;
+
         /// <summary>后台测试用：不读键盘，直接用这一帧。</summary>
         [System.NonSerialized] public bool scripted;
         [System.NonSerialized] public DivaVRFrame scriptedFrame;

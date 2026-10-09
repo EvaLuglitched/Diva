@@ -38,6 +38,13 @@ namespace Diva.VR
         float nextPoseLog, startTime;
         DivaVRHeadPose headPose;
 
+        /// <summary>传送门开场时人站在自己的房间里，驾驶舱不跟着座位走（由 DivaVRPortal 摆放）。</summary>
+        public bool Detached { get; private set; }
+        public Camera Cam => cam;
+        public DivaVRHands Hands => hands;
+        /// <summary>头显已经给出有效的头部位置了吗（模拟器里一直是）。</summary>
+        public bool PoseReady => DivaVR.Simulated || !headPose || headPose.Valid || Time.unscaledTime - startTime > 2;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
@@ -110,6 +117,8 @@ namespace Diva.VR
             if (!DivaVR.Simulated) HeadsetGraphics();
             if (DivaVRAutopilot.On) gameObject.AddComponent<DivaVRAutopilot>();
             if (DivaVRCapture.Requested) gameObject.AddComponent<DivaVRCapture>();
+            // 每次打开 app 先演一次传送门开场：站在自己的房间里，糖果镇从门里过来
+            if (!DivaVR.ArrivalDone) gameObject.AddComponent<DivaVRPortal>();
             gameObject.AddComponent<DivaVRInput>();
         }
 
@@ -126,6 +135,9 @@ namespace Diva.VR
                 urp.shadowDistance = Mathf.Min(urp.shadowDistance, 35);
                 // 阴影：2 级级联够用（双眼要画两遍），点光 / 聚光的阴影关掉（主光的保留）
                 urp.shadowCascadeCount = Mathf.Min(urp.shadowCascadeCount, 2);
+                // 传送门开场要露出真实房间（Mixed 沉浸）：后期处理要保留透明通道，否则整屏都是不透明的
+                typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset).GetField("m_AllowPostProcessAlphaOutput",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(urp, true);
                 typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset).GetProperty("supportsAdditionalLightShadows")?
                     .SetValue(urp, false);
                 var renderer = urp.GetRenderer(0);
@@ -139,9 +151,9 @@ namespace Diva.VR
 
         void Start()
         {
+            startTime = Time.unscaledTime;
             if (!loco || !loco.travelRoot) { Debug.LogWarning("DIVA_VR: no elephant (DigiPhantLocomotion.travelRoot); the rig stays put."); return; }
             root = loco.travelRoot;
-            startTime = Time.unscaledTime;
             if (seat == Vector3.zero) seat = MeasureSeat();
             yaw = root.eulerAngles.y;
             Debug.Log($"DIVA_VR rig on: seat {seat} eye {eyeHeight} simulated {DivaVR.Simulated}");
@@ -204,6 +216,7 @@ namespace Diva.VR
         void LateUpdate()
         {
             if (!root) return;
+            if (Detached) { UpdateStats(); return; }
             // 水平朝向：慢慢跟上大象，最快 maxYawSpeed
             float target = root.eulerAngles.y;
             float dt = Time.unscaledDeltaTime;
@@ -240,6 +253,33 @@ namespace Diva.VR
             if (statsTime < .5f) return;
             stats.text = $"{statsFrames / statsTime:0} fps" + (DivaVR.Simulated ? "  simulator" : hands && hands.Tracking ? "  hands ok" : "  no hands");
             statsFrames = 0; statsTime = 0;
+        }
+
+        /// <summary>
+        /// 站在房间里（传送门开场）：驾驶舱放在 floor（房间地面上人站的点），人现在面朝的方向转成 facing。
+        /// 头显的追踪原点在地面时头的高度就是真实身高；原点在头上时（读数接近 0）按 1.6 米算。
+        /// </summary>
+        public void Stand(Vector3 floor, Quaternion facing)
+        {
+            Detached = true;
+            transform.SetPositionAndRotation(floor, facing);
+            if (!cam) return;
+            var head = cam.transform.localPosition;
+            var turn = Quaternion.Euler(0, DivaVR.Simulated ? 0 : -cam.transform.localEulerAngles.y, 0);
+            var p = turn * head;
+            offset.localRotation = turn;
+            offset.localPosition = new Vector3(-p.x, head.y < .8f ? 1.6f - head.y : 0, -p.z);
+        }
+
+        /// <summary>人站着时眼睛离房间地面多高（米）。</summary>
+        public float StandingEyeHeight => cam ? cam.transform.localPosition.y + offset.localPosition.y : 1.6f;
+
+        /// <summary>上机甲：回到大象背上的座位，按现在的头重新对准（这一帧的 LateUpdate 里就到位）。</summary>
+        public void Board()
+        {
+            Detached = false;
+            placed = false;
+            recentered = false;
         }
 
         /// <summary>把头对到眼睛的位置：头显里人的头在哪儿都行（站着、坐着），都放到座位上方 eyeHeight 处。</summary>

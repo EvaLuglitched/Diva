@@ -33,10 +33,12 @@ namespace Diva.VR
         public static Transform DashAnchor { get; internal set; }
         /// <summary>仪表盘面板宽多少米。</summary>
         public static float HudWidth { get; internal set; } = 1.6f;
+        /// <summary>传送门开场（DivaVRPortal）走完了吗。每次打开 app 只演一次；没走完时 Diva Show 停在开场阶段。</summary>
+        public static bool ArrivalDone { get; internal set; }
 
         // 项目关了 domain reload，静态值会跨 Play 保留，进 Play 时清掉
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { active = null; Simulated = false; Rig = Head = HudAnchor = MomentsAnchor = DashAnchor = null; }
+        static void ResetStatics() { active = null; Simulated = false; ArrivalDone = false; Rig = Head = HudAnchor = MomentsAnchor = DashAnchor = null; }
 
         static bool Detect()
         {

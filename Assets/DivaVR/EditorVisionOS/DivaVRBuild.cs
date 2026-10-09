@@ -11,7 +11,8 @@ using UnityEngine.XR.Management;
 namespace Diva.VR.EditorTools
 {
     /// <summary>
-    /// 一键打包到 Vision Pro：Metal 完全沉浸（VR），手部追踪，可以看到自己的真手，生成 Xcode 工程到 Builds/visionOS。
+    /// 一键打包到 Vision Pro：Metal 渲染、Mixed 沉浸（开场传送门要透出真实房间，之后整个镇子画满不透明，和完全沉浸一样），
+    /// 手部追踪，可以看到自己的真手，生成 Xcode 工程到 Builds/visionOS。
     /// 只在装了 Apple visionOS XR Plugin 的电脑上编译（需要 Pro / 学生授权；Personal 授权的电脑上这个插件会被卸载）。
     /// 装机：在 Xcode 里打开 Builds/visionOS 按运行。主屏幕上的名字要在 Unity 外面改（Unity 进程占着 Info.plist，在里面写会把它清空）：
     /// plutil -replace CFBundleDisplayName -string "Diva VR" Builds/visionOS/Info.plist
@@ -93,11 +94,12 @@ namespace Diva.VR.EditorTools
 
             var vos = VisionOSSettings.currentSettings;
             vos.appMode = VisionOSSettings.AppMode.Metal;
-            vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Full;
+            // Mixed：画面透明的地方露出真实房间（传送门开场的房间就是靠这个）；镇子和天空是不透明的，开场之后看不到房间
+            vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Mixed;
             vos.upperLimbVisibility = VisionOSSettings.Visibility.Visible;
             vos.foveatedRendering = true;
             vos.handsTrackingUsageDescription = "Diva uses your hands to pilot the mech elephant: pinch to spray, hands up for the ultimate.";
-            vos.worldSensingUsageDescription = "Diva uses your surroundings to keep the cockpit steady.";
+            vos.worldSensingUsageDescription = "Diva opens a portal in your room and keeps the cockpit steady.";
             EditorUtility.SetDirty(vos);
 
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.VisionOS, "com.jchen60.divavr");

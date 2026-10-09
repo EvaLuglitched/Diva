@@ -57,7 +57,60 @@ namespace Diva.Show
                 if (t > .56f) { float u = t - .56f; s += (Mathf.Sin(2 * Mathf.PI * 659 * u) + Mathf.Sin(2 * Mathf.PI * 784 * u)) * .1f * Env(u, .02f, .7f); }
                 return s;
             });
+            // VR 传送门开场：门的嗡鸣（4 秒无缝循环：每个频率在 4 秒里都是整数个周期）、大象长鸣、上机甲的上升音
+            Make("portal", 4f, t =>
+            {
+                float pad = Mathf.Sin(2 * Mathf.PI * 110 * t) * .3f + Mathf.Sin(2 * Mathf.PI * 164.75f * t) * .2f + Mathf.Sin(2 * Mathf.PI * 220.5f * t) * .16f;
+                float shimmer = Mathf.Sin(2 * Mathf.PI * 880 * t) * (.5f + .5f * Mathf.Sin(2 * Mathf.PI * .5f * t)) * .05f +
+                                Mathf.Sin(2 * Mathf.PI * 1320.25f * t) * (.5f + .5f * Mathf.Sin(2 * Mathf.PI * .75f * t)) * .035f;
+                return (pad * (.85f + .15f * Mathf.Sin(2 * Mathf.PI * .25f * t)) + shimmer) * .55f;
+            });
+            {
+                // 锯齿波过两个共振峰（像铜管），音高先往上滑再带颤音，最后往下落；加一点气声
+                var formantA = new Resonance(820, 5); var formantB = new Resonance(1900, 7); var breath = new Resonance(2600, 2);
+                double phase = 0;
+                Make("trumpet", 1.6f, t =>
+                {
+                    float pitch = 230 + 190 * Mathf.SmoothStep(0, 1, t / .22f) - 70 * Mathf.SmoothStep(0, 1, (t - 1.05f) / .45f)
+                                  + Mathf.Sin(2 * Mathf.PI * 5.5f * t) * 10 * Mathf.Clamp01((t - .3f) * 3);
+                    phase += pitch / Rate;
+                    float saw = (float)(phase - Math.Floor(phase)) * 2 - 1;
+                    float brass = formantA.Step(saw) * 1.1f + formantB.Step(saw) * .7f + saw * .08f;
+                    float air = breath.Step(Noise()) * .35f;
+                    float env = Mathf.Clamp01(t / .06f) * Mathf.Clamp01((1.6f - t) / .35f);
+                    return (float)Math.Tanh((brass + air) * 1.8f) * .5f * env;
+                });
+            }
+            Make("rise", 1.3f, t =>
+            {
+                float u = t / 1.3f;
+                float f = 180 * Mathf.Pow(10, u);   // 180 → 1800 Hz
+                return (Mathf.Sin(2 * Mathf.PI * Phase("rise", f)) * .22f + Mathf.Sin(2 * Mathf.PI * Phase("rise2", f * 1.5f)) * .1f + Noise() * .08f * u)
+                       * Mathf.Clamp01(t * 8) * Mathf.Clamp01((1.3f - t) * 4);
+            });
         }
+
+        /// <summary>二阶带通（共振峰），合成音色用。</summary>
+        class Resonance
+        {
+            readonly float b0, a1, a2;
+            float y1, y2;
+            public Resonance(float freq, float q)
+            {
+                float w = 2 * Mathf.PI * freq / Rate, alpha = Mathf.Sin(w) / (2 * q), a0 = 1 + alpha;
+                b0 = alpha / a0; a1 = -2 * Mathf.Cos(w) / a0; a2 = (1 - alpha) / a0;
+            }
+            float x1, x2;
+            public float Step(float x)
+            {
+                float y = b0 * x - b0 * x2 - a1 * y1 - a2 * y2;
+                x2 = x1; x1 = x; y2 = y1; y1 = y;
+                return y;
+            }
+        }
+
+        /// <summary>合成好的音效（VR 开场要放在 3D 声源上循环）。</summary>
+        public AudioClip Clip(string name) => clips.TryGetValue(name, out var clip) ? clip : null;
 
         readonly Dictionary<string, double> phases = new Dictionary<string, double>();
         float Phase(string key, float freq)

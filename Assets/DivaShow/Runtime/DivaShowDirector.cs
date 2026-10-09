@@ -519,6 +519,8 @@ namespace Diva.Show
 
         void UpdateIntro()
         {
+            // VR：先演传送门开场（人站在自己的房间里，大象从门里过来，举手上机甲），演完才进选涂装
+            if (DivaVR.Active && !DivaVR.ArrivalDone) return;
             bool playing = introDirector && introDirector.playableAsset && introDirector.state == PlayState.Playing && PhaseTime < 120;
             if (playing && !skipEdge && !ultEdge) return;
             if (introDirector && introDirector.state == PlayState.Playing) introDirector.Stop();
