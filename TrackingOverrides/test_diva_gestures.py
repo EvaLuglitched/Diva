@@ -109,4 +109,37 @@ class GestureTests(unittest.TestCase):
         hands=[hand(b[15]),hand(b[16])];b[13]['visibility']=.1
         self.assertFalse(d.update(3,b,.1,hands)['shoot'])
 
+    def test_steering_hysteresis_keeps_turning_until_hands_return(self):
+        d=DivaGestureDetector()
+        self.assertLess(d.update(2,body(lean=.2,handshift=.7),0)['steer'],0)
+        # Smaller offset, no lean: too little to start a turn, enough to keep one going.
+        self.assertLess(d.update(2,body(handshift=.1),.1)['steer'],0)
+        self.assertEqual(DivaGestureDetector().update(2,body(handshift=.1),0)['steer'],0)
+        # Hands back in the middle: stop at once.
+        self.assertEqual(d.update(2,body(handshift=.02),.2)['steer'],0)
+    def test_steering_rides_through_a_brief_tracking_blip(self):
+        d=DivaGestureDetector()
+        turning=d.update(2,body(lean=.2,handshift=.7),0)['steer']
+        b=body(lean=.2,handshift=.7)
+        for i in [23,24]: b[i]['visibility']=b[i]['presence']=.1
+        self.assertEqual(d.update(2,b,.15)['steer'],turning)
+        self.assertEqual(d.update(2,b,.4)['steer'],0)
+    def test_aim_while_spraying_by_pushing_both_hands_sideways(self):
+        d=DivaGestureDetector()
+        for t,shift,sign in [(0,.25,-1),(.1,-.25,1),(.2,0.,0)]:
+            b=body(height=.05,separate=1.,handshift=shift)
+            for i in [15,16]: b[i]['z']=-.3
+            g=d.update(3,b,t,[hand(b[15]),hand(b[16])])
+            self.assertTrue(g['shoot'])
+            if sign==0: self.assertEqual(g['aim'],0)
+            else: self.assertEqual(math.copysign(1,g['aim']),sign)
+    def test_drink_uses_remembered_mouth_when_hands_hide_the_face(self):
+        d=DivaGestureDetector()
+        d.update(3,body(),0)
+        b=body(height=.26,separate=.5)
+        for i in [0,9,10]: b[i]['visibility']=b[i]['presence']=0.
+        hands=[hand(b[15],False),hand(b[16],False)]
+        self.assertTrue(d.update(3,b,1.,hands)['drink'])
+        self.assertFalse(d.update(3,b,4.5,hands)['drink'])
+
 if __name__=='__main__':unittest.main()

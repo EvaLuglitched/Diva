@@ -18,7 +18,14 @@ DEFAULTS = dict(min_quality=.30, go_window=.65, go_range=.16,
                 shoot_forward_z=.20, shoot_elbow_angle=140.,
                 drink_min_height=-.03, drink_max_height=.65,
                 drink_separation=1.45, drink_mouth_distance=.38,
-                drink_below_mouth=.22, steer_opposing_lean=.12)
+                drink_below_mouth=.22, steer_opposing_lean=.12,
+                # Steering hysteresis: once turning, keep turning while the hands stay offset by the
+                # smaller release distance, and ride through tracking blips up to steer_hold seconds.
+                steer_release_offset=.07, steer_hold=.25,
+                # Aim while spraying: both hands pushed toward one side (shooting keeps hands below aim_height).
+                shoot_aim_full_offset=.35, shoot_aim_deadzone=.06,
+                # Hands in front of the face hide the mouth landmarks; reuse its last seen place for a while.
+                mouth_memory=3.)
 
 def val(point,name,default=0.):
     return point.get(name,default) if isinstance(point,dict) else getattr(point,name,default)
@@ -80,16 +87,18 @@ class DivaGestureDetector:
         if config_path and Path(config_path).exists():
             self.config.update(json.loads(Path(config_path).read_text(encoding='utf-8')))
         self.history={}; self.last_motion={}; self.neutral={}; self.latest_geometry={}
+        self.steering={}; self.mouth={}
     def calibrate(self):
         """Capture the last valid upright stance; camera must be unmirrored."""
         self.neutral={slot:dict(g) for slot,g in self.latest_geometry.items()}
-        self.history.clear();self.last_motion.clear()
+        self.history.clear();self.last_motion.clear();self.steering.clear()
     def reset(self,slot=None,preserve_neutral=False):
         if slot is None:
             self.history.clear();self.last_motion.clear();self.neutral.clear();self.latest_geometry.clear()
+            self.steering.clear();self.mouth.clear()
         else:
-            self.history.pop(slot,None);self.last_motion.pop(slot,None)
-            if not preserve_neutral:self.neutral.pop(slot,None)
+            self.history.pop(slot,None);self.last_motion.pop(slot,None);self.steering.pop(slot,None)
+            if not preserve_neutral:self.neutral.pop(slot,None);self.mouth.pop(slot,None)
             self.latest_geometry.pop(slot,None)
     def retain(self,slots):
         for slot in list(self.history):
@@ -136,17 +145,23 @@ class DivaGestureDetector:
         neutral=self.neutral.get(slot,{})
         hand_offset-=neutral.get('hand_offset',0.)
         lean-=neutral.get('lean',0.)
-        if (torso_quality>=cfg['min_quality'] and sep<cfg['steer_joint_distance'] and abs(hand_offset)>cfg['steer_hand_offset']
-                and abs(lean+hand_offset*.5)>.08 and max(heights)<.4
-                and not(abs(lean)>cfg['steer_opposing_lean'] and lean*hand_offset<0)):
-            out['steer']=cfg['steer_direction']*max(-1.,min(1.,hand_offset/cfg['steer_full_offset']))
+        steer_pose=(torso_quality>=cfg['min_quality'] and sep<cfg['steer_joint_distance'] and max(heights)<.4
+                    and not(abs(lean)>cfg['steer_opposing_lean'] and lean*hand_offset<0))
+        steer_value=cfg['steer_direction']*max(-1.,min(1.,hand_offset/cfg['steer_full_offset']))
+        previous=self.steering.get(slot)  # (steer value, time it was last produced)
+        same_side=previous is not None and previous[0]*steer_value>0
+        if steer_pose and abs(hand_offset)>cfg['steer_hand_offset'] and abs(lean+hand_offset*.5)>.08:
+            out['steer']=steer_value                                     # start (or keep) turning
+        elif steer_pose and same_side and abs(hand_offset)>cfg['steer_release_offset']:
+            out['steer']=steer_value                                     # hysteresis: still leaning that way
+        elif previous is not None and not steer_pose and time-previous[1]<=cfg['steer_hold']:
+            out['steer']=previous[0]                                     # brief tracking blip: hold the turn
+        if out['steer']!=0 and (previous is None or out['steer']!=previous[0] or steer_pose):
+            self.steering[slot]=(out['steer'],time)
+        elif out['steer']==0:
+            self.steering.pop(slot,None)
         raised=[h>cfg['aim_height'] for h in heights]
         if raised[0]!=raised[1]:out['aim']=-1. if raised[0] else 1.
-        if not hands or len(hands)!=2:return out
-        if any(len(h['landmarks'])!=21 or any(not all(math.isfinite(c) for c in xyz(p)) for p in h['landmarks']) for h in hands):return out
-        counts=[open_fingers(scale_body(h['landmarks'],aspect),cfg) for h in hands]
-        near_face=(min(heights)>=cfg['drink_min_height'] and max(heights)<=cfg['drink_max_height']
-                   and sep<cfg['drink_separation'] and abs(hand_offset)<.65)
         # Face landmarks prevent closed fists held at chest/shoulder height from
         # becoming a drink gesture. Legacy recorded samples lack face joints,
         # so their replay uses an estimated mouth (flagged in evaluation notes).
@@ -155,8 +170,18 @@ class DivaGestureDetector:
             mouth=midpoint(b[9],b[10])
         elif quality(b[0])>=.5 and all(math.isfinite(c) for c in xyz(b[0])):
             mouth=(val(b[0],'x'),val(b[0],'y')+.15*torso,val(b[0],'z'))
+        if mouth is not None:
+            self.mouth[slot]=((mouth[0]-shoulder[0])/torso,(mouth[1]-shoulder[1])/torso,time)
+        elif slot in self.mouth and time-self.mouth[slot][2]<=cfg['mouth_memory']:
+            # Hands in front of the face hide it: use where the mouth was, relative to the shoulders.
+            ox,oy,_=self.mouth[slot]; mouth=(shoulder[0]+ox*torso,shoulder[1]+oy*torso,shoulder[2])
         elif allow_estimated_mouth:
             mouth=(shoulder[0],shoulder[1]-.30*torso,shoulder[2])
+        if not hands or len(hands)!=2:return out
+        if any(len(h['landmarks'])!=21 or any(not all(math.isfinite(c) for c in xyz(p)) for p in h['landmarks']) for h in hands):return out
+        counts=[open_fingers(scale_body(h['landmarks'],aspect),cfg) for h in hands]
+        near_face=(min(heights)>=cfg['drink_min_height'] and max(heights)<=cfg['drink_max_height']
+                   and sep<cfg['drink_separation'] and abs(hand_offset)<.65)
         hand_centers=[]
         for hand in hands:
             p=scale_body(hand['landmarks'],aspect)
@@ -173,4 +198,8 @@ class DivaGestureDetector:
                 extended.append(quality(b[elbow_i])>=cfg['min_quality'] and (forward>cfg['shoot_forward_z'] or angle(b[shoulder_i],b[elbow_i],b[wrist_i])>cfg['shoot_elbow_angle']))
             out['shoot']=(min(counts)>=3 and all(extended)
                           and min(heights)>=cfg['shoot_min_height'] and max(heights)<=cfg['shoot_max_height'])
+            # Raising one arm (aim) and spraying exclude each other, so while spraying the player aims
+            # by pushing both hands toward one side. Same sign convention as steering (negative = left).
+            if out['shoot'] and out['aim']==0 and abs(hand_offset)>cfg['shoot_aim_deadzone']:
+                out['aim']=cfg['steer_direction']*max(-1.,min(1.,hand_offset/cfg['shoot_aim_full_offset']))
         return out

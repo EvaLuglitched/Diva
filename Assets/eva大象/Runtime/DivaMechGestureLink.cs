@@ -26,6 +26,8 @@ namespace Diva
         public bool followGameAim = true;
         [Tooltip("Hide DivaDemo's blue placeholder droplets; their target hits still count.")]
         public bool hideDemoDroplets = true;
+        [Tooltip("When the Diva game layer's trunk laser is in the scene: arc the water onto the target it picks and hide its beam.")]
+        public bool waterShowsLaserShots = true;
 
         [Header("P3 drink -> bubble cannons")]
         public bool bubblesFromDrinking = true;
@@ -42,6 +44,9 @@ namespace Diva
         bool tunedJet;
         Quaternion restLocalRotation;
         float restJetSpeed;
+        MonoBehaviour laser;
+        MethodInfo findTarget;
+        float nextLaserSearch;
 
         /// <summary>True when a DivaDemo is present and running, so gestures drive the effects.</summary>
         public bool Linked => demo && demo.isActiveAndEnabled && state != null;
@@ -78,6 +83,40 @@ namespace Diva
             locomotion = demo.GetComponent<DigiPhant.DigiPhantLocomotion>();
         }
 
+        // Diva game layer's DivaLaserBlaster (found by name, so this package does not depend on the game layer).
+        void FindLaser()
+        {
+            if (laser || Time.unscaledTime < nextLaserSearch) return;
+            nextLaserSearch = Time.unscaledTime + 1;
+            foreach (var m in FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude))
+                if (m && m.GetType().Name == "DivaLaserBlaster") { laser = m; break; }
+            if (!laser) return;
+            findTarget = laser.GetType().GetMethod("FindTarget", new[] { typeof(float) });
+            var beam = laser.GetType().GetField("showBeam");
+            if (beam != null && waterGun && waterShowsLaserShots) beam.SetValue(laser, false);
+        }
+
+        // Point the jet so it lands on the laser's target (same speed and gravity as the water drops).
+        bool AimAtLaserTarget(float aimDegrees)
+        {
+            if (!waterShowsLaserShots) return false;
+            FindLaser();
+            if (!laser || findTarget == null) return false;
+            var target = findTarget.Invoke(laser, new object[] { aimDegrees }) as Component;
+            if (!target) return false;
+            var aimPoint = target.GetType().GetProperty("AimPoint")?.GetValue(target);
+            Vector3 to = aimPoint is Vector3 p ? p - waterGun.transform.position : target.transform.position - waterGun.transform.position;
+            Vector3 flat = new Vector3(to.x, 0, to.z);
+            float x = flat.magnitude, y = to.y, v = DemoSpeed, g = DemoGravity;
+            float disc = v * v * v * v - g * (g * x * x + 2 * y * v * v);
+            if (x < .01f || disc < 0) return false;
+            float angle = Mathf.Atan((v * v - Mathf.Sqrt(disc)) / (g * x));   // low arc
+            Vector3 vel = flat.normalized * (v * Mathf.Cos(angle)) + Vector3.up * (v * Mathf.Sin(angle));
+            waterGun.transform.rotation = Quaternion.LookRotation(vel.normalized, Vector3.up);
+            waterGun.jetSpeed = v;
+            return true;
+        }
+
         bool ReadBool(PropertyInfo p) => p != null && (bool)p.GetValue(state);
         float ReadFloat(PropertyInfo p) => p != null ? (float)p.GetValue(state) : 0;
 
@@ -111,6 +150,7 @@ namespace Diva
                 tunedJet = true;
             }
             float degrees = aimDegreesField != null ? (float)aimDegreesField.GetValue(demo) : 35;
+            if (AimAtLaserTarget(aim * degrees)) return;
             Vector3 origin = waterGun.transform.position;
             Vector3 dir = Quaternion.AngleAxis(aim * degrees, Vector3.up) * root.forward;
             float up = (root.position.y + 1.4f - origin.y) * 1.7f + .74f;

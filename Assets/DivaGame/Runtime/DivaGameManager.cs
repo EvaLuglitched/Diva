@@ -66,6 +66,13 @@ namespace Diva
         bool ControlActive(Func<string, bool> label) =>
             controller && controller.controls.Any(c => c.label != null && label(c.label) && Mathf.Abs(c.current) >= controlThreshold);
 
+        // In the Diva three-player mode the body controls are not driven (DivaDemo owns the input), so the
+        // tasks use its gestures instead: hands to mouth curls the trunk (eat / drink), pumping arms walks the legs.
+        DivaDemo diva;
+        bool DivaActive => (diva || controller && (diva = controller.GetComponent<DivaDemo>())) && diva.isActiveAndEnabled;
+        bool TrunkCurled => DivaActive ? diva.State.Drink : ControlActive(l => l.StartsWith("Trunk"));
+        bool LegsLifted => DivaActive ? diva.State.Forward > 0 : ControlActive(l => l.EndsWith(" leg"));
+
         void Update()
         {
             if (!elephant) return;
@@ -76,8 +83,8 @@ namespace Diva
             {
                 if (task.Done || !task.landmark || Flat(position - task.landmark.position).magnitude > task.radius) continue;
                 bool ok = task.check == TaskCheck.Reach
-                    || task.check == TaskCheck.LiftLegs && ControlActive(l => l.EndsWith(" leg"))
-                    || task.check == TaskCheck.CurlTrunk && ControlActive(l => l.StartsWith("Trunk"))
+                    || task.check == TaskCheck.LiftLegs && LegsLifted
+                    || task.check == TaskCheck.CurlTrunk && TrunkCurled
                     || !string.IsNullOrEmpty(task.action) && locomotion.CurrentAction.StartsWith("Action: " + task.action);
                 if (ok) task.doneAt = Time.time - startTime;
             }

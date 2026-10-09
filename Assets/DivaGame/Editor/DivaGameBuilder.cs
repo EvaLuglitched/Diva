@@ -25,7 +25,8 @@ using Kind = DivaTextures.Kind;
 public static class DivaGameBuilder
 {
     public const string RootName = "Diva Game Layer";
-    public const string TeamScene = "Assets/DigiPhant/Scenes/DigiPhant.unity";
+    // The playable scene: gestures (DivaDemo), the D.Va mech and this game layer live together in Diva.unity.
+    public const string TeamScene = "Assets/DigiPhant/Scenes/Diva.unity";
     const string Folder = "Assets/DivaGame";
     const string MaterialFolder = Folder + "/Materials";
     const string TownFolder = Folder + "/Models/Town";
