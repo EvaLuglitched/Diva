@@ -16,7 +16,7 @@ cyan/magenta light strips. Value still steps up from back to front, so the cours
 | Background | Two rows of pastel buildings: half-timbered townhouses, then taller lilac tech blocks with pink screens, plus clock towers; soft pink haze (fog 85–300 m) |
 | Middle | Lavender ring street, pink paving, icing-white kerbs, tech street lamps, poles with pink string lights, "WELCOME / DIVA SAFARI" banners, stone railing |
 | Course | Light grey blue-violet plaza; holo billboards, kiosks with benches, blossom planters, butter-yellow crates, candy-cane barriers in the same spots as before |
-| Foreground | Bright cream path with cyan neon edges and pink runway lights; arches with rainbow neon bands; classic red/white targets with orange neon halo rings and a point light each (it fades while a target is down), the strongest accent in the scene; a soft light on the elephant |
+| Foreground | Bright cream path with cyan neon edges that run parallel to both sides and meet in mitred corners (a glowing bead on each joint), candy gumdrops every 3 m and a lollipop outside every bend; a round candy start pad under the elephant (pink rim, cream disc, lilac centre, a slowly turning dashed neon ring, gumdrops and two lollipops); arches with rainbow neon bands; classic red/white targets with orange neon halo rings and a point light each (it fades while a target is down), the strongest accent in the scene; a soft light on the elephant |
 
 All colours live in the `Looks` table and `RecolourCourse` / `BuildLook` in `Editor/DivaGameBuilder.cs`;
 changing them and rebuilding never moves anything.

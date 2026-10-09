@@ -36,7 +36,8 @@ public static class DivaGameBuilder
     const float StreetInner = 32.4f, StreetOuter = 38.6f, BuildingFront = 41;
 
     static readonly Dictionary<string, Material> town = new Dictionary<string, Material>();
-    static Material beam, sky, pathLight, landingLight, cable, bulb, asphalt, sidewalk, curb, cloud, flameOuter, flameCore;
+    static Material beam, sky, pathLight, landingLight, candyStick, padPink, padCream, padLilac, cable, bulb, asphalt, sidewalk, curb, cloud, flameOuter, flameCore;
+    static Material[] candy;
     static DivaModelSlots slots;
 
     // ---------- Menus ----------
@@ -94,6 +95,7 @@ public static class DivaGameBuilder
         var gates = BuildGates(Group(root.transform, "Arches over the path"), layout);
         var targets = BuildTargets(Group(root.transform, "Targets"), layout, gates);
         BuildPathLights(Group(root.transform, "Path lights"), layout);
+        BuildStartPad(root.transform, layout);
         BuildSky(Group(root.transform, "Sky clouds"));
         BuildRocket(root.transform);
         RecolourCourse(course.transform);
@@ -413,25 +415,148 @@ public static class DivaGameBuilder
         return light;
     }
 
+    const float StartPadRadius = 3.3f;
+
+    /// <summary>
+    /// The route offset sideways by a distance, with mitred corners like the course's road mesh,
+    /// so lines on both edges follow the path and meet cleanly at every bend.
+    /// </summary>
+    static Vector3[] EdgeLine(Vector3[] route, float distance)
+    {
+        var line = new Vector3[route.Length];
+        for (int i = 0; i < route.Length; i++)
+        {
+            Vector3 incoming = i == 0 ? (route[1] - route[0]).normalized : (route[i] - route[i - 1]).normalized;
+            Vector3 outgoing = i == route.Length - 1 ? incoming : (route[i + 1] - route[i]).normalized;
+            Vector3 normal = Vector3.Cross(Vector3.up, outgoing);
+            Vector3 miter = (Vector3.Cross(Vector3.up, incoming) + normal).normalized;
+            line[i] = route[i] + miter * (distance / Vector3.Dot(miter, normal));
+        }
+        return line;
+    }
+
+    /// <summary>Cuts the start of a line where it leaves the start pad, so the pad stays a clean circle.</summary>
+    static Vector3 LeavePad(Vector3 a, Vector3 b, Vector3 centre, float radius)
+    {
+        Vector3 d = b - a, f = a - centre;
+        float qa = Vector3.Dot(d, d), qb = 2 * Vector3.Dot(f, d), qc = Vector3.Dot(f, f) - radius * radius;
+        if (qc > 0) return a;   // already outside the pad
+        float t = (-qb + Mathf.Sqrt(Mathf.Max(0, qb * qb - 4 * qa * qc))) / (2 * qa);
+        return a + d * Mathf.Clamp01(t);
+    }
+
     static void BuildPathLights(Transform parent, Layout layout)
     {
-        // Cyan edge strips and runway dots make the route the brightest line in the scene.
+        // Cyan neon edges run parallel to the path on both sides, mitred at the bends like the road itself,
+        // with a small glowing bead covering each joint. Candy gumdrops sit a little further out, evenly spaced.
         var r = layout.route;
-        for (int i = 1; i < r.Length; i++)
+        Vector3 pad = r[0];
+        for (int s = -1; s <= 1; s += 2)
         {
-            Vector3 a = r[i - 1], b = r[i], dir = (b - a).normalized, side = Vector3.Cross(Vector3.up, dir);
-            float len = Vector3.Distance(a, b);
-            for (int s = -1; s <= 1; s += 2)
+            var edge = EdgeLine(r, s * (PathHalfWidth + .12f));
+            for (int i = 1; i < edge.Length; i++)
             {
-                var strip = Part(parent, "Edge light", PrimitiveType.Cube, pathLight, (a + b) / 2 + side * s * (PathHalfWidth + .12f) + Vector3.up * .05f,
-                    new Vector3(.14f, .05f, Mathf.Max(.1f, len - 1.2f)));
-                strip.transform.localRotation = Quaternion.LookRotation(dir);
+                Vector3 a = i == 1 ? LeavePad(edge[0], edge[1], pad, StartPadRadius + .1f) : edge[i - 1], b = edge[i];
+                float len = Vector3.Distance(a, b);
+                if (len < .05f) continue;
+                var strip = Part(parent, "Edge light", PrimitiveType.Cube, pathLight, (a + b) / 2 + Vector3.up * .05f, new Vector3(.14f, .05f, len));
+                strip.transform.localRotation = Quaternion.LookRotation(b - a);
                 strip.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
-                for (float t = 1.5f; t < len - 1; t += 3)
-                    Part(parent, "Runway light", PrimitiveType.Cylinder, landingLight, a + dir * t + side * s * (PathHalfWidth + .45f) + Vector3.up * .06f,
-                        new Vector3(.22f, .04f, .22f)).GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+                var bead = Part(parent, "Edge joint", PrimitiveType.Sphere, pathLight, b + Vector3.up * .06f, new Vector3(.24f, .12f, .24f));
+                bead.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+            }
+
+            // Gumdrops every 3 m of the outer line (measured along the line, so spacing stays even through bends).
+            var outer = EdgeLine(r, s * (PathHalfWidth + .5f));
+            float next = 1.5f; int count = 0;
+            for (int i = 1; i < outer.Length; i++)
+            {
+                Vector3 a = outer[i - 1], b = outer[i];
+                float len = Vector3.Distance(a, b);
+                for (; next <= len; next += 3)
+                {
+                    Vector3 p = a + (b - a) * (next / len);
+                    if (Vector3.Distance(p, pad) < StartPadRadius + .4f) continue;
+                    var drop = Part(parent, "Gumdrop", PrimitiveType.Sphere, candy[count++ % candy.Length], p + Vector3.up * .05f, new Vector3(.3f, .22f, .3f));
+                    drop.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+                }
+                next -= len;
             }
         }
+
+        // A lollipop on the outside of every bend.
+        for (int i = 1; i < r.Length - 1; i++)
+        {
+            Vector3 turn = Vector3.Cross(r[i] - r[i - 1], r[i + 1] - r[i]);
+            float outside = turn.y < 0 ? 1 : -1;   // a left turn (y<0) puts the outside on the right (+side)
+            var line = EdgeLine(r, outside * (PathHalfWidth + 1.1f));
+            Lollipop(parent, line[i], .9f, candy[i % candy.Length], i);
+        }
+    }
+
+    /// <summary>A round candy on a stick that slowly turns and bobs.</summary>
+    static void Lollipop(Transform parent, Vector3 foot, float size, Material colour, int seed)
+    {
+        var pop = Group(parent, "Lollipop");
+        pop.localPosition = foot;
+        Part(pop, "Stick", PrimitiveType.Cylinder, candyStick, new Vector3(0, size * .7f, 0), new Vector3(.07f, size * .7f, .07f)).GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+        var head = Group(pop, "Candy");
+        head.localPosition = new Vector3(0, size * 1.55f, 0);
+        head.localRotation = Quaternion.Euler(0, seed * 47, 0);
+        void Disc(string name, Material m, float d, float z)
+        {
+            var disc = Part(head, name, PrimitiveType.Cylinder, m, new Vector3(0, 0, z), new Vector3(d, .05f, d));
+            disc.transform.localRotation = Quaternion.Euler(90, 0, 0);
+        }
+        Disc("Candy", colour, size, 0);
+        Disc("Swirl", candyStick, size * .68f, -.02f);
+        Disc("Centre", colour, size * .38f, -.04f);
+        Disc("Swirl back", candyStick, size * .68f, .02f);
+        Disc("Centre back", colour, size * .38f, .04f);
+        var motion = head.gameObject.AddComponent<DivaFloat>();
+        motion.bobHeight = .08f; motion.bobSpeed = 1.2f; motion.spinDegreesPerSecond = 35;
+    }
+
+    /// <summary>A round candy start pad under the elephant's starting spot; the course's start line and arrow stay on top.</summary>
+    static void BuildStartPad(Transform parent, Layout layout)
+    {
+        var pad = Group(parent, "Start pad");
+        pad.localPosition = layout.route[0];
+        // Layers stack just above the road (top at .025) and below the start line (top at .0525).
+        GameObject Layer(string name, Material m, float diameter, float bottom) =>
+            Part(pad, name, PrimitiveType.Cylinder, m, new Vector3(0, bottom + .004f, 0), new Vector3(diameter, .004f, diameter));
+        Layer("Pink rim", padPink, StartPadRadius * 2, .026f);
+        Layer("Cream disc", padCream, StartPadRadius * 2 - .5f, .030f);
+        Layer("Lilac centre", padLilac, 2.6f, .034f);
+        foreach (var rr in pad.GetComponentsInChildren<MeshRenderer>()) rr.shadowCastingMode = ShadowCastingMode.Off;
+
+        // A dashed neon ring that slowly turns.
+        var ring = Group(pad, "Neon ring");
+        for (int i = 0; i < 24; i++)
+        {
+            float a = i * Mathf.PI * 2 / 24;
+            var dash = Part(ring, "Dash", PrimitiveType.Cube, pathLight, new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 2.2f + Vector3.up * .044f, new Vector3(.12f, .016f, .32f));
+            dash.transform.localRotation = Quaternion.LookRotation(new Vector3(-Mathf.Sin(a), 0, Mathf.Cos(a)));
+            dash.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+        }
+        var spin = ring.gameObject.AddComponent<DivaFloat>();
+        spin.bobHeight = 0; spin.spinDegreesPerSecond = 12;
+
+        // Gumdrops round the rim, leaving the way ahead open.
+        Vector3 ahead = (layout.route[1] - layout.route[0]).normalized;
+        for (int i = 0; i < 20; i++)
+        {
+            float a = i * Mathf.PI * 2 / 20;
+            Vector3 dir = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
+            if (Vector3.Dot(dir, ahead) > .55f) continue;
+            Part(pad, "Gumdrop", PrimitiveType.Sphere, candy[i % candy.Length], dir * (StartPadRadius - .05f) + Vector3.up * .05f, new Vector3(.36f, .26f, .36f))
+                .GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+        }
+
+        // Two lollipops flank the start, a little behind the line.
+        Vector3 side = Vector3.Cross(Vector3.up, ahead);
+        Lollipop(pad, side * (StartPadRadius + .7f) - ahead * .6f, 1.1f, padPink, 1);
+        Lollipop(pad, -side * (StartPadRadius + .7f) - ahead * .6f, 1.1f, candy[1], 2);
     }
 
     static void BuildSky(Transform parent)
@@ -928,6 +1053,18 @@ public static class DivaGameBuilder
         curb = Textured("Diva Kerb", Kind.Concrete, new Color(1, .97f, .99f), .3f, 0);
         pathLight = Lit("Diva Path Edge Light", new Color(.3f, .95f, 1), .5f, 0, new Color(.15f, .85f, 1) * 4);
         landingLight = Lit("Diva Runway Light", new Color(1, .5f, .82f), .5f, 0, new Color(1, .35f, .8f) * 3.5f);
+        candy = new[]
+        {
+            landingLight,
+            Lit("Diva Candy Mint", new Color(.55f, 1, .82f), .7f, 0, new Color(.3f, 1, .7f) * 1.5f),
+            Lit("Diva Candy Lemon", new Color(1, .93f, .5f), .7f, 0, new Color(1, .85f, .3f) * 1.5f),
+            Lit("Diva Candy Lavender", new Color(.78f, .62f, 1), .7f, 0, new Color(.6f, .4f, 1) * 1.5f),
+            Lit("Diva Candy Sky", new Color(.55f, .82f, 1), .7f, 0, new Color(.35f, .7f, 1) * 1.5f),
+        };
+        candyStick = Lit("Diva Candy Stick", new Color(1, .98f, .97f), .6f);
+        padPink = Lit("Diva Start Pad Pink", new Color(1, .56f, .78f), .5f, 0, new Color(1, .35f, .7f) * .6f);
+        padCream = Lit("Diva Start Pad Cream", new Color(1, .95f, .86f), .35f);
+        padLilac = Lit("Diva Start Pad Lilac", new Color(.84f, .76f, 1), .4f);
         cable = Lit("Diva Cable", new Color(.62f, .46f, .68f), .3f);
         bulb = Lit("Diva Bulb", new Color(1, .85f, .92f), .5f, 0, new Color(1, .7f, .88f) * 4);
         flameOuter = Lit("Diva Rocket Flame", new Color(1, .5f, .4f), .3f, 0, new Color(1, .35f, .3f) * 5);
@@ -1134,6 +1271,8 @@ public static class DivaGameBuilder
             ("overview", centre - sunward * 75 + Vector3.up * 62, centre, 50),
             ("game-camera", elephant.position + elephant.rotation * new Vector3(0, 4.5f, -8), elephant.position + Vector3.up * 1.5f, 0),
             ("start-chase", elephant.position - elephant.forward * 7 + Vector3.up * 6.5f, elephant.position + elephant.forward * 14 + Vector3.up * 1.5f, 60),
+            ("start-pad", frame.TransformPoint(new Vector3(-5.5f, 6.5f, -6)), frame.TransformPoint(new Vector3(0, 0, 1)), 60),
+            ("bend", frame.TransformPoint(new Vector3(-9, 10, -2)), frame.TransformPoint(new Vector3(-17, 0, 3)), 60),
             ("course-low", frame.TransformPoint(new Vector3(-17, 3.2f, -16)), frame.TransformPoint(new Vector3(8, 1.5f, -17)), 60),
             ("finish-side", frame.TransformPoint(new Vector3(10, 4.5f, 12)), frame.TransformPoint(new Vector3(-12, 1.5f, 18)), 60),
             ("street", frame.TransformPoint(new Vector3(-20, 2, 35.5f)), frame.TransformPoint(new Vector3(20, 4, 36)), 65),
