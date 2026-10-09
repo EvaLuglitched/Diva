@@ -123,6 +123,10 @@ namespace Diva.VR
             {
                 urp.msaaSampleCount = 4;
                 urp.shadowDistance = Mathf.Min(urp.shadowDistance, 35);
+                // 阴影：2 级级联够用（双眼要画两遍），点光 / 聚光的阴影关掉（主光的保留）
+                urp.shadowCascadeCount = Mathf.Min(urp.shadowCascadeCount, 2);
+                typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset).GetProperty("supportsAdditionalLightShadows")?
+                    .SetValue(urp, false);
                 var renderer = urp.GetRenderer(0);
                 var prop = typeof(UnityEngine.Rendering.Universal.ScriptableRenderer).GetProperty("rendererFeatures",
                     System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Diva.Show;
+using Unity.Profiling;
 using UnityEngine;
 
 namespace Diva.VR
@@ -45,6 +46,30 @@ namespace Diva.VR
             // 测试用：DIVA_LANG=zh 时用中文开始（检查 visionOS 上的中文字体）
             if (Environment.GetEnvironmentVariable("DIVA_LANG") == "zh") DivaText.Set(Lang.Zh);
             Debug.Log("DIVA_VR capture → " + dir);
+        }
+
+        // 渲染统计（每 5 秒一行）：调头显性能用
+        ProfilerRecorder batches, setPass, tris, casters, drawCalls;
+        float statsNext, statsTime; int statsFrames; float worst;
+
+        void OnEnable()
+        {
+            batches = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Batches Count");
+            setPass = ProfilerRecorder.StartNew(ProfilerCategory.Render, "SetPass Calls Count");
+            drawCalls = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Draw Calls Count");
+            tris = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Triangles Count");
+            casters = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Shadow Casters Count");
+        }
+
+        void OnDisable() { batches.Dispose(); setPass.Dispose(); drawCalls.Dispose(); tris.Dispose(); casters.Dispose(); }
+
+        void Update()
+        {
+            statsFrames++; statsTime += Time.unscaledDeltaTime; worst = Mathf.Max(worst, Time.unscaledDeltaTime);
+            if (Time.unscaledTime < statsNext) return;
+            statsNext = Time.unscaledTime + 5;
+            Debug.Log($"DIVA_VR stats {(show ? show.Phase.ToString() : "")} fps {statsFrames / Mathf.Max(.001f, statsTime):F1} worst {worst * 1000:F1} ms  batches {batches.LastValue} setpass {setPass.LastValue} draws {drawCalls.LastValue} tris {tris.LastValue / 1000}k shadowCasters {casters.LastValue}");
+            statsFrames = 0; statsTime = 0; worst = 0;
         }
 
         void OnDestroy() { DivaShowDirector.PhaseChanged -= OnPhase; if (rt) rt.Release(); }

@@ -1,4 +1,6 @@
 using DigiPhant;
+using Diva.Show;
+using TMPro;
 using UnityEngine;
 
 namespace Diva.VR
@@ -51,10 +53,24 @@ namespace Diva.VR
         }
         float vignetteNow, lastYaw;
         bool haveYaw;
+        // 发光边：跑得越快越亮，冲刺时脉动，命中闪白，大招整圈爆亮（参考守望先锋的打击反馈）
+        Color baseA = new Color(1f, .4f, .8f) * 2.2f, baseB = new Color(.3f, .95f, .85f) * 2.2f;
+        float flash;
+        DivaShowDirector show;
+        DivaDemo demo;
+        bool blender;
+        // 仪表台两块侧屏：左边速度，右边水量和连击
+        TextMeshProUGUI speedText, comboText;
+        RectTransform speedBar, waterBar;
+        bool screensBuilt;
 
         void Start()
         {
             rig = GetComponent<DivaVRRig>();
+            show = FindAnyObjectByType<DivaShowDirector>();
+            demo = FindAnyObjectByType<DivaDemo>();
+            DivaTarget.Hit += OnHit;
+            DivaShowDirector.PhaseChanged += OnPhase;
             loco = FindAnyObjectByType<DigiPhantLocomotion>();
             skins = FindAnyObjectByType<DivaMechSkins>();
             float eye = rig ? rig.eyeHeight : .78f;
@@ -64,7 +80,7 @@ namespace Diva.VR
             var root = new GameObject("Cockpit").transform;
             root.SetParent(transform, false);
             screen = Unlit(new Color(.05f, .22f, .28f));
-            if (BuildFromBlender(root)) { if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); } BuildVignette(); return; }
+            if (blender = BuildFromBlender(root)) { if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); } BuildVignette(); return; }
 
             // 没有 Blender 导出的模型时的简易框架
             // 仪表台：半径 0.52–0.70 米、左右各 55°，比眼睛低 0.36–0.52 米
@@ -82,15 +98,24 @@ namespace Diva.VR
             BuildVignette();
         }
 
-        void OnDestroy() { if (skins) skins.Changed -= OnSkin; }
+        void OnDestroy()
+        {
+            if (skins) skins.Changed -= OnSkin;
+            DivaTarget.Hit -= OnHit;
+            DivaShowDirector.PhaseChanged -= OnPhase;
+        }
+
+        void OnHit(DivaTarget t) => flash = Mathf.Max(flash, .55f);
+        void OnPhase(ShowPhase p) { if (p == ShowPhase.Ult) flash = 1.6f; else if (p == ShowPhase.Finish || p == ShowPhase.Countdown) flash = 1f; }
 
         void OnSkin(int index)
         {
             var skin = skins ? skins.CurrentSkin : null;
             if (skin == null) return;
             body.color = Color.Lerp(skin.secondary, new Color(.1f, .08f, .15f), .55f);
-            glowA.color = skin.primary * 2.2f;
-            glowB.color = skin.accent * 2.2f;
+            body.SetColor("_BaseColor", body.color);
+            baseA = skin.primary * 2.2f;
+            baseB = skin.accent * 2.2f;
         }
 
         void BuildVignette()
@@ -126,6 +151,8 @@ namespace Diva.VR
 
         void LateUpdate()
         {
+            UpdateGlow();
+            UpdateScreens();
             if (!vignette) return;
             float dt = Mathf.Max(1e-4f, Time.unscaledDeltaTime);
             float yaw = transform.eulerAngles.y;
@@ -140,6 +167,62 @@ namespace Diva.VR
             vignetteNow = Mathf.MoveTowards(vignetteNow, target, dt * (target > vignetteNow ? (inside > 0 ? 6f : 1.6f) : .6f));
             var c = vignette.color; c.a = vignetteNow; vignette.color = c;
             vignette.SetColor("_BaseColor", c);
+        }
+
+        void UpdateGlow()
+        {
+            float dt = Time.unscaledDeltaTime;
+            flash = Mathf.MoveTowards(flash, 0, dt * 3f);
+            float speed = loco ? Mathf.Clamp01(Mathf.Abs(loco.CurrentSpeed) / Mathf.Max(.1f, loco.runSpeed)) : 0;
+            bool boost = show && show.Boosting;
+            float k = .7f + .5f * speed + (boost ? .35f + .35f * Mathf.Sin(Time.unscaledTime * 14) : 0);
+            var white = Color.white * 2.8f;
+            if (glowA) { glowA.color = Color.Lerp(baseA * k, white, Mathf.Clamp01(flash)); glowA.SetColor("_BaseColor", glowA.color); }
+            if (glowB) { glowB.color = Color.Lerp(baseB * k, white, Mathf.Clamp01(flash * .8f)); glowB.SetColor("_BaseColor", glowB.color); }
+            if (screen) screen.SetColor("_BaseColor", Color.Lerp(new Color(.05f, .22f, .28f), new Color(.2f, .5f, .6f), Mathf.Clamp01(flash)));
+        }
+
+        // 侧屏：Blender 驾驶舱的两块屏在左右 31°、半径 0.62 米、仪表台顶面上；画面斜着正对眼睛
+        void BuildScreens()
+        {
+            screensBuilt = true;
+            if (!blender || DivaUi.Font == null) return;
+            float eye = rig ? rig.eyeHeight : .78f;
+            foreach (int side in new[] { -1, 1 })
+            {
+                float a = side * 31 * Mathf.Deg2Rad;
+                var pos = new Vector3(Mathf.Sin(a) * .6f, eye - .345f, Mathf.Cos(a) * .6f);
+                var go = new GameObject(side < 0 ? "Screen Speed" : "Screen Water", typeof(RectTransform), typeof(Canvas));
+                go.layer = 5;
+                var rt = (RectTransform)go.transform;
+                rt.SetParent(transform, false);
+                rt.sizeDelta = new Vector2(400, 220);
+                rt.localPosition = pos;
+                rt.localRotation = Quaternion.LookRotation(pos - new Vector3(0, eye, 0), Vector3.up);
+                rt.localScale = Vector3.one * (.12f / 400f);
+                var c = go.GetComponent<Canvas>(); c.renderMode = RenderMode.WorldSpace; c.sortingOrder = 51;
+                var label = DivaUi.Text(rt, "Label", new Vector2(0, 1), new Vector2(110, -28), new Vector2(200, 40), 30, new Color(.6f, 1f, .95f, .85f), TextAlignmentOptions.Left);
+                label.text = side < 0 ? "SPEED" : "WATER";
+                var back = DivaUi.Panel(rt, "Bar Back", new Vector2(.5f, 0), new Vector2(0, 34), new Vector2(340, 22), new Color(0, 0, 0, .5f), new Color(0, 0, 0, .5f), 8);
+                var bar = DivaUi.Panel(rt, "Bar", new Vector2(.5f, 0), new Vector2(-170, 34), new Vector2(340, 22), Color.white, Color.white, 8);
+                bar.rectTransform.pivot = new Vector2(0, .5f);
+                var big = DivaUi.Text(rt, "Value", new Vector2(.5f, .5f), new Vector2(0, 10), new Vector2(380, 110), 92, Color.white);
+                if (side < 0) { speedText = big; speedBar = bar.rectTransform; bar.color = new Color(1f, .5f, .85f); }
+                else { comboText = big; waterBar = bar.rectTransform; bar.color = new Color(.4f, .85f, 1f); }
+            }
+        }
+
+        void UpdateScreens()
+        {
+            if (!screensBuilt && DivaUi.Font != null && Time.frameCount > 2) BuildScreens();
+            if (!speedText) return;
+            float speed = loco ? Mathf.Abs(loco.CurrentSpeed) : 0;
+            speedText.text = Mathf.RoundToInt(speed * 3.6f) + "<size=40%> KM/H</size>";
+            speedBar.localScale = new Vector3(loco ? Mathf.Clamp01(speed / Mathf.Max(.1f, loco.runSpeed)) : 0, 1, 1);
+            float water = demo ? demo.State.Water : 1;
+            waterBar.localScale = new Vector3(Mathf.Clamp01(water), 1, 1);
+            int combo = show ? show.Combo : 0;
+            comboText.text = combo >= 2 ? "x" + combo + "<size=40%> COMBO</size>" : Mathf.RoundToInt(water * 100) + "<size=40%> %</size>";
         }
 
         static readonly Collider[] near = new Collider[8];

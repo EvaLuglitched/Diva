@@ -141,6 +141,10 @@ namespace Diva.Show
         /// <summary>Testing: fill the ultimate charge (also handy in the Inspector's context menu).</summary>
         [ContextMenu("Fill ultimate charge")]
         public void FillCharge() => charge = 100;
+        /// <summary>正在推进冲刺（VR 驾驶舱的发光边和仪表用）。</summary>
+        public bool Boosting => boosting;
+        /// <summary>当前连击数（连击时间窗口内）。</summary>
+        public int Combo => DivaClock.Time - lastHitTime <= ComboWindow ? combo : 0;
         public float Charge => charge;
         public int RunHits => stats.hits;
 
@@ -151,7 +155,7 @@ namespace Diva.Show
             stats.hits++;
             if (Phase == ShowPhase.Ult) stats.ultHits++;
             Popup("+" + target.points, target.AimPoint, Color.white);
-            if (Diva.VR.DivaVR.Active) sound.PlayAt("hit", target.AimPoint, .8f); else sound.Play("hit", .8f);
+            if (Diva.VR.DivaVR.Active) { sound.PlayAt("hit", target.AimPoint, .8f); VrHitMarker(target.AimPoint); } else sound.Play("hit", .8f);
             fx.Flash(target.AimPoint, Accent, 2.2f, .25f);
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }

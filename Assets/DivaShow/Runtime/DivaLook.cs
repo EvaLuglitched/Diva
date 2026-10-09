@@ -59,6 +59,8 @@ namespace Diva.Show
         Light rim, key;
         ReflectionProbe probe;
         float savedAmbient = -1, savedKey = -1;
+        Color savedKeyColor = Color.white;
+        float savedShadow = 1;
         Color savedSky, savedEquator, savedGround;
         float pulse, blend;
         CameraClearFlags previousClear;
@@ -110,7 +112,7 @@ namespace Diva.Show
                 RenderSettings.ambientSkyColor = savedSky; RenderSettings.ambientEquatorColor = savedEquator; RenderSettings.ambientGroundColor = savedGround;
                 savedAmbient = -1;
             }
-            if (key && savedKey >= 0) { key.intensity = savedKey; savedKey = -1; }
+            if (key && savedKey >= 0) { key.intensity = savedKey; key.color = savedKeyColor; key.shadowStrength = savedShadow; savedKey = -1; }
             if (cameraData) { cameraData.antialiasing = previousAa; cameraData.antialiasingQuality = previousAaQuality; }
             if (targetCamera) targetCamera.clearFlags = previousClear;
         }
@@ -125,14 +127,22 @@ namespace Diva.Show
             bloom.scatter.Override(.68f);
             bloom.tint.Override(new Color(1, .93f, .97f));
             bloom.highQualityFiltering.Override(true);
+            if (Diva.VR.DivaVR.Active)
+            {
+                // VR：双眼高分辨率下泛光用半分辨率、不用高质量过滤（省 GPU）；阈值低一点，霓虹和技能更亮
+                bloom.highQualityFiltering.Override(false);
+                bloom.downscale.Override(BloomDownscaleMode.Half);
+                bloom.threshold.Override(Mathf.Min(bloomThreshold, 1f));
+            }
             var colour = profile.Add<ColorAdjustments>(true);
             colour.contrast.Override(contrast);
             colour.saturation.Override(saturation);
             // 暗部偏冷紫、亮部偏暖：画面更有层次，糖果色不会发灰
             var smh = profile.Add<ShadowsMidtonesHighlights>(true);
-            smh.shadows.Override(new Vector4(.96f, .95f, 1.06f, -.04f));
+            bool vrLook = Diva.VR.DivaVR.Active;
+            smh.shadows.Override(vrLook ? new Vector4(.93f, .94f, 1.1f, -.05f) : new Vector4(.96f, .95f, 1.06f, -.04f));
             smh.midtones.Override(new Vector4(1, 1, 1, 0));
-            smh.highlights.Override(new Vector4(1.04f, 1.0f, .97f, .02f));
+            smh.highlights.Override(vrLook ? new Vector4(1.06f, 1.0f, .94f, .03f) : new Vector4(1.04f, 1.0f, .97f, .02f));
             var white = profile.Add<WhiteBalance>(true);
             white.temperature.Override(4);
             vig = profile.Add<Vignette>(true);
@@ -195,13 +205,21 @@ namespace Diva.Show
         void ScaleLighting()
         {
             FindKey();
+            // VR（参考守望先锋的打光）：环境光更低、暖色主光更强，冷暖对比让房子和大象的体积感更清楚
+            bool vr = Diva.VR.DivaVR.Active;
+            float amb = vr ? Mathf.Min(ambientScale, .62f) : ambientScale, keyK = vr ? Mathf.Max(keyScale, 1.3f) : keyScale;
             savedAmbient = RenderSettings.ambientIntensity;
             savedSky = RenderSettings.ambientSkyColor; savedEquator = RenderSettings.ambientEquatorColor; savedGround = RenderSettings.ambientGroundColor;
-            RenderSettings.ambientIntensity = savedAmbient * ambientScale;
-            RenderSettings.ambientSkyColor = savedSky * ambientScale;
-            RenderSettings.ambientEquatorColor = savedEquator * ambientScale;
-            RenderSettings.ambientGroundColor = savedGround * ambientScale;
-            if (key) { savedKey = key.intensity; key.intensity = savedKey * keyScale; }
+            RenderSettings.ambientIntensity = savedAmbient * amb;
+            RenderSettings.ambientSkyColor = savedSky * amb;
+            RenderSettings.ambientEquatorColor = savedEquator * amb;
+            RenderSettings.ambientGroundColor = savedGround * amb;
+            if (key)
+            {
+                savedKey = key.intensity; key.intensity = savedKey * keyK;
+                savedKeyColor = key.color; savedShadow = key.shadowStrength;
+                if (vr) { key.color = key.color * new Color(1f, .95f, .88f); key.shadowStrength = Mathf.Max(key.shadowStrength, .92f); }
+            }
         }
 
         // 覆盖整个赛道的反射探针，开局渲染一次

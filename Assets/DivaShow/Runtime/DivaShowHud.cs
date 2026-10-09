@@ -174,7 +174,7 @@ namespace Diva.Show
             ultPromptPlate.gameObject.SetActive(ultPrompt.gameObject.activeSelf);
             if (ready) { ultPrompt.alpha = .75f + .25f * pulse; ultPrompt.color = Color.Lerp(Accent, Color.white, .55f); ultPromptPlate.stripe = Accent; ultPromptPlate.stripeWidth = 8; ultPromptPlate.SetVerticesDirty(); }
 
-            if (DivaVR.Active) UpdateVrLock();
+            if (DivaVR.Active) { UpdateVrLock(); UpdateHitMarkers(); }
             // 锁定标记：水枪会打的那个靶子（和 DivaLaserBlaster.FindTarget 同一个判定）
             var target = !DivaVR.Active && Phase == ShowPhase.Play && laser ? laser.FindTarget(demo.State.Aim * demo.trunkAimDegrees) : null;
             bool show = target && ScreenPoint(target.AimPoint, out var p);
@@ -274,6 +274,34 @@ namespace Diva.Show
             var dot = Ring(vrLock, "Dot", new Vector2(.5f, .5f), Vector2.zero, 16, 8, Color.white);
             dot.raycastTarget = false;
             vrLock.gameObject.SetActive(false);
+        }
+
+        // 命中 ✕（参考守望先锋的命中反馈）：打中的一瞬间在靶子上弹出、缩回、淡出，0.3 秒
+        readonly List<(RectTransform x, CanvasGroup g, Vector3 world, float born)> hitMarkers = new List<(RectTransform, CanvasGroup, Vector3, float)>();
+        void VrHitMarker(Vector3 world)
+        {
+            if (!vrWorld) return;
+            var x = DivaUi.Rect(vrWorld, "Hit Marker", new Vector2(.5f, .5f), Vector2.zero, new Vector2(80, 80));
+            var g = x.gameObject.AddComponent<CanvasGroup>();
+            foreach (float a in new[] { 45f, -45f })
+            {
+                var bar = DivaUi.Image(x, "Bar", new Vector2(.5f, .5f), Vector2.zero, new Vector2(78, 9), Color.white);
+                bar.raycastTarget = false;
+                bar.rectTransform.localRotation = Quaternion.Euler(0, 0, a);
+            }
+            hitMarkers.Add((x, g, world, DivaClock.Time));
+        }
+
+        void UpdateHitMarkers()
+        {
+            for (int i = hitMarkers.Count - 1; i >= 0; i--)
+            {
+                var (x, g, world, born) = hitMarkers[i];
+                float age = DivaClock.Time - born;
+                if (age > .32f || !x) { if (x) Destroy(x.gameObject); hitMarkers.RemoveAt(i); continue; }
+                PlaceInWorld(x, world, Mathf.Lerp(1.7f, 1, DivaUi.EaseOut(age / .1f)));
+                g.alpha = 1 - DivaUi.Smooth((age - .16f) / .16f);
+            }
         }
 
         /// <summary>把一个界面元素放到世界里的某一点，正对着人，按距离缩放（看起来大小不变）。</summary>

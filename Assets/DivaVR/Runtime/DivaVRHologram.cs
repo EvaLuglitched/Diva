@@ -99,8 +99,8 @@ namespace Diva.VR
         {
             if (!holo) return;
             bool select = show && (show.Phase == ShowPhase.Select || show.Phase == ShowPhase.Results || show.Phase == ShowPhase.Intro);
-            // 选涂装：右前方、大一点（不挡中间的涂装名字）；比赛：左前方仪表台上、小一点
-            var target = select ? new Vector3(.42f, eye - .4f, .82f) : new Vector3(-.34f, eye - .36f, .5f);
+            // 选涂装：右前方、大一点（不挡中间的涂装名字）；比赛：仪表台最左边（左 52°，让开速度屏）、小一点
+            var target = select ? new Vector3(.42f, eye - .4f, .82f) : new Vector3(Mathf.Sin(-52 * Mathf.Deg2Rad) * .6f, eye - .37f, Mathf.Cos(-52 * Mathf.Deg2Rad) * .6f);
             float size = select ? selectHeight : playHeight;
             float k = snap ? 1 : 1 - Mathf.Exp(-Time.unscaledDeltaTime * 3);
             holo.localPosition = Vector3.Lerp(holo.localPosition, target, k);
