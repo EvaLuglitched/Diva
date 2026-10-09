@@ -6,6 +6,8 @@ using UnityEditor.XR.Management;
 using UnityEditor.XR.Management.Metadata;
 using UnityEditor.XR.VisionOS;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.XR.Management;
 
 namespace Diva.VR.EditorTools
@@ -103,7 +105,26 @@ namespace Diva.VR.EditorTools
             EditorUtility.SetDirty(vos);
 
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.VisionOS, "com.jchen60.divavr");
+
+            // 传送门开场要露出真实房间：开着后期处理（泛光、调色）时，画面的透明通道要一路保留到最后。
+            // URP 打包时会把"保留透明度"的着色器变体裁掉，除非有一个 URP 资源打开了 Alpha Processing；
+            // 运行时再打开已经晚了（模拟器上测过：后期处理后整屏不透明），所以打包前在这里打开。
+            for (int i = 0; i < QualitySettings.names.Length; i++)
+                if (QualitySettings.GetRenderPipelineAssetAt(i) is UniversalRenderPipelineAsset q) AllowAlphaOutput(q);
+            if (GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset d) AllowAlphaOutput(d);
             AssetDatabase.SaveAssets();
+        }
+
+        static void AllowAlphaOutput(UniversalRenderPipelineAsset urp)
+        {
+            var so = new SerializedObject(urp);
+            var p = so.FindProperty("m_AllowPostProcessAlphaOutput");
+            if (p == null) { Debug.LogWarning("DIVA_VR: URP asset has no m_AllowPostProcessAlphaOutput; passthrough may be opaque"); return; }
+            if (p.boolValue) return;
+            p.boolValue = true;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(urp);
+            Debug.Log("DIVA_VR alpha processing on: " + urp.name);
         }
     }
 }
