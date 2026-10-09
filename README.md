@@ -22,6 +22,11 @@ If the camera panel says **Camera stopped: …**, the text after the colon is th
 
 Press Play in **Diva.unity** and the game now runs as a full match: choose one of four mech skins on a turntable → Eva's race intro (aerial, rocket, swoop, mech power-up, 3·2·1 GO) with Carl's entrance sting when the elephant appears → play with FPS-style HUD, skill banners, picture-in-picture close-ups, combos and an ultimate (MEGA BUBBLE: hold both hands above your head) → finish cutscene → automatic 8-second highlight replay → results cards and a local leaderboard. It is a single-player game by default: one person has every control (Try alone > **All**); **3 PLAYERS** keeps the original roles. The UI is English by default; the **EN 中文** button (or L) switches to Chinese. F1 or **SETUP** shows the old setup panel. See **Assets/DivaShow/README.md** (Chinese), **PLAYTEST_TODO.md** for what still needs a real-camera test, and **NOTE_FOR_EVA.md** for how the show uses the intro.
 
+## Eva's updates
+
+Everything Eva added (candy-town game layer, race intro, rocket and sky, track edges, start pad, Vision Pro intro text,
+Fab fallback) is listed with commit IDs in **EVA_UPDATES.md** (Chinese), including replies to NOTE_FOR_EVA.md.
+
 ## Fab rocket and clouds (not in git)
 
 The giant rocket and clouds in the sky are Fab models whose licence does not allow a public repo. Eva shares
