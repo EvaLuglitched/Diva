@@ -34,6 +34,7 @@ namespace Diva.VR
         DivaVRHands hands;
         TextMesh stats;
         float statsTime; int statsFrames;
+        float nextPoseLog;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -209,6 +210,11 @@ namespace Diva.VR
             transform.SetPositionAndRotation(root.TransformPoint(seat), rot);
             if (!recentered) Recenter();
             UpdateStats();
+            if (DivaVRCapture.Requested && Time.unscaledTime > nextPoseLog && cam)
+            {
+                nextPoseLog = Time.unscaledTime + 5;
+                Debug.Log($"DIVA_VR pose head.local {cam.transform.localPosition:F3} rot {cam.transform.localEulerAngles:F0} offset {offset.localPosition:F3} eye-above-seat {transform.InverseTransformPoint(cam.transform.position):F3} recentered {recentered}");
+            }
         }
 
         // 仪表盘左下角的小字：帧率和手部追踪状态（调性能用，之后可以关）
