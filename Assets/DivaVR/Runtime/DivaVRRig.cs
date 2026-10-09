@@ -86,7 +86,7 @@ namespace Diva.VR
             if (DivaVR.Simulated) gameObject.AddComponent<DivaVRSimulator>();
             else
             {
-                if (cam) AddTrackedPoseDriver(cam.gameObject);
+                if (cam) cam.gameObject.AddComponent<DivaVRHeadPose>().head = cam.transform;
                 hands = gameObject.AddComponent<DivaVRHands>();
             }
             BuildStats(hud);
@@ -129,18 +129,6 @@ namespace Diva.VR
                     foreach (var f in features)
                         if (f && f.GetType().Name.Contains("AmbientOcclusion")) f.SetActive(false);
             }
-        }
-
-        static void AddTrackedPoseDriver(GameObject go)
-        {
-            if (go.GetComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>()) return;
-            var driver = go.AddComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
-            driver.trackingType = UnityEngine.InputSystem.XR.TrackedPoseDriver.TrackingType.RotationAndPosition;
-            driver.updateType = UnityEngine.InputSystem.XR.TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
-            // 运行时加的组件没有默认绑定（编辑器里加才有），要自己指定头显的位置和朝向
-            driver.positionInput = new UnityEngine.InputSystem.InputActionProperty(new UnityEngine.InputSystem.InputAction("Head Position", binding: "<XRHMD>/centerEyePosition"));
-            driver.rotationInput = new UnityEngine.InputSystem.InputActionProperty(new UnityEngine.InputSystem.InputAction("Head Rotation", binding: "<XRHMD>/centerEyeRotation"));
-            driver.trackingStateInput = new UnityEngine.InputSystem.InputActionProperty(new UnityEngine.InputSystem.InputAction("Head Tracking State", binding: "<XRHMD>/trackingState"));
         }
 
         void Start()
