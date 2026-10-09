@@ -1183,6 +1183,8 @@ public static class DivaGameBuilder
     [MenuItem("Diva/Game/Render Intro Frames")]
     public static void RenderIntroFrames()
     {
+        // In Play mode the rocket is wherever the live orbit has taken it, so the keyframes would not match.
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play first.");
         var root = GameObject.Find(RootName);
         var intro = root ? root.GetComponent<DivaIntro>() : null;
         if (!intro) throw new Exception("Build the game layer first.");
@@ -1201,7 +1203,7 @@ public static class DivaGameBuilder
             var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
             camera.targetTexture = rt;
             camera.Render();   // warm-up frame
-            foreach (float t in new[] { 1.5f, 4.2f, 4.9f, 7.0f, 8.4f, 9.6f, 10.6f, 11.9f, 13.6f })
+            foreach (float t in new[] { 1.5f, 4.6f, 5.4f, 7.6f, 9.6f, 10.8f, 12.2f, 14.2f, 16.8f })
             {
                 if (orbit) orbit.SetAngle(a0 + orbit.AngularSpeed * t, 0);
                 intro.ApplyBoot(t);

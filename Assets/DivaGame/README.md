@@ -59,15 +59,16 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 
 ## Race intro (`Runtime/DivaIntro.cs`)
 
-Plays when entering Play (about 16 s), kart-racer style:
+Plays when entering Play (about 20 s), kart-racer style:
 
 | Time | Shot | On screen / sound |
 | --- | --- | --- |
 | 0 – 3.5 s | Aerial, slowly circling the town (no haze) | "DIVA SAFARI · Candy Town Course" banner, chime |
-| 3.5 – 6 s | Fixed camera as the rocket flies past | whoosh |
-| 6 – 8.5 s | Swoop down over the course to the start line | lower whoosh |
-| 8.5 – 12.5 s | One full orbit of the mech elephant | parts power up one by one (dark → flash → lit) with rising chirps; thrusters ignite |
-| 12.5 – 16 s | Settles into the game camera | 3 · 2 · 1 · GO! with beeps and a fanfare |
+| 3.5 – 6.5 s | Camera beside the rocket's path; it crosses the frame side-on | whoosh |
+| 6.5 – 9 s | Swoop down over the course to the start line | lower whoosh |
+| 9 – 13 s | One full orbit of the mech elephant | parts power up one by one (dark → flash → lit) with rising chirps |
+| 13 – 15.5 s | Low hero close-up, pushing in | thrusters ignite: smoke billows out of both nozzles, a dust ring rolls out along the ground, sparks, a pink-orange flash, flames twice as big for a moment, a short camera shake |
+| 15.5 – 20 s | Settles into the game camera | 3 · 2 · 1 · GO! with beeps and a fanfare |
 
 The elephant is held on the start line until GO; panels and HUD are hidden until then. **Esc** skips
 to the countdown, **I** replays. All sounds are synthesised in code. **Diva > Game > Render Intro Frames**

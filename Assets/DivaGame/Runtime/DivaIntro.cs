@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 using DigiPhant;
 
 namespace Diva
@@ -10,7 +11,7 @@ namespace Diva
     /// <summary>
     /// Race-start intro in the style of kart-racer openings: aerial view of the town, the rocket flying
     /// past, a swoop down to the start line, a full orbit of the mech elephant while it powers up part by
-    /// part and ignites its thrusters, then a 3-2-1-GO countdown. All sounds are synthesised here.
+    /// part, a low hero close-up as its thrusters ignite, then a 3-2-1-GO countdown. All sounds are synthesised here.
     /// The elephant is held on the start line until GO. Esc skips to the countdown, I replays.
     /// </summary>
     [DefaultExecutionOrder(2000)]   // after DivaDemo's camera and DivaSkyCamera
@@ -28,9 +29,9 @@ namespace Diva
         [Range(0, 1)] public float volume = .8f;
 
         // Timeline, in seconds.
-        public const float AerialEnd = 3.5f, RocketEnd = 6f, SwoopEnd = 8.5f, OrbitEnd = 12.5f;
-        public const float BootStart = 8.9f, BootEnd = 11.4f, Ignite = 11.8f;
-        public const float CountStart = 12.8f, Go = CountStart + 3, End = Go + 1.2f;
+        public const float AerialEnd = 3.5f, RocketEnd = 6.5f, SwoopEnd = 9f, HeroStart = 13f, OrbitEnd = 15.5f;
+        public const float BootStart = 9.4f, BootEnd = 11.9f, Ignite = 13.8f;
+        public const float CountStart = OrbitEnd + .3f, Go = CountStart + 3, End = Go + 1.2f;
 
         public bool Playing { get; private set; }
         public float Time { get; private set; } = -1;
@@ -49,6 +50,13 @@ namespace Diva
         readonly List<(float time, AudioClip clip, float pitch, float gain)> cues = new List<(float, AudioClip, float, float)>();
         int nextCue;
         GUIStyle textStyle;
+        // Ignition burst.
+        bool ignited;
+        Light flash;
+        float baseFlameSpeed = -1, baseFlameSize;
+        readonly List<ParticleSystem> ignition = new List<ParticleSystem>();
+        static Material smokeMaterial, glowMaterial;
+        static Texture2D softDot;
 
         // ---------- Lifecycle ----------
 
@@ -72,6 +80,7 @@ namespace Diva
             Playing = true;
             Time = 0;
             nextCue = 0;
+            ignited = false;
             BuildCues();
             if (controller) controller.showControls = false;
             if (game) game.showHud = false;
@@ -83,6 +92,7 @@ namespace Diva
         {
             if (!Playing || Time >= OrbitEnd) return;
             Time = OrbitEnd;
+            ignited = true;   // no burst when jumping straight to the countdown
             while (nextCue < cues.Count && cues[nextCue].time < Time) nextCue++;
         }
 
@@ -147,9 +157,15 @@ namespace Diva
             ApplyBoot(Time);
             ApplyBoosters(Time);
             ApplyFog(Time);
+            if (!ignited && Time >= Ignite) { ignited = true; Ignition(); }
+            UpdateIgnition(Time);
             if (Time < Go && gameCamera)
             {
                 PoseAt(Time, out var pos, out var rot, out float fov);
+                // A short, decaying shake on ignition.
+                float shake = Time >= Ignite ? .16f * Mathf.Max(0, 1 - (Time - Ignite) / .55f) : 0;
+                if (shake > 0)
+                    pos += rot * new Vector3(Mathf.PerlinNoise(Time * 30, 1) - .5f, Mathf.PerlinNoise(1, Time * 30) - .5f, 0) * 2 * shake;
                 gameCamera.transform.SetPositionAndRotation(pos, rot);
                 gameCamera.fieldOfView = fov;
             }
@@ -159,6 +175,8 @@ namespace Diva
         void Finish()
         {
             Playing = false;
+            if (boosters && baseFlameSpeed >= 0) { boosters.flameSpeed = baseFlameSpeed; boosters.flameSize = baseFlameSize; baseFlameSpeed = -1; }
+            if (flash) flash.intensity = 0;
             ApplyBoot(float.MaxValue);
             ApplyFog(float.MaxValue);
             if (boosters) boosters.SetBoost(-1);
@@ -183,11 +201,11 @@ namespace Diva
 
         Vector3 RocketCamera()
         {
-            // A fixed spot outside the orbit, just ahead of where the rocket will be mid-shot: it flies past.
+            // A fixed spot beside the orbit, square to the rocket's path at mid-shot: it crosses the frame side-on.
             float mid = (AerialEnd + RocketEnd) / 2;
             float a = rocketAngle0 + (rocket ? rocket.AngularSpeed * mid : 0);
             Vector3 pm = RocketAt(mid), outward = Flat(pm - transform.position);
-            return pm + outward * 72 + DivaOrbit.TangentAt(a) * 34 - Vector3.up * 14;
+            return pm + outward * 78 - DivaOrbit.TangentAt(a) * 6 - Vector3.up * 10;
         }
 
         void GamePose(out Vector3 pos, out Quaternion rot, out float fov)
@@ -233,14 +251,23 @@ namespace Diva
                 look = Vector3.Lerp(RocketAt(t), elephantLook, Ease(s * 1.6f));
                 fov = Mathf.Lerp(55, 50, s);
             }
-            else if (t < OrbitEnd)
+            else if (t < HeroStart)
             {
                 // One full turn around the mech elephant.
-                float s = Ease((t - SwoopEnd) / (OrbitEnd - SwoopEnd));
+                float s = Ease((t - SwoopEnd) / (HeroStart - SwoopEnd));
                 Vector3 arm = Quaternion.AngleAxis(s * 360, up) * -forward;
                 pos = lockPos + arm * Mathf.Lerp(9, 7, s) + up * Mathf.Lerp(3.2f, 2.4f, s);
                 look = elephantLook;
                 fov = 50;
+            }
+            else if (t < OrbitEnd)
+            {
+                // Hero close-up: low, front three-quarter, slowly pushing in as the thrusters ignite.
+                float s = Ease((t - HeroStart) / (OrbitEnd - HeroStart));
+                Vector3 arm = Quaternion.AngleAxis(145, up) * -forward;
+                pos = lockPos + arm * Mathf.Lerp(7, 5, s) + up * Mathf.Lerp(1.1f, 1.5f, s);
+                look = lockPos + forward * 1.2f + up * Mathf.Lerp(2.2f, 2f, s);
+                fov = Mathf.Lerp(48, 42, s);
             }
             else
             {
@@ -299,6 +326,150 @@ namespace Diva
             float far = t < SwoopEnd ? 1 : 1 - Ease((t - SwoopEnd) / 1.5f);
             RenderSettings.fogStartDistance = Mathf.Lerp(fogStart, 400, far);
             RenderSettings.fogEndDistance = Mathf.Lerp(fogEnd, 900, far);
+        }
+
+        // ---------- Ignition burst ----------
+
+        /// <summary>Smoke billowing out from both thrusters, a ground shock ring, sparks and a flash: visible from the front.</summary>
+        void Ignition()
+        {
+            if (!locomotion || !locomotion.travelRoot) return;
+            PrepareEffectMaterials();
+            var root = locomotion.travelRoot;
+            foreach (var ps in ignition) if (ps) Destroy(ps.gameObject);
+            ignition.Clear();
+            var nozzles = boosters ? boosters.cores.Where(c => c).Select(c => c.transform).ToList() : new List<Transform>();
+            if (nozzles.Count == 0) nozzles.Add(root);   // no mech: burst from the elephant's back
+            foreach (var n in nozzles)
+            {
+                Vector3 pos = n == root ? root.position + Vector3.up * 2.2f - root.forward * 1.5f : n.position;
+                Vector3 dir = n == root ? -root.forward : n.forward;
+                // Big soft smoke, thrown back and billowing up and out past the body.
+                ignition.Add(Burst("Ignition smoke", pos, dir, smokeMaterial, 45, new Vector2(4, 10), new Vector2(1.4f, 2.4f),
+                    new Vector2(1.2f, 2f), 3.2f, new Color(1, .9f, .97f, .9f), new Color(.92f, .82f, 1, 0), -.18f, 55, .35f, 2.2f));
+                // Bright sparks.
+                ignition.Add(Burst("Ignition sparks", pos, dir, glowMaterial, 70, new Vector2(7, 16), new Vector2(.35f, .8f),
+                    new Vector2(.12f, .28f), .3f, new Color(1, .75f, .45f, 1), new Color(1, .3f, .6f, 0), 1.2f, 40, .1f, .6f));
+            }
+            // Dust ring rolling out along the ground in every direction.
+            ignition.Add(Burst("Ignition shock ring", root.position + Vector3.up * .3f, Vector3.up, smokeMaterial, 80, new Vector2(9, 13),
+                new Vector2(.9f, 1.5f), new Vector2(1.3f, 2.2f), 2.4f, new Color(.95f, .88f, 1, .8f), new Color(.85f, .8f, 1, 0), -.05f, 89, .6f, 2.6f, ring: true));
+            if (!flash)
+            {
+                flash = new GameObject("Ignition flash").AddComponent<Light>();
+                flash.type = LightType.Point;
+                flash.color = new Color(1, .55f, .6f);
+                flash.range = 16;
+                flash.shadows = LightShadows.None;
+            }
+            flash.transform.position = root.position + Vector3.up * 2.5f - root.forward * 2;
+            if (boosters && baseFlameSpeed < 0) { baseFlameSpeed = boosters.flameSpeed; baseFlameSize = boosters.flameSize; }
+        }
+
+        void UpdateIgnition(float t)
+        {
+            float k = t - Ignite;
+            if (flash) flash.intensity = k < 0 ? 0 : k < .08f ? 14 * k / .08f : 14 * Mathf.Exp(-(k - .08f) * 5);
+            if (boosters && baseFlameSpeed >= 0)
+            {
+                // Flames twice as long and fast for the ignition, easing back by 1.5 s.
+                float boost = k < 0 ? 1 : k < .8f ? 2.2f : Mathf.Lerp(2.2f, 1, (k - .8f) / .7f);
+                boosters.flameSpeed = baseFlameSpeed * boost;
+                boosters.flameSize = baseFlameSize * Mathf.Lerp(1, boost, .8f);
+                if (k > 1.5f) { boosters.flameSpeed = baseFlameSpeed; boosters.flameSize = baseFlameSize; baseFlameSpeed = -1; }
+            }
+        }
+
+        ParticleSystem Burst(string name, Vector3 position, Vector3 direction, Material material, int count, Vector2 speed, Vector2 life,
+            Vector2 size, float grow, Color start, Color end, float gravity, float coneAngle, float radius, float drag, bool ring = false)
+        {
+            var go = new GameObject(name);
+            go.transform.SetPositionAndRotation(position, Quaternion.LookRotation(direction));
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.duration = 1; main.loop = false; main.playOnAwake = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(life.x, life.y);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(speed.x, speed.y);
+            main.startSize = new ParticleSystem.MinMaxCurve(size.x, size.y);
+            main.startRotation = new ParticleSystem.MinMaxCurve(0, Mathf.PI * 2);
+            main.startColor = start;
+            main.gravityModifier = gravity;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = count + 10;
+            var emission = ps.emission;
+            emission.rateOverTime = 0;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0, (short)count) });
+            var shape = ps.shape;
+            if (ring)
+            {
+                // A flat ring on the ground, emitting outwards (the object faces up, so the circle lies flat).
+                shape.shapeType = ParticleSystemShapeType.Circle;
+                shape.radius = radius;
+            }
+            else
+            {
+                shape.shapeType = ParticleSystemShapeType.Cone;
+                shape.angle = coneAngle;
+                shape.radius = radius;
+            }
+            var sizeOverLife = ps.sizeOverLifetime;
+            sizeOverLife.enabled = true;
+            sizeOverLife.size = new ParticleSystem.MinMaxCurve(1, grow >= 1 ? AnimationCurve.EaseInOut(0, 1 / grow, 1, 1) : AnimationCurve.Linear(0, 1, 1, grow));
+            var colour = ps.colorOverLifetime;
+            colour.enabled = true;
+            var gradient = new Gradient();
+            gradient.SetKeys(new[] { new GradientColorKey(start, 0), new GradientColorKey(end, 1) },
+                new[] { new GradientAlphaKey(start.a, 0), new GradientAlphaKey(start.a * .8f, .4f), new GradientAlphaKey(0, 1) });
+            colour.color = gradient;
+            var limit = ps.limitVelocityOverLifetime;
+            limit.enabled = true;
+            limit.drag = drag;
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            ps.Play();
+            Destroy(go, life.y + 1.5f);
+            return ps;
+        }
+
+        static void PrepareEffectMaterials()
+        {
+            if (smokeMaterial && glowMaterial) return;
+            if (!softDot)
+            {
+                const int n = 64;
+                softDot = new Texture2D(n, n, TextureFormat.RGBA32, true) { name = "Diva soft dot", wrapMode = TextureWrapMode.Clamp };
+                var px = new Color[n * n];
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        float d = Vector2.Distance(new Vector2(x + .5f, y + .5f), new Vector2(n / 2f, n / 2f)) / (n / 2f);
+                        float a = Mathf.Clamp01(1 - d);
+                        px[y * n + x] = new Color(1, 1, 1, a * a * (3 - 2 * a));
+                    }
+                softDot.SetPixels(px);
+                softDot.Apply();
+            }
+            smokeMaterial = EffectMaterial("Diva ignition smoke", false);
+            glowMaterial = EffectMaterial("Diva ignition glow", true);
+        }
+
+        // Same transparent URP particle setup as the mech's own effects.
+        static Material EffectMaterial(string name, bool additive)
+        {
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")) { name = name };
+            mat.SetTexture("_BaseMap", softDot);
+            mat.SetColor("_BaseColor", Color.white);
+            mat.SetFloat("_Surface", 1); mat.SetFloat("_Blend", additive ? 2 : 0);
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)(additive ? BlendMode.One : BlendMode.OneMinusSrcAlpha));
+            mat.SetFloat("_SrcBlendAlpha", (float)BlendMode.One); mat.SetFloat("_DstBlendAlpha", (float)BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)RenderQueue.Transparent;
+            return mat;
         }
 
         void ApplyBoosters(float t)
