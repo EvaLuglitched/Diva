@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using DigiPhant;
@@ -39,6 +40,25 @@ namespace Diva
         Vector3 startPosition;
         float startTime = -1, finishTime = -1;
         GUIStyle title, line, big;
+
+        void Awake() => RestoreEmission();
+
+        /// <summary>
+        /// The editor sometimes clears the _EMISSION keyword on our generated materials when it reloads them,
+        /// which turns off every neon. Re-enable it for Diva/Town materials that have an emission colour.
+        /// </summary>
+        public static void RestoreEmission()
+        {
+            var fixedMaterials = new HashSet<Material>();
+            foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                foreach (var m in r.sharedMaterials)
+                    if (m && fixedMaterials.Add(m) && (m.name.StartsWith("Diva ") || m.name.StartsWith("Town ")) &&
+                        m.HasProperty("_EmissionColor") && m.GetColor("_EmissionColor").maxColorComponent > .01f && !m.IsKeywordEnabled("_EMISSION"))
+                    {
+                        m.EnableKeyword("_EMISSION");
+                        m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                    }
+        }
 
         void OnEnable()
         {

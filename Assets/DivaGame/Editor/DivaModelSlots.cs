@@ -29,6 +29,12 @@ public class DivaModelSlots : ScriptableObject
     [Tooltip("Replaces the flying rocket. Its nose axis is set below.")] public GameObject rocket;
     [Tooltip("Which local axis of the rocket prefab is its nose (most rockets: up).")] public Vector3 rocketNoseAxis = Vector3.up;
     [Min(1)] public float rocketLength = 70;
+    [Tooltip("Nose angle above horizontal. Kept from the scene on every rebuild, so hand-rotating the rocket sticks.")]
+    [Range(-89, 89)] public float rocketPitch = 45;
+    [Tooltip("Around the map centre; 95 m puts it above the skyline, inside the game camera's view.")]
+    [Min(1)] public float rocketOrbitRadius = 95;
+    [Tooltip("Height of the rocket's centre.")] public float rocketOrbitHeight = 42;
+    [Tooltip("Metres per second around the map centre.")] public float rocketOrbitSpeed = 13;
     [Tooltip("Replace the clouds; several prefabs are used in turn.")] public GameObject[] clouds;
 
     [Header("Course scenery (positions unchanged; the original is hidden, not deleted)")]

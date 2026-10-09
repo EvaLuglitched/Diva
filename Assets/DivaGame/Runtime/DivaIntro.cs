@@ -1,0 +1,438 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using DigiPhant;
+
+namespace Diva
+{
+    /// <summary>
+    /// Race-start intro in the style of kart-racer openings: aerial view of the town, the rocket flying
+    /// past, a swoop down to the start line, a full orbit of the mech elephant while it powers up part by
+    /// part and ignites its thrusters, then a 3-2-1-GO countdown. All sounds are synthesised here.
+    /// The elephant is held on the start line until GO. Esc skips to the countdown, I replays.
+    /// </summary>
+    [DefaultExecutionOrder(2000)]   // after DivaDemo's camera and DivaSkyCamera
+    public class DivaIntro : MonoBehaviour
+    {
+        public Camera gameCamera;
+        public DigiPhantController controller;
+        public DigiPhantLocomotion locomotion;
+        public DivaOrbit rocket;
+        public DivaSkyCamera skyCamera;
+        public DivaGameManager game;
+        public bool playOnStart = true;
+        public string title = "DIVA SAFARI";
+        public string subtitle = "Candy Town Course";
+        [Range(0, 1)] public float volume = .8f;
+
+        // Timeline, in seconds.
+        public const float AerialEnd = 3.5f, RocketEnd = 6f, SwoopEnd = 8.5f, OrbitEnd = 12.5f;
+        public const float BootStart = 8.9f, BootEnd = 11.4f, Ignite = 11.8f;
+        public const float CountStart = 12.8f, Go = CountStart + 3, End = Go + 1.2f;
+
+        public bool Playing { get; private set; }
+        public float Time { get; private set; } = -1;
+
+        float rocketAngle0, fogStart, fogEnd;
+        bool fogSaved, fogOn;
+        Vector3 lockPos;
+        Quaternion lockRot;
+        bool savedControls = true, savedHud = true, savedPreview = true, prepared;
+        DigiPhantCameraPreview preview;
+        readonly List<(Renderer r, Color[] baseColour, Color[] emission)> parts = new List<(Renderer, Color[], Color[])>();
+        MaterialPropertyBlock block;
+        DivaBoosters boosters;
+        AudioSource audioSource;
+        AudioClip beep, beepGo, whoosh, chirp, ignite, fanfare, chime;
+        readonly List<(float time, AudioClip clip, float pitch, float gain)> cues = new List<(float, AudioClip, float, float)>();
+        int nextCue;
+        GUIStyle textStyle;
+
+        // ---------- Lifecycle ----------
+
+        void Start()
+        {
+            if (playOnStart) Begin();
+        }
+
+        /// <summary>Starts (or restarts) the intro.</summary>
+        public void Begin()
+        {
+            Prepare();
+            if (!Playing)
+            {
+                savedControls = controller ? controller.showControls : true;
+                savedHud = game ? game.showHud : true;
+                preview = controller ? controller.GetComponent<DigiPhantCameraPreview>() : null;
+                savedPreview = preview ? preview.showPreview : true;
+            }
+            if (rocket) rocketAngle0 = rocket.Angle;
+            Playing = true;
+            Time = 0;
+            nextCue = 0;
+            BuildCues();
+            if (controller) controller.showControls = false;
+            if (game) game.showHud = false;
+            if (preview) preview.showPreview = false;   // its floating window would cover the cinematic
+        }
+
+        /// <summary>Jumps to the countdown, with the mech already powered up.</summary>
+        public void Skip()
+        {
+            if (!Playing || Time >= OrbitEnd) return;
+            Time = OrbitEnd;
+            while (nextCue < cues.Count && cues[nextCue].time < Time) nextCue++;
+        }
+
+        /// <summary>Reads the start pose, mech parts and rocket; safe to call in the editor for previews.</summary>
+        public void Prepare()
+        {
+            if (!gameCamera) gameCamera = Camera.main;
+            if (locomotion && locomotion.travelRoot)
+            {
+                lockPos = locomotion.travelRoot.position;
+                lockRot = Quaternion.LookRotation(Flat(locomotion.travelRoot.forward));
+                boosters = locomotion.travelRoot.GetComponent<DivaBoosters>();
+            }
+            rocketAngle0 = rocket ? (Application.isPlaying ? rocket.Angle : rocket.startAngle * Mathf.Deg2Rad) : 0;
+            parts.Clear();
+            if (locomotion && locomotion.travelRoot)
+            {
+                // Power-up order: legs, body, back, head, trunk gun.
+                string[] order = { "l_Tibia", "r_Tibia", "l_Radius", "r_Radius", "Spine3", "Spine2", "Head", "Trunk7" };
+                var mech = locomotion.travelRoot.GetComponentsInChildren<Renderer>(true)
+                    .Where(r => r.name.StartsWith("DivaMech elephant_") && !(r is ParticleSystemRenderer)).ToList();
+                foreach (var key in order)
+                    foreach (var r in mech.Where(m => m.name.Contains(key)))
+                        parts.Add((r, r.sharedMaterials.Select(m => m && m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor") : Color.white).ToArray(),
+                                      r.sharedMaterials.Select(m => m && m.HasProperty("_EmissionColor") ? m.GetColor("_EmissionColor") : Color.black).ToArray()));
+            }
+            block ??= new MaterialPropertyBlock();
+            if (!fogSaved) { fogOn = RenderSettings.fog; fogStart = RenderSettings.fogStartDistance; fogEnd = RenderSettings.fogEndDistance; fogSaved = true; }
+            if (!audioSource && Application.isPlaying)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.playOnAwake = false;
+                audioSource.spatialBlend = 0;
+                MakeSounds();
+            }
+            prepared = true;
+        }
+
+        void Update()
+        {
+            var keys = Keyboard.current;
+            if (keys == null) return;
+            if (keys.escapeKey.wasPressedThisFrame) Skip();
+            if (keys.iKey.wasPressedThisFrame) Begin();
+        }
+
+        void LateUpdate()
+        {
+            if (!Playing) return;
+            Time += UnityEngine.Time.deltaTime;
+            while (nextCue < cues.Count && cues[nextCue].time <= Time)
+            {
+                var cue = cues[nextCue++];
+                if (cue.clip && audioSource) { audioSource.pitch = cue.pitch; audioSource.PlayOneShot(cue.clip, cue.gain * volume); }
+            }
+            if (Time < Go && locomotion && locomotion.travelRoot)
+            {
+                // Held on the start line until GO.
+                locomotion.StopMotion();
+                locomotion.travelRoot.SetPositionAndRotation(lockPos, lockRot);
+            }
+            ApplyBoot(Time);
+            ApplyBoosters(Time);
+            ApplyFog(Time);
+            if (Time < Go && gameCamera)
+            {
+                PoseAt(Time, out var pos, out var rot, out float fov);
+                gameCamera.transform.SetPositionAndRotation(pos, rot);
+                gameCamera.fieldOfView = fov;
+            }
+            if (Time >= End) Finish();
+        }
+
+        void Finish()
+        {
+            Playing = false;
+            ApplyBoot(float.MaxValue);
+            ApplyFog(float.MaxValue);
+            if (boosters) boosters.SetBoost(-1);
+            if (controller) controller.showControls = savedControls;
+            if (game) game.showHud = savedHud;
+            if (preview) preview.showPreview = savedPreview;
+        }
+
+        void OnDisable() { if (Playing) Finish(); }
+
+        // ---------- Camera ----------
+
+        static Vector3 Flat(Vector3 v) { v.y = 0; return v.sqrMagnitude > 1e-6f ? v.normalized : Vector3.forward; }
+        static float Ease(float x) { x = Mathf.Clamp01(x); return x * x * (3 - 2 * x); }
+        static Vector3 Bezier(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float s)
+        {
+            float u = 1 - s;
+            return u * u * u * a + 3 * u * u * s * b + 3 * u * s * s * c + s * s * s * d;
+        }
+
+        Vector3 RocketAt(float t) => rocket ? rocket.PositionAt(rocketAngle0 + rocket.AngularSpeed * t) : transform.position + Vector3.up * 60;
+
+        Vector3 RocketCamera()
+        {
+            // A fixed spot outside the orbit, just ahead of where the rocket will be mid-shot: it flies past.
+            float mid = (AerialEnd + RocketEnd) / 2;
+            float a = rocketAngle0 + (rocket ? rocket.AngularSpeed * mid : 0);
+            Vector3 pm = RocketAt(mid), outward = Flat(pm - transform.position);
+            return pm + outward * 72 + DivaOrbit.TangentAt(a) * 34 - Vector3.up * 14;
+        }
+
+        void GamePose(out Vector3 pos, out Quaternion rot, out float fov)
+        {
+            var demo = controller ? controller.GetComponent<DivaDemo>() : null;
+            Vector3 offset = demo ? demo.cameraOffset : new Vector3(0, 4.5f, -8);
+            pos = lockPos + lockRot * offset;
+            rot = Quaternion.LookRotation(lockPos + Vector3.up * 1.5f - pos);
+            float up = skyCamera ? skyCamera.lookUp : 0;
+            rot = Quaternion.AngleAxis(-up, rot * Vector3.right) * rot;
+            fov = skyCamera ? skyCamera.fieldOfView : 60;
+        }
+
+        /// <summary>Camera pose at a time on the intro timeline.</summary>
+        public void PoseAt(float t, out Vector3 pos, out Quaternion rot, out float fov)
+        {
+            if (!prepared) Prepare();
+            Vector3 centre = transform.position, up = Vector3.up, forward = lockRot * Vector3.forward;
+            Vector3 elephantLook = lockPos + up * 1.7f, look;
+            Vector3 orbitStart = lockPos - forward * 9 + up * 3.2f;
+            if (t < AerialEnd || !rocket && t < RocketEnd)
+            {
+                // Aerial establishing shot, slowly circling the town.
+                float s = t / (rocket ? AerialEnd : RocketEnd);
+                float a = Mathf.Lerp(215, 250, s) * Mathf.Deg2Rad;
+                pos = centre + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 92 + up * Mathf.Lerp(66, 56, s);
+                look = centre + up * 4;
+                fov = 50;
+            }
+            else if (t < RocketEnd)
+            {
+                // The rocket flies past a fixed camera.
+                pos = RocketCamera();
+                look = RocketAt(t);
+                fov = 55;
+            }
+            else if (t < SwoopEnd)
+            {
+                // Swoop from the sky down to the start line.
+                float s = Ease((t - RocketEnd) / (SwoopEnd - RocketEnd));
+                Vector3 from = RocketCamera();
+                pos = Bezier(from, centre + up * 55 + Flat(from - centre) * 30, lockPos - forward * 24 + up * 15, orbitStart, s);
+                look = Vector3.Lerp(RocketAt(t), elephantLook, Ease(s * 1.6f));
+                fov = Mathf.Lerp(55, 50, s);
+            }
+            else if (t < OrbitEnd)
+            {
+                // One full turn around the mech elephant.
+                float s = Ease((t - SwoopEnd) / (OrbitEnd - SwoopEnd));
+                Vector3 arm = Quaternion.AngleAxis(s * 360, up) * -forward;
+                pos = lockPos + arm * Mathf.Lerp(9, 7, s) + up * Mathf.Lerp(3.2f, 2.4f, s);
+                look = elephantLook;
+                fov = 50;
+            }
+            else
+            {
+                // Settle into the gameplay camera for the countdown.
+                float s = Ease((t - OrbitEnd) / .9f);
+                Vector3 from = lockPos - forward * 7 + up * 2.4f;
+                GamePose(out var gp, out var gr, out float gf);
+                pos = Vector3.Lerp(from, gp, s);
+                rot = Quaternion.Slerp(Quaternion.LookRotation(elephantLook - from), gr, s);
+                fov = Mathf.Lerp(50, gf, s);
+                return;
+            }
+            rot = Quaternion.LookRotation(look - pos);
+        }
+
+        // ---------- Mech power-up ----------
+
+        /// <summary>Dark until each part's turn, then a bright flash that settles to its normal colours.</summary>
+        public void ApplyBoot(float t)
+        {
+            if (!prepared) Prepare();
+            int n = parts.Count;
+            for (int i = 0; i < n; i++)
+            {
+                var (r, baseColour, emission) = parts[i];
+                if (!r) continue;
+                float at = BootStart + (n > 1 ? i * (BootEnd - BootStart) / (n - 1) : 0);
+                float k = t - at;
+                for (int m = 0; m < baseColour.Length; m++)
+                {
+                    if (k >= .45f) { r.SetPropertyBlock(null, m); continue; }
+                    block.Clear();
+                    Color dark = baseColour[m] * .12f; dark.a = baseColour[m].a;
+                    if (k < 0)
+                    {
+                        block.SetColor("_BaseColor", dark);
+                        block.SetColor("_EmissionColor", Color.black);
+                    }
+                    else
+                    {
+                        float p = k / .45f;
+                        Color lit = Color.Lerp(dark, baseColour[m], Ease(p * 1.5f)); lit.a = baseColour[m].a;
+                        block.SetColor("_BaseColor", lit);
+                        block.SetColor("_EmissionColor", emission[m] + new Color(1, .7f, .95f) * 3f * (1 - p));
+                    }
+                    r.SetPropertyBlock(block, m);
+                }
+            }
+        }
+
+        /// <summary>No haze for the high aerial shots; after the swoop the game's fog eases back in from far away.</summary>
+        public void ApplyFog(float t)
+        {
+            if (!fogSaved) return;
+            RenderSettings.fog = fogOn && t >= SwoopEnd;
+            float far = t < SwoopEnd ? 1 : 1 - Ease((t - SwoopEnd) / 1.5f);
+            RenderSettings.fogStartDistance = Mathf.Lerp(fogStart, 400, far);
+            RenderSettings.fogEndDistance = Mathf.Lerp(fogEnd, 900, far);
+        }
+
+        void ApplyBoosters(float t)
+        {
+            if (!boosters) return;
+            if (t < Ignite) boosters.SetBoost(0);
+            else if (t < Ignite + .7f) boosters.SetBoost(1);
+            else if (t < Go) boosters.SetBoost(.35f);
+            else if (t < Go + .8f) boosters.SetBoost(1);
+            else boosters.SetBoost(-1);
+        }
+
+        // ---------- Sound ----------
+
+        void BuildCues()
+        {
+            cues.Clear();
+            cues.Add((.3f, chime, 1, .7f));
+            cues.Add(((AerialEnd + RocketEnd) / 2 - .9f, whoosh, 1, 1));
+            cues.Add((RocketEnd + .2f, whoosh, .6f, .7f));
+            int n = Math.Max(1, parts.Count);
+            for (int i = 0; i < parts.Count; i++)
+                cues.Add((BootStart + (n > 1 ? i * (BootEnd - BootStart) / (n - 1) : 0), chirp, 1 + i * .08f, .55f));
+            cues.Add((Ignite, ignite, 1, 1));
+            for (int i = 0; i < 3; i++) cues.Add((CountStart + i, beep, 1, .8f));
+            cues.Add((Go, beepGo, 1, .9f));
+            cues.Add((Go + .12f, fanfare, 1, .6f));
+            cues.Sort((a, b) => a.time.CompareTo(b.time));
+        }
+
+        static AudioClip Synth(string name, float seconds, Func<float, float> wave)
+        {
+            const int rate = 44100;
+            int n = (int)(seconds * rate);
+            var data = new float[n];
+            for (int i = 0; i < n; i++) data[i] = Mathf.Clamp(wave(i / (float)rate), -1, 1);
+            var clip = AudioClip.Create(name, n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        static float Tone(float f, float t) => Mathf.Sin(2 * Mathf.PI * f * t) + .25f * Mathf.Sin(6 * Mathf.PI * f * t);
+
+        void MakeSounds()
+        {
+            beep = Synth("Countdown beep", .32f, t => Tone(523, t) * .45f * Mathf.Min(1, t * 200) * Mathf.Exp(-t * 7));
+            beepGo = Synth("Countdown go", .9f, t => (Tone(1047, t) + .5f * Tone(1568, t)) * .35f * Mathf.Min(1, t * 200) * Mathf.Exp(-t * 2.5f));
+            var noise = new System.Random(7);
+            float lp = 0;
+            whoosh = Synth("Whoosh", 1.8f, t =>
+            {
+                float cutoff = .02f + .25f * Mathf.Exp(-Mathf.Pow((t - .9f) / .35f, 2));
+                lp += cutoff * ((float)noise.NextDouble() * 2 - 1 - lp);
+                return lp * 2.2f * Mathf.Exp(-Mathf.Pow((t - .9f) / .45f, 2));
+            });
+            chirp = Synth("Power up", .28f, t => Mathf.Sin(2 * Mathf.PI * (380 * t + 1800 * t * t)) * .35f * Mathf.Min(1, t * 120) * Mathf.Exp(-t * 6));
+            float lp2 = 0;
+            ignite = Synth("Ignite", 1.4f, t =>
+            {
+                lp2 += .08f * ((float)noise.NextDouble() * 2 - 1 - lp2);
+                float env = Mathf.Min(1, t * 30) * Mathf.Exp(-t * 2.2f);
+                return (lp2 * 3 + Mathf.Sin(2 * Mathf.PI * (55 + 30 * t) * t) * .6f) * env * .7f;
+            });
+            float[] notes = { 523, 659, 784, 1047 };
+            fanfare = Synth("Fanfare", 1.1f, t =>
+            {
+                int i = Mathf.Min(3, (int)(t / .1f));
+                float local = t - i * .1f, decay = i == 3 ? 2.5f : 14;
+                return Tone(notes[i], t) * .3f * Mathf.Min(1, local * 300) * Mathf.Exp(-local * decay);
+            });
+            chime = Synth("Title chime", 1.6f, t =>
+                (Mathf.Sin(2 * Mathf.PI * 1319 * t) * Mathf.Exp(-t * 3) + Mathf.Sin(2 * Mathf.PI * 1760 * Mathf.Max(0, t - .18f)) * Mathf.Exp(-Mathf.Max(0, t - .18f) * 3) * (t > .18f ? 1 : 0)) * .3f);
+        }
+
+        // ---------- Overlay ----------
+
+        void OnGUI()
+        {
+            if (!Playing) return;
+            float t = Time, w = Screen.width, h = Screen.height;
+            textStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = false };
+
+            // Cinematic bars until the countdown.
+            float bars = t < OrbitEnd ? 1 : 1 - Ease((t - OrbitEnd) / .6f);
+            if (bars > 0)
+            {
+                GUI.color = Color.black;
+                GUI.DrawTexture(new Rect(0, 0, w, h * .09f * bars), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(0, h - h * .09f * bars, w, h * .09f * bars), Texture2D.whiteTexture);
+                GUI.color = Color.white;
+            }
+
+            // Course title banner, sliding in from the left.
+            if (t > .3f && t < AerialEnd + .4f)
+            {
+                float a = Mathf.Min(Ease((t - .3f) / .5f), 1 - Ease((t - AerialEnd + .2f) / .6f));
+                float x = Mathf.Lerp(-w * .5f, 0, Ease((t - .3f) / .5f));
+                var banner = new Rect(x, h * .64f, w * .52f, h * .17f);
+                GUI.color = new Color(1, .35f, .72f, .92f * a);
+                GUI.DrawTexture(banner, Texture2D.whiteTexture);
+                GUI.color = new Color(.3f, .95f, 1, a);
+                GUI.DrawTexture(new Rect(x, banner.yMax, w * .52f, h * .012f), Texture2D.whiteTexture);
+                GUI.color = Color.white;
+                Outlined(new Rect(x + w * .03f, banner.y + h * .01f, banner.width - w * .05f, h * .1f), title, (int)(h * .075f), new Color(1, 1, 1, a), TextAnchor.MiddleLeft);
+                Outlined(new Rect(x + w * .03f, banner.y + h * .1f, banner.width - w * .05f, h * .06f), subtitle, (int)(h * .035f), new Color(1, .95f, .98f, a), TextAnchor.MiddleLeft);
+            }
+
+            if (t < OrbitEnd)
+                Outlined(new Rect(w - 240, h - h * .09f - 4, 230, 30), "Esc  skip", 16, new Color(1, 1, 1, .8f), TextAnchor.MiddleRight);
+
+            // 3, 2, 1, GO!
+            Color[] colours = { new Color(1, .4f, .75f), new Color(.35f, .9f, 1), new Color(1, .86f, .3f), new Color(1, .3f, .7f) };
+            for (int i = 0; i < 4; i++)
+            {
+                float start = CountStart + i, length = i < 3 ? 1 : 1.2f, p = t - start;
+                if (p < 0 || p >= length) continue;
+                float pop = 1.7f - .7f * Ease(p / .18f);
+                float alpha = p > length - .3f ? 1 - (p - (length - .3f)) / .3f : 1;
+                var c = colours[i]; c.a = alpha;
+                Outlined(new Rect(0, h * .2f, w, h * .5f), i < 3 ? (3 - i).ToString() : "GO!", (int)(h * (i < 3 ? .26f : .22f) * pop), c, TextAnchor.MiddleCenter);
+            }
+        }
+
+        void Outlined(Rect rect, string text, int size, Color colour, TextAnchor anchor)
+        {
+            textStyle.fontSize = Mathf.Max(8, size);
+            textStyle.alignment = anchor;
+            float o = Mathf.Max(2, size * .05f);
+            textStyle.normal.textColor = new Color(.35f, .1f, .35f, colour.a * .9f);
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dy = -1; dy <= 1; dy++)
+                    if (dx != 0 || dy != 0) GUI.Label(new Rect(rect.x + dx * o, rect.y + dy * o, rect.width, rect.height), text, textStyle);
+            textStyle.normal.textColor = colour;
+            GUI.Label(rect, text, textStyle);
+        }
+    }
+}

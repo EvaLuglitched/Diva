@@ -76,8 +76,9 @@ public static class DivaGameBuilder
         var locomotion = controller ? controller.GetComponent<DigiPhantLocomotion>() : null;
         if (!locomotion || !locomotion.travelRoot) throw new Exception("No DigiPhant locomotion with a travel root in this scene.");
 
-        foreach (var old in scene.GetRootGameObjects().Where(g => g.name == RootName)) UnityEngine.Object.DestroyImmediate(old);
         PrepareAssets();
+        CaptureRocketPitch(scene);
+        foreach (var old in scene.GetRootGameObjects().Where(g => g.name == RootName)) UnityEngine.Object.DestroyImmediate(old);
         var root = new GameObject(RootName);
         UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, scene);
         // Share the course's frame, so route coordinates from the generator apply directly.
@@ -435,12 +436,13 @@ public static class DivaGameBuilder
     static void BuildSky(Transform parent)
     {
         var model = AssetDatabase.LoadAssetAtPath<GameObject>(Kenney + "/Models/cloud.fbx");
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 10; i++)
         {
             uint h = Hash(i, 7);
-            float angle = i * 45 + h % 20, radius = 70 + (h >> 5) % 40;
+            // A ring just above the rooftops around the course: in the game camera's sky band, in front of the rocket's orbit.
+            float angle = i * 36 + h % 20, radius = 48 + (h >> 5) % 28;
             var anchor = Group(parent, "Cloud " + (i + 1));
-            anchor.localPosition = Quaternion.Euler(0, angle, 0) * new Vector3(0, 52 + (h >> 9) % 12, radius);
+            anchor.localPosition = Quaternion.Euler(0, angle, 0) * new Vector3(0, 30 + (h >> 9) % 9, radius);
             anchor.localRotation = Quaternion.Euler(0, (h >> 3) % 360, 0);
             anchor.localScale = new Vector3(14 + (h >> 11) % 6, 1.6f, 9 + (h >> 15) % 4);
             if (slots.clouds != null && slots.clouds.Length > 0)
@@ -448,7 +450,7 @@ public static class DivaGameBuilder
                 // Downloaded clouds keep their own materials; size them by width rather than the stand-in's scale.
                 var prefab = slots.clouds[(int)((h >> 17) % slots.clouds.Length)];
                 anchor.localScale = Vector3.one;
-                if (prefab) FitWidth(prefab, anchor, 16 + (h >> 11) % 8, i);
+                if (prefab) FitWidth(prefab, anchor, 14 + (h >> 11) % 7, i);
             }
             else if (model)
             {
@@ -460,7 +462,8 @@ public static class DivaGameBuilder
                 }
             }
             var motion = anchor.gameObject.AddComponent<DivaFloat>();
-            motion.bobHeight = .6f; motion.bobSpeed = .1f;
+            motion.bobHeight = 1.2f + (h >> 19) % 3 * .4f; motion.bobSpeed = .25f + (h >> 21) % 3 * .05f;
+            motion.driftRadius = 4 + (h >> 23) % 4; motion.driftSpeed = .04f + (h >> 25) % 3 * .015f;
         }
     }
 
@@ -486,14 +489,17 @@ public static class DivaGameBuilder
         foreach (var r in renderers) r.shadowCastingMode = ShadowCastingMode.Off;
     }
 
-    /// <summary>A giant rocket hovering high above the centre of the map, nose 45 degrees up, slowly turning, exhaust trailing behind.</summary>
+    /// <summary>A giant rocket circling high above the centre of the map, nose at the kept pitch, exhaust trailing behind.</summary>
     static void BuildRocket(Transform root)
     {
         float length = slots.rocketLength, k = length / 22;   // effects were tuned for a 22 m rocket
         var hover = Group(root, "Giant rocket");
-        hover.localPosition = new Vector3(0, length * .5f + 40, 0);   // bottom clears every building
-        var motion = hover.gameObject.AddComponent<DivaFloat>();
-        motion.bobHeight = 2.5f; motion.bobSpeed = .3f; motion.spinDegreesPerSecond = 4;
+        var orbit = hover.gameObject.AddComponent<DivaOrbit>();
+        orbit.centre = root.position;
+        orbit.radius = slots.rocketOrbitRadius;
+        orbit.speed = slots.rocketOrbitSpeed;
+        orbit.height = slots.rocketOrbitHeight;   // with the wide orbit: above the skyline, in the game camera's view
+        orbit.startAngle = 70;   // starts ahead of the elephant at the start line, then flies across
         var body = Group(hover, "Rocket body");
         GameObject model;
         if (slots.rocket)
@@ -516,7 +522,7 @@ public static class DivaGameBuilder
             model.transform.position += body.position - Measure().center;
             foreach (var r in renderers) r.shadowCastingMode = ShadowCastingMode.Off;
         }
-        body.localRotation = Quaternion.Euler(-45, 0, 0);   // nose (+Z) tipped 45 degrees up: flying diagonally
+        body.localRotation = Quaternion.Euler(-slots.rocketPitch, 0, 0);   // nose (+Z) tipped up by the pitch
         float tail = -length / 2;
         Part(body, "Exhaust flame", PrimitiveType.Sphere, flameOuter, new Vector3(0, 0, tail - 2.2f * k), new Vector3(2.2f, 2.2f, 5.5f) * k)
             .GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
@@ -526,6 +532,30 @@ public static class DivaGameBuilder
         glow.transform.SetParent(body, false);
         glow.transform.localPosition = new Vector3(0, 0, tail - 3 * k);
         glow.type = LightType.Point; glow.color = new Color(1, .55f, .35f); glow.range = 25 * k; glow.intensity = 6; glow.shadows = LightShadows.None;
+        orbit.Place(0);
+    }
+
+    /// <summary>
+    /// Reads the nose angle of the rocket currently in the scene (including any hand rotation of the
+    /// model or body) into the slots, so a rebuild keeps it.
+    /// </summary>
+    static void CaptureRocketPitch(UnityEngine.SceneManagement.Scene scene)
+    {
+        var old = scene.GetRootGameObjects().FirstOrDefault(g => g.name == RootName);
+        var hover = old ? old.transform.Find("Giant rocket") : null;
+        if (hover && !hover.GetComponent<DivaOrbit>()) return;
+        var body = hover ? hover.Find("Rocket body") : null;
+        var model = body ? body.Cast<Transform>().FirstOrDefault(t => t.GetComponentInChildren<Renderer>() && !t.name.StartsWith("Exhaust")) : null;
+        if (!model) return;
+        bool fab = slots.rocket && PrefabUtility.GetCorrespondingObjectFromSource(model.gameObject) == slots.rocket;
+        Vector3 noseAxis = fab ? slots.rocketNoseAxis.normalized : Vector3.up;
+        Vector3 nose = Quaternion.Inverse(hover.rotation) * (model.rotation * noseAxis);
+        float pitch = Mathf.Round(Mathf.Asin(Mathf.Clamp(nose.normalized.y, -1, 1)) * Mathf.Rad2Deg * 10) / 10;
+        if (Mathf.Abs(pitch - slots.rocketPitch) < .05f) return;
+        slots.rocketPitch = pitch;
+        EditorUtility.SetDirty(slots);
+        AssetDatabase.SaveAssets();
+        Debug.Log("DIVA_ROCKET_PITCH kept from scene: " + pitch);
     }
 
     const string FabRocket = Folder + "/ThirdParty/Fab/StylizedRocket/Stylized Rocket.fbx";
@@ -777,6 +807,8 @@ public static class DivaGameBuilder
         blaster.shotSound = AssetDatabase.LoadAssetAtPath<AudioClip>(Kenney + "/Sounds/blaster.ogg");
         blaster.hitSound = AssetDatabase.LoadAssetAtPath<AudioClip>(Kenney + "/Sounds/enemy_destroy.ogg");
 
+        var sky = root.AddComponent<DivaSkyCamera>();
+        sky.gameCamera = Camera.main;
         var game = root.AddComponent<DivaGameManager>();
         game.controller = controller;
         game.locomotion = locomotion;
@@ -789,6 +821,14 @@ public static class DivaGameBuilder
             new CourseTask { label = "Step over the fallen log", landmark = Landmark("03 "), radius = 5, check = TaskCheck.LiftLegs },
             new CourseTask { label = "Reach the finish arch", landmark = Landmark("04 "), radius = 4, check = TaskCheck.Reach },
         };
+
+        var intro = root.AddComponent<DivaIntro>();
+        intro.gameCamera = Camera.main;
+        intro.controller = controller;
+        intro.locomotion = locomotion;
+        intro.rocket = root.GetComponentInChildren<DivaOrbit>();
+        intro.skyCamera = sky;
+        intro.game = game;
     }
 
     // ---------- Assets ----------
@@ -1085,11 +1125,12 @@ public static class DivaGameBuilder
         var shots = new (string name, Vector3 position, Vector3 lookAt, float fov)[]
         {
             ("overview", centre - sunward * 75 + Vector3.up * 62, centre, 50),
+            ("game-camera", elephant.position + elephant.rotation * new Vector3(0, 4.5f, -8), elephant.position + Vector3.up * 1.5f, 0),
             ("start-chase", elephant.position - elephant.forward * 7 + Vector3.up * 6.5f, elephant.position + elephant.forward * 14 + Vector3.up * 1.5f, 60),
             ("course-low", frame.TransformPoint(new Vector3(-17, 3.2f, -16)), frame.TransformPoint(new Vector3(8, 1.5f, -17)), 60),
             ("finish-side", frame.TransformPoint(new Vector3(10, 4.5f, 12)), frame.TransformPoint(new Vector3(-12, 1.5f, 18)), 60),
             ("street", frame.TransformPoint(new Vector3(-20, 2, 35.5f)), frame.TransformPoint(new Vector3(20, 4, 36)), 65),
-            ("rocket", frame.TransformPoint(new Vector3(-125, 24, -20)), root.transform.Find("Giant rocket").position + Vector3.down * 25, 55),   // side-on, shows the 45 degree tilt
+            ("rocket", frame.TransformPoint(new Vector3(-125, 24, -20)), root.transform.Find("Giant rocket").position + Vector3.down * 25, 55),   // side-on view of the rocket on its orbit
         };
         var go = new GameObject("Preview camera");
         try
@@ -1108,6 +1149,13 @@ public static class DivaGameBuilder
                 camera.fieldOfView = shot.fov;
                 camera.transform.position = shot.position;
                 camera.transform.LookAt(shot.lookAt);
+                if (shot.fov == 0)
+                {
+                    // The in-game view: DivaDemo's camera, lifted by DivaSkyCamera.
+                    var sky = root.GetComponent<DivaSkyCamera>();
+                    camera.fieldOfView = sky ? sky.fieldOfView : 55;
+                    if (sky) camera.transform.rotation = Quaternion.AngleAxis(-sky.lookUp, camera.transform.right) * camera.transform.rotation;
+                }
                 camera.Render();
                 RenderTexture.active = rt;
                 var image = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
@@ -1122,6 +1170,58 @@ public static class DivaGameBuilder
             Debug.Log("DIVA_PREVIEW_SHOTS: " + folder);
         }
         finally { UnityEngine.Object.DestroyImmediate(go); }
+    }
+
+    /// <summary>Renders keyframes of the race intro (camera, rocket position, mech power-up) to Recordings/preview/intro-*.png.</summary>
+    [MenuItem("Diva/Game/Render Intro Frames")]
+    public static void RenderIntroFrames()
+    {
+        var root = GameObject.Find(RootName);
+        var intro = root ? root.GetComponent<DivaIntro>() : null;
+        if (!intro) throw new Exception("Build the game layer first.");
+        string folder = Path.GetFullPath(Path.Combine(Application.dataPath, "../Recordings/preview"));
+        Directory.CreateDirectory(folder);
+        intro.Prepare();
+        var orbit = intro.rocket;
+        float a0 = orbit ? orbit.startAngle * Mathf.Deg2Rad : 0;
+        var go = new GameObject("Intro preview camera");
+        try
+        {
+            var camera = go.AddComponent<Camera>();
+            camera.allowHDR = true;
+            camera.farClipPlane = 800;
+            camera.GetUniversalAdditionalCameraData().renderPostProcessing = true;
+            var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
+            camera.targetTexture = rt;
+            camera.Render();   // warm-up frame
+            foreach (float t in new[] { 1.5f, 4.2f, 4.9f, 7.0f, 8.4f, 9.6f, 10.6f, 11.9f, 13.6f })
+            {
+                if (orbit) orbit.SetAngle(a0 + orbit.AngularSpeed * t, 0);
+                intro.ApplyBoot(t);
+                intro.ApplyFog(t);
+                intro.PoseAt(t, out var pos, out var rot, out float fov);
+                camera.transform.SetPositionAndRotation(pos, rot);
+                camera.fieldOfView = fov;
+                camera.Render();
+                RenderTexture.active = rt;
+                var image = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                image.Apply();
+                File.WriteAllBytes(Path.Combine(folder, $"intro-{t:00.0}.png"), image.EncodeToPNG());
+                UnityEngine.Object.DestroyImmediate(image);
+            }
+            RenderTexture.active = null;
+            camera.targetTexture = null;
+            rt.Release();
+            Debug.Log("DIVA_INTRO_FRAMES: " + folder);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(go);
+            intro.ApplyBoot(float.MaxValue);
+            intro.ApplyFog(float.MaxValue);
+            if (orbit) orbit.Place(0);
+        }
     }
 
     /// <summary>Command line (interactive editor): open the team scene and select the game layer so it is easy to inspect.</summary>

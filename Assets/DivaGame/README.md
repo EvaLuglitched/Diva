@@ -45,6 +45,23 @@ changing them and rebuilding never moves anything.
 | Purple-blue procedural sky, trilight ambient, linear fog, warm soft-shadow sun (colour 1/.9/.78, intensity 1.5) | Lighting settings, Key Light |
 | Post-processing on the main camera; far clip ≥ 400 | Main Camera |
 
+## Race intro (`Runtime/DivaIntro.cs`)
+
+Plays when entering Play (about 16 s), kart-racer style:
+
+| Time | Shot | On screen / sound |
+| --- | --- | --- |
+| 0 – 3.5 s | Aerial, slowly circling the town (no haze) | "DIVA SAFARI · Candy Town Course" banner, chime |
+| 3.5 – 6 s | Fixed camera as the rocket flies past | whoosh |
+| 6 – 8.5 s | Swoop down over the course to the start line | lower whoosh |
+| 8.5 – 12.5 s | One full orbit of the mech elephant | parts power up one by one (dark → flash → lit) with rising chirps; thrusters ignite |
+| 12.5 – 16 s | Settles into the game camera | 3 · 2 · 1 · GO! with beeps and a fanfare |
+
+The elephant is held on the start line until GO; panels and HUD are hidden until then. **Esc** skips
+to the countdown, **I** replays. All sounds are synthesised in code. **Diva > Game > Render Intro Frames**
+saves keyframes to `Recordings/preview/intro-*.png`. Untick *Play On Start* on the Diva Intro component
+(on `Diva Game Layer`) to turn it off.
+
 ## Sky: flying rocket and clouds
 
 A giant rocket (70 m, `rocketLength` in the model slots) hovers above the centre of the map, flying
