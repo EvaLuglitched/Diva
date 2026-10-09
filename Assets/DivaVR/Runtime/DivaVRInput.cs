@@ -8,6 +8,8 @@ namespace Diva.VR
     {
         public float go, steer, aim;
         public bool shoot, drink, ult;
+        /// <summary>捏的时候眼睛看的方向（世界空间，Vision Pro 的"看 + 捏"）；零向量 = 用头的朝向。</summary>
+        public Vector3 look;
     }
 
     /// <summary>
@@ -21,6 +23,7 @@ namespace Diva.VR
         DigiPhantLocomotion loco;
         DivaVRSimulator simulator;
         DivaVRHands hands;
+        DivaVRAutopilot autopilot;
 
         /// <summary>这一帧最终交给游戏的操作（给测试和调试看）。</summary>
         public DivaVRFrame Current { get; private set; }
@@ -31,26 +34,27 @@ namespace Diva.VR
             loco = FindAnyObjectByType<DigiPhantLocomotion>();
             simulator = GetComponent<DivaVRSimulator>();
             hands = GetComponent<DivaVRHands>();
+            autopilot = GetComponent<DivaVRAutopilot>();
         }
 
         void Update()
         {
             if (!demo) return;
             var head = DivaVR.Head;
-            var frame = simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
+            var frame = autopilot ? autopilot.Read() : simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
             // 只有"捏"的时候才用看的方向瞄准：选涂装时随便转头看不会切换涂装，捏住再看左 / 右才切
-            frame.aim = frame.shoot ? LookAim() : 0;
+            frame.aim = frame.shoot ? LookAim(frame.look) : 0;
             Current = frame;
             demo.State.ClearPeople();
             demo.State.Accept(1, frame.go, frame.steer, frame.aim, frame.shoot, frame.drink, 1, Time.realtimeSinceStartup, frame.ult);
         }
 
         /// <summary>头相对大象正前方转了多少度，按象鼻能转的角度换算成 -1..1。</summary>
-        float LookAim()
+        float LookAim(Vector3 gaze)
         {
             var head = DivaVR.Head;
             if (!head || !loco || !loco.travelRoot) return 0;
-            var look = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+            var look = Vector3.ProjectOnPlane(gaze.sqrMagnitude > .01f ? gaze : head.forward, Vector3.up);
             var forward = Vector3.ProjectOnPlane(loco.travelRoot.forward, Vector3.up);
             if (look.sqrMagnitude < 1e-4f || forward.sqrMagnitude < 1e-4f) return 0;
             float degrees = Vector3.SignedAngle(forward, look, Vector3.up);

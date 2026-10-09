@@ -84,7 +84,8 @@ namespace Diva.Show
             if (targetCamera && targetCamera.TryGetComponent(out cameraData))
             {
                 previousAa = cameraData.antialiasing; previousAaQuality = cameraData.antialiasingQuality;
-                cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+                // VR 用 MSAA（DivaVRRig 在头显上打开），后期抗锯齿在双眼高分辨率下又贵又糊
+                cameraData.antialiasing = Diva.VR.DivaVR.Active ? AntialiasingMode.None : AntialiasingMode.SubpixelMorphologicalAntiAliasing;
                 cameraData.antialiasingQuality = AntialiasingQuality.High;
             }
         }

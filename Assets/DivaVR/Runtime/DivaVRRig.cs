@@ -19,15 +19,17 @@ namespace Diva.VR
         public float eyeHeight = .78f;
         [Tooltip("驾驶舱最快转多快（度/秒）。大象转得更快时视角会慢一点跟上，避免晕。")]
         public float maxYawSpeed = 50;
+        [Tooltip("驾驶舱跟上大象朝向的平滑时间（秒）。")]
+        public float yawSmoothTime = .35f;
         [Tooltip("仪表盘面板：在眼睛前方多远、低多少、多宽（米）。")]
-        public float hudDistance = 1.7f, hudDrop = .22f, hudWidth = 1.6f;
+        public float hudDistance = 1.8f, hudDrop = .24f, hudWidth = 2.0f;
         [Tooltip("VR 里大象最快跑多快（米/秒）、最快转多快（度/秒）、加减速多柔和（越小越柔和）。电脑版是 4.5 / 60 / 6。")]
         public float runSpeed = 3.6f, turnSpeed = 45, inputSmoothing = 3;
 
         DigiPhantLocomotion loco;
         Transform root, offset;
         Camera cam;
-        float yaw;
+        float yaw, yawVelocity;
         bool placed, recentered;
         DivaVRHands hands;
         TextMesh stats;
@@ -49,7 +51,7 @@ namespace Diva.VR
             if (controller) controller.SetInputMode(InputMode.TestSliders);
             foreach (var preview in FindObjectsByType<DigiPhantCameraPreview>(FindObjectsInactive.Include))
             { preview.StopPreview(); preview.enabled = false; }
-            if (demo) { demo.externalInput = true; demo.cameraHeld = true; }
+            if (demo) { demo.externalInput = true; demo.cameraHeld = true; demo.State.IndependentHands = true; }
             // 舒适：跑慢一点、转慢一点、加减速更柔和
             if (loco)
             {
@@ -87,7 +89,30 @@ namespace Diva.VR
                 hands = gameObject.AddComponent<DivaVRHands>();
             }
             BuildStats(hud);
+            gameObject.AddComponent<DivaVRCockpit>();
+            if (!DivaVR.Simulated) HeadsetGraphics();
+            if (DivaVRAutopilot.On) gameObject.AddComponent<DivaVRAutopilot>();
             gameObject.AddComponent<DivaVRInput>();
+        }
+
+        /// <summary>
+        /// 头显上的画面设置：双眼高分辨率要稳 90 fps。MSAA 代替后期抗锯齿，关掉屏幕空间环境光遮蔽（双眼渲染很贵），
+        /// 阴影只画近处。只在头显上改（编辑器里改的是工程里的资源文件，会被保存下来）。
+        /// </summary>
+        static void HeadsetGraphics()
+        {
+            if (Application.isEditor) return;
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
+            {
+                urp.msaaSampleCount = 4;
+                urp.shadowDistance = Mathf.Min(urp.shadowDistance, 35);
+                var renderer = urp.GetRenderer(0);
+                var prop = typeof(UnityEngine.Rendering.Universal.ScriptableRenderer).GetProperty("rendererFeatures",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+                if (renderer != null && prop?.GetValue(renderer) is System.Collections.Generic.List<UnityEngine.Rendering.Universal.ScriptableRendererFeature> features)
+                    foreach (var f in features)
+                        if (f && f.GetType().Name.Contains("AmbientOcclusion")) f.SetActive(false);
+            }
         }
 
         static void AddTrackedPoseDriver(GameObject go)
@@ -162,7 +187,8 @@ namespace Diva.VR
             // 水平朝向：慢慢跟上大象，最快 maxYawSpeed
             float target = root.eulerAngles.y;
             float dt = Time.unscaledDeltaTime;
-            yaw = placed ? Mathf.MoveTowardsAngle(yaw, target, maxYawSpeed * dt) : target;
+            // 平滑地开始转、平滑地停（角速度不突变），最快 maxYawSpeed
+            yaw = placed ? Mathf.SmoothDampAngle(yaw, target, ref yawVelocity, yawSmoothTime, maxYawSpeed, dt) : target;
             placed = true;
             var rot = Quaternion.Euler(0, yaw, 0);
             transform.SetPositionAndRotation(root.TransformPoint(seat), rot);

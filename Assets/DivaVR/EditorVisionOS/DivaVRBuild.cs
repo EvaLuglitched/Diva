@@ -32,18 +32,41 @@ namespace Diva.VR.EditorTools
         /// <summary>命令行：Unity -batchmode -buildTarget VisionOS -executeMethod Diva.VR.EditorTools.DivaVRBuild.BuildFromCommandLine</summary>
         public static void BuildFromCommandLine() => EditorApplication.Exit(Build() == BuildResult.Succeeded ? 0 : 1);
 
-        public static BuildResult Build()
+        [MenuItem("Diva/VR/Build for Vision Pro Simulator", false, 211)]
+        public static void BuildSimulatorMenu()
+        {
+            var result = Build(true);
+            EditorUtility.DisplayDialog("Diva VR", result == BuildResult.Succeeded
+                ? "Xcode project ready in " + Output + "-sim. Run it on the Apple Vision Pro simulator (add -divaAutoplay to watch a full run)."
+                : "Build failed (" + result + "). See the Console.", "OK");
+        }
+
+        /// <summary>命令行（模拟器）：… -executeMethod Diva.VR.EditorTools.DivaVRBuild.BuildSimulatorFromCommandLine</summary>
+        public static void BuildSimulatorFromCommandLine() => EditorApplication.Exit(Build(true) == BuildResult.Succeeded ? 0 : 1);
+
+        public static BuildResult Build(bool simulator = false)
         {
             Configure();
+            SetSdk(simulator);
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { Scene },
-                locationPathName = Output,
+                locationPathName = simulator ? Output + "-sim" : Output,
                 target = BuildTarget.VisionOS,
                 options = BuildOptions.None
             });
             Debug.Log($"DIVA_VR build {report.summary.result}: {report.summary.totalErrors} errors, {report.summary.totalTime}");
             return report.summary.result;
+        }
+
+        /// <summary>真机还是模拟器（PlayerSettings.VisionOS.sdkVersion；用反射，接口名在不同 Unity 版本里可能不同）。</summary>
+        static void SetSdk(bool simulator)
+        {
+            var nested = typeof(PlayerSettings).GetNestedType("VisionOS");
+            var prop = nested?.GetProperty("sdkVersion");
+            if (prop == null) { Debug.LogWarning("DIVA_VR: PlayerSettings.VisionOS.sdkVersion not found; leaving the SDK as is"); return; }
+            prop.SetValue(null, System.Enum.Parse(prop.PropertyType, simulator ? "Simulator" : "Device"));
+            Debug.Log("DIVA_VR sdk " + prop.GetValue(null));
         }
 
         public static void Configure()

@@ -30,6 +30,9 @@ namespace Diva.Show
         readonly List<(TextMeshProUGUI text, DivaSlant plate, float born)> feed = new List<(TextMeshProUGUI, DivaSlant, float)>();
         readonly List<(TextMeshProUGUI text, Vector3 world, float born)> popups = new List<(TextMeshProUGUI, Vector3, float)>();
         float fovKick;
+        // VR：挂在世界里的界面（锁定圈、命中飘字），就放在靶子那里，两只眼睛看起来深度才对
+        RectTransform vrWorld, vrLock;
+        DivaRing vrLockRing;
 
         void BuildHud()
         {
@@ -96,6 +99,7 @@ namespace Diva.Show
             pipImage = pipRt.gameObject.AddComponent<RawImage>(); pipImage.raycastTarget = false;
             pipLabel = DivaUi.Text(hudRoot, "Pip Label", right, new Vector2(-60, 0), new Vector2(480, 44), 34, Color.white, TextAlignmentOptions.Right);
             SetPip(false);
+            if (DivaVR.Active) BuildVrWorld();
         }
 
         SkillSlot Slot(string name, Vector2 pos, System.Func<string> title, System.Func<string> hint)
@@ -170,8 +174,9 @@ namespace Diva.Show
             ultPromptPlate.gameObject.SetActive(ultPrompt.gameObject.activeSelf);
             if (ready) { ultPrompt.alpha = .75f + .25f * pulse; ultPrompt.color = Color.Lerp(Accent, Color.white, .55f); ultPromptPlate.stripe = Accent; ultPromptPlate.stripeWidth = 8; ultPromptPlate.SetVerticesDirty(); }
 
+            if (DivaVR.Active) UpdateVrLock();
             // 锁定标记：水枪会打的那个靶子（和 DivaLaserBlaster.FindTarget 同一个判定）
-            var target = Phase == ShowPhase.Play && laser ? laser.FindTarget(demo.State.Aim * demo.trunkAimDegrees) : null;
+            var target = !DivaVR.Active && Phase == ShowPhase.Play && laser ? laser.FindTarget(demo.State.Aim * demo.trunkAimDegrees) : null;
             bool show = target && ScreenPoint(target.AimPoint, out var p);
             lockMarker.gameObject.SetActive(show);
             if (show && ScreenPoint(target.AimPoint, out p))
@@ -251,10 +256,72 @@ namespace Diva.Show
             }
         }
 
+        // ------------------------------------------------------------------ VR world-space feedback
+        void BuildVrWorld()
+        {
+            var go = new GameObject("Diva VR World UI", typeof(RectTransform), typeof(Canvas));
+            go.layer = 5;
+            go.transform.SetParent(transform, false);
+            var c = go.GetComponent<Canvas>();
+            c.renderMode = RenderMode.WorldSpace;
+            c.worldCamera = mainCamera;
+            c.sortingOrder = 60;
+            vrWorld = (RectTransform)go.transform;
+            vrWorld.sizeDelta = new Vector2(100, 100);
+            vrLock = DivaUi.Rect(vrWorld, "VR Lock", new Vector2(.5f, .5f), Vector2.zero, new Vector2(90, 90));
+            vrLock.gameObject.AddComponent<CanvasRenderer>();
+            vrLockRing = vrLock.gameObject.AddComponent<DivaRing>(); vrLockRing.thickness = 6; vrLockRing.raycastTarget = false;
+            var dot = Ring(vrLock, "Dot", new Vector2(.5f, .5f), Vector2.zero, 16, 8, Color.white);
+            dot.raycastTarget = false;
+            vrLock.gameObject.SetActive(false);
+        }
+
+        /// <summary>把一个界面元素放到世界里的某一点，正对着人，按距离缩放（看起来大小不变）。</summary>
+        void PlaceInWorld(RectTransform rt, Vector3 world, float scale = 1)
+        {
+            var head = DivaVR.Head ? DivaVR.Head.position : mainCamera.transform.position;
+            var dir = world - head;
+            float dist = Mathf.Max(.5f, dir.magnitude);
+            rt.position = world;
+            rt.rotation = Quaternion.LookRotation(dir / dist, Vector3.up);
+            rt.localScale = Vector3.one * dist * .0011f * scale;
+        }
+
+        /// <summary>
+        /// VR 瞄准反馈：没捏的时候，正对着的靶子上有一个淡淡的圈（提示可以捏了）；
+        /// 捏住时变成实心、转动的锁定圈，就是水炮要打的那个靶子。
+        /// </summary>
+        void UpdateVrLock()
+        {
+            if (!vrLock) return;
+            DivaTarget target = null;
+            bool aiming = Phase == ShowPhase.Play && demo.State.Shoot;
+            if (Phase == ShowPhase.Play && laser)
+            {
+                if (aiming) target = laser.FindTarget(demo.State.Aim * demo.trunkAimDegrees);
+                else if (DivaVR.Head)
+                {
+                    var head = DivaVR.Head;
+                    float best = 14;
+                    foreach (var t in FindObjectsByType<DivaTarget>(FindObjectsSortMode.None))
+                    {
+                        float a = Vector3.Angle(head.forward, t.AimPoint - head.position);
+                        if (a < best && Vector3.Distance(t.AimPoint, head.position) < 40) { best = a; target = t; }
+                    }
+                }
+            }
+            vrLock.gameObject.SetActive(target);
+            if (!target) return;
+            PlaceInWorld(vrLock, target.AimPoint, aiming ? .9f : 1.1f);
+            vrLock.Rotate(0, 0, DivaClock.Time * (aiming ? 160 : 30) % 360, Space.Self);
+            vrLockRing.SetFill(aiming ? .85f : .5f);
+            vrLockRing.color = aiming ? new Color(1, .35f, .45f) : DivaUi.WithAlpha(Color.white, .45f + .15f * Mathf.Sin(DivaClock.Time * 6));
+        }
+
         // ------------------------------------------------------------------ "+10" popups
         void Popup(string text, Vector3 world, Color color)
         {
-            var t = DivaUi.Text(hudRoot, "Popup", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 80), 60, color);
+            var t = DivaUi.Text(DivaVR.Active && vrWorld ? vrWorld : hudRoot, "Popup", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 80), 60, color);
             t.text = text;
             DivaUi.Glow(t, new Color(0, 0, 0, .6f), .4f, .2f, .15f);
             popups.Add((t, world, DivaClock.Time));
@@ -267,7 +334,14 @@ namespace Diva.Show
                 var (t, world, born) = popups[i];
                 float age = DivaClock.Time - born;
                 if (age > 1.1f || !t) { if (t) Destroy(t.gameObject); popups.RemoveAt(i); continue; }
-                if (ScreenPoint(world, out var p))
+                if (DivaVR.Active && vrWorld)
+                {
+                    // 从靶子上弹出来往上飘，按距离放大，远处也一样好读
+                    float pop = Mathf.Lerp(1.5f, 1, DivaUi.EaseOut(age / .2f));
+                    PlaceInWorld(t.rectTransform, world + Vector3.up * (.6f + age * 1.2f), pop);
+                    t.alpha = 1 - DivaUi.Smooth((age - .7f) / .4f);
+                }
+                else if (ScreenPoint(world, out var p))
                 {
                     t.rectTransform.anchoredPosition = p + new Vector2(0, 40 + age * 90);
                     t.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.5f, 1, DivaUi.EaseOut(age / .2f));

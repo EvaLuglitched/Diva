@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
+using Diva.VR;
 using UnityEngine.UI;
 
 namespace Diva.Show
@@ -47,7 +48,8 @@ namespace Diva.Show
             if (t > 5.2f || (skipEdge || ultEdge) && t > 1)
             {
                 Time.timeScale = 1;
-                Enter(replay.frames.Count > Mathf.CeilToInt(DivaReplay.Hz * 2) ? ShowPhase.Highlight : ShowPhase.Results);
+                // VR：人坐在大象背上，回放会把人一起"倒带"拖着走，很晕；先直接结算（之后做成面前的小沙盘回放）
+                Enter(!DivaVR.Active && replay.frames.Count > Mathf.CeilToInt(DivaReplay.Hz * 2) ? ShowPhase.Highlight : ShowPhase.Results);
             }
         }
 

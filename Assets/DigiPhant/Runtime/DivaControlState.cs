@@ -27,6 +27,8 @@ namespace DigiPhant
         public float MenuAim { get; private set; }
         /// <summary>Menus and cutscenes: gestures are still read (Ult, MenuAim) but do not drive the elephant.</summary>
         public bool Locked;
+        /// <summary>VR: the hands and the body are separate inputs (lean to run, pinch to spray), so spraying does not stop the run.</summary>
+        public bool IndependentHands;
         public float Water { get; private set; } = 1;
         public int Bursts { get; private set; }
         bool wasShooting;
@@ -75,7 +77,7 @@ namespace DigiPhant
             }
             // One person doing everything: moving the arms into the spray / drink pose must not also walk,
             // and drinking (hands at the mouth) must not steer.
-            if (all && (Shoot || Drink || Ult)) Forward = 0;
+            if (all && (Shoot && !IndependentHands || Drink || Ult)) Forward = 0;
             if (all && (Drink || Ult)) Turn = 0;
             if (Shoot && (!wasShooting || now >= nextBurst))
             {

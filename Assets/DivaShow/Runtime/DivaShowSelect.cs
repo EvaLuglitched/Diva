@@ -42,17 +42,20 @@ namespace Diva.Show
                 var view = mainCamera ? Vector3.ProjectOnPlane(mainCamera.transform.forward, Vector3.up).normalized : Forward;
                 var side = Vector3.Cross(Vector3.up, view);
                 var basePos = new Vector3(elephant.position.x, startPosition.y, elephant.position.z) + view * elephantRadius * .6f;
+                // VR：人就坐在大象背上，烟火要放远一点、在前方两侧，不要从眼前喷过去
+                float spread = DivaVR.Active ? 2.4f : 1;
+                if (DivaVR.Active) basePos += view * elephantRadius * 1.6f;
                 float s = entranceNext % 2 == 0 ? -1 : 1;
                 if (big)
                 {
-                    fx.Pyro(basePos - side * elephantRadius * 1.15f, Accent * 3f, true);
-                    fx.Pyro(basePos + side * elephantRadius * .55f, Primary * 3f, true);
-                    fx.Pyro(basePos + view * elephantRadius * .6f - side * elephantRadius * .3f, Color.white * 2.5f, true);
+                    fx.Pyro(basePos - side * elephantRadius * 1.15f * spread, Accent * 3f, true);
+                    fx.Pyro(basePos + side * elephantRadius * .55f * spread, Primary * 3f, true);
+                    fx.Pyro(basePos + view * elephantRadius * .6f * spread - side * elephantRadius * .3f * spread, Color.white * 2.5f, true);
                     shake = .25f;
                 }
                 else
                 {
-                    fx.Pyro(basePos + side * s * elephantRadius * (s < 0 ? 1.15f : .55f), (entranceNext < 2 ? Primary : Accent) * 3f, false);
+                    fx.Pyro(basePos + side * s * elephantRadius * (s < 0 ? 1.15f : .55f) * spread, (entranceNext < 2 ? Primary : Accent) * 3f, false);
                     shake = .08f;
                 }
                 entranceNext++;

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.XR.Hands;
 
 namespace Diva.VR
@@ -27,6 +28,40 @@ namespace Diva.VR
         bool hasNeutral;
         float ultSince = -1;
         static readonly List<XRHandSubsystem> found = new List<XRHandSubsystem>();
+        // Vision Pro 的"看 + 捏"：系统给出捏下去那一刻眼睛看的方向（按控件路径读，不直接依赖 visionOS 插件的类型）
+        readonly InputAction[] gazeDirection = new InputAction[2], gazePhase = new InputAction[2];
+
+        void OnEnable()
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                gazeDirection[i] = new InputAction($"Gaze {i} Direction", binding: $"<VisionOSSpatialPointerDevice>/spatialPointer{i}/startRayDirection");
+                gazePhase[i] = new InputAction($"Gaze {i} Phase", binding: $"<VisionOSSpatialPointerDevice>/spatialPointer{i}/phase");
+                gazeDirection[i].Enable(); gazePhase[i].Enable();
+            }
+        }
+
+        void OnDisable()
+        {
+            for (int i = 0; i < 2; i++) { gazeDirection[i]?.Dispose(); gazePhase[i]?.Dispose(); }
+        }
+
+        /// <summary>系统的"看 + 捏"正在进行吗；是的话给出看的方向（世界空间）。</summary>
+        bool GazePinch(Transform space, out Vector3 look)
+        {
+            look = Vector3.zero;
+            for (int i = 0; i < 2; i++)
+            {
+                if (gazePhase[i] == null || gazePhase[i].activeControl == null) continue;
+                var phase = gazePhase[i].ReadValue<UnityEngine.InputSystem.TouchPhase>();
+                if (phase != UnityEngine.InputSystem.TouchPhase.Began && phase != UnityEngine.InputSystem.TouchPhase.Moved && phase != UnityEngine.InputSystem.TouchPhase.Stationary) continue;
+                var dir = gazeDirection[i].ReadValue<Vector3>();
+                if (dir.sqrMagnitude < .01f) continue;
+                look = space.TransformDirection(dir.normalized);
+                return true;
+            }
+            return false;
+        }
 
         public bool Tracking => hands != null && hands.running && (hands.leftHand.isTracked || hands.rightHand.isTracked);
 
@@ -53,6 +88,7 @@ namespace Diva.VR
             float side = Mathf.Abs(lean.x);
             f.steer = Mathf.Sign(lean.x) * Mathf.Clamp01((side - sideStart) / Mathf.Max(.01f, sideFull - sideStart));
 
+            if (GazePinch(space, out var gaze)) { f.shoot = true; f.look = gaze; }
             if (hands == null || !hands.running) return f;
             var mouth = head.position - head.up * .09f + head.forward * .04f;
             int up = 0;
