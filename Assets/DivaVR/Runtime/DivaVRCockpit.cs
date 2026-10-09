@@ -15,7 +15,7 @@ namespace Diva.VR
     public class DivaVRCockpit : MonoBehaviour
     {
         [Tooltip("舒适暗角最深多暗（0 = 关）。")]
-        [Range(0, 1)] public float vignetteMax = .6f;
+        [Range(0, 1)] public float vignetteMax = .8f;
 
         DivaVRRig rig;
         DigiPhantLocomotion loco;
@@ -159,7 +159,7 @@ namespace Diva.VR
             float turnRate = haveYaw ? Mathf.Abs(Mathf.DeltaAngle(lastYaw, yaw)) / dt : 0;
             lastYaw = yaw; haveYaw = true;
             float speed = loco ? Mathf.Abs(loco.CurrentSpeed) / Mathf.Max(.1f, loco.runSpeed) : 0;
-            float target = Mathf.Clamp01(Mathf.InverseLerp(.35f, 1f, speed) * .6f + Mathf.InverseLerp(8, 45, turnRate) * .8f) * vignetteMax;
+            float target = Mathf.Clamp01(Mathf.InverseLerp(.35f, 1f, speed) * .6f + Mathf.InverseLerp(8, 32, turnRate) * .8f) * vignetteMax;
             // 头穿进树、柱子这些物体时变暗（VR 游戏的通常做法），看不到模型里面；靠近时先暗一点
             float inside = HeadInside();
             if (inside > 0) target = Mathf.Max(target, inside);

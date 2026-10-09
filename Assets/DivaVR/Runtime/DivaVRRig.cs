@@ -18,13 +18,14 @@ namespace Diva.VR
         [Tooltip("坐着时眼睛比座位高多少（米）。")]
         public float eyeHeight = .78f;
         [Tooltip("驾驶舱最快转多快（度/秒）。大象转得更快时视角会慢一点跟上，避免晕。")]
-        public float maxYawSpeed = 50;
+        public float maxYawSpeed = 36;
         [Tooltip("驾驶舱跟上大象朝向的平滑时间（秒）。")]
-        public float yawSmoothTime = .35f;
+        public float yawSmoothTime = .45f;
         [Tooltip("仪表盘面板：在眼睛前方多远、低多少、多宽（米）。")]
         public float hudDistance = 1.8f, hudDrop = .24f, hudWidth = 2.0f;
-        [Tooltip("VR 里大象最快跑多快（米/秒）、最快转多快（度/秒）、加减速多柔和（越小越柔和）。电脑版是 4.5 / 60 / 6。")]
-        public float runSpeed = 3.6f, turnSpeed = 45, inputSmoothing = 3;
+        [Tooltip("VR 里大象最快跑多快（米/秒）、最快转多快（度/秒）、加减速多柔和（越小越柔和）。电脑版是 4.5 / 60 / 6。" +
+                 "按舒适来定（参考 Meta：跑步约 2.8 米/秒），所有人都用这一套。")]
+        public float runSpeed = 2.8f, turnSpeed = 30, inputSmoothing = 2.5f;
 
         DigiPhantLocomotion loco;
         Transform root, offset;
@@ -57,9 +58,9 @@ namespace Diva.VR
             // 舒适：跑慢一点、转慢一点、加减速更柔和
             if (loco)
             {
-                loco.runSpeed = Mathf.Min(loco.runSpeed, runSpeed);
-                loco.turnDegreesPerSecond = Mathf.Min(loco.turnDegreesPerSecond, turnSpeed);
-                loco.inputSmoothing = Mathf.Min(loco.inputSmoothing, inputSmoothing);
+                loco.runSpeed = runSpeed;
+                loco.turnDegreesPerSecond = turnSpeed;
+                loco.inputSmoothing = inputSmoothing;
             }
             // Eva 的天空镜头每帧把镜头往上抬、改视角：VR 里镜头只能跟着头
             foreach (var sky in FindObjectsByType<DivaSkyCamera>(FindObjectsInactive.Include)) sky.enabled = false;
