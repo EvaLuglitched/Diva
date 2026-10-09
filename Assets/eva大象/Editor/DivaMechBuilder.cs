@@ -920,6 +920,9 @@ namespace Diva.EditorTools
                         if (!elephant) { elephant = new Material(toggle.originalSkin); AssetDatabase.CreateAsset(elephant, path); }
                         else elephant.CopyPropertiesFromMaterial(toggle.originalSkin);
                         elephant.SetColor("_BaseColor", def.tint);
+                        // 旧的 _Color 和 _BaseColor 写成一样的值（按 Unity 读回来的结果），否则 Unity 打开项目时会自己改一遍，
+                        // 每个人都会看到这几个材质文件"被修改"
+                        elephant.SetColor("_Color", elephant.GetColor("_BaseColor"));
                         EditorUtility.SetDirty(elephant);
                     }
                 }
