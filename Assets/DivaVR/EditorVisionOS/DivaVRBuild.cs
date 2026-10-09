@@ -56,15 +56,22 @@ namespace Diva.VR.EditorTools
                 options = BuildOptions.None
             });
             Debug.Log($"DIVA_VR build {report.summary.result}: {report.summary.totalErrors} errors, {report.summary.totalTime}");
-            // 头显主屏幕上的名字（只改这个包的 Info.plist，不动电脑版的 productName）
-            var plist = Path.Combine(simulator ? Output + "-sim" : Output, "Info.plist");
-            if (report.summary.result == BuildResult.Succeeded && File.Exists(plist))
+            return report.summary.result;
+        }
+
+        /// <summary>头显主屏幕上的名字叫 Diva VR（只改这个包的 Info.plist，不动电脑版的 productName）。打包写完文件后才改。</summary>
+        [UnityEditor.Callbacks.PostProcessBuild(100)]
+        static void NameTheApp(BuildTarget target, string path)
+        {
+            if (target != BuildTarget.VisionOS) return;
+            var plist = Path.Combine(path, "Info.plist");
+            try
             {
                 var text = File.ReadAllText(plist);
                 text = System.Text.RegularExpressions.Regex.Replace(text, @"(<key>CFBundleDisplayName</key>\s*<string>)[^<]*(</string>)", "${1}Diva VR${2}");
                 File.WriteAllText(plist, text);
             }
-            return report.summary.result;
+            catch (System.Exception e) { Debug.LogWarning("DIVA_VR could not rename the app (run: plutil -replace CFBundleDisplayName -string \"Diva VR\" " + plist + "): " + e.Message); }
         }
 
         /// <summary>真机还是模拟器（PlayerSettings.VisionOS.sdkVersion；用反射，接口名在不同 Unity 版本里可能不同）。</summary>
