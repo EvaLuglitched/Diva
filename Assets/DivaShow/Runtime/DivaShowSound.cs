@@ -101,6 +101,31 @@ namespace Diva.Show
             if (music.volume <= 0) music.Stop();
         }
 
+        readonly System.Collections.Generic.List<AudioSource> spatial = new System.Collections.Generic.List<AudioSource>();
+        int nextSpatial;
+
+        /// <summary>
+        /// 3D 音效：从世界里的某一点发出（VR 里命中声从靶子那里来，烟火在头顶）。用 8 个声源轮流播。
+        /// </summary>
+        public void PlayAt(string name, Vector3 world, float gain = 1)
+        {
+            if (!source || !clips.TryGetValue(name, out var clip)) return;
+            if (spatial.Count == 0)
+                for (int i = 0; i < 8; i++)
+                {
+                    var go = new GameObject("Diva Show Sound 3D " + i);
+                    go.transform.SetParent(source.transform, false);
+                    var s = go.AddComponent<AudioSource>();
+                    s.playOnAwake = false; s.spatialBlend = 1; s.rolloffMode = AudioRolloffMode.Linear;
+                    s.minDistance = 3; s.maxDistance = 60; s.dopplerLevel = 0; s.ignoreListenerPause = true;
+                    spatial.Add(s);
+                }
+            var src = spatial[nextSpatial++ % spatial.Count];
+            src.transform.position = world;
+            src.PlayOneShot(clip, volume * gain * 1.4f);
+            Played?.Invoke(clip, volume * gain);
+        }
+
         public void Play(string name, float gain = 1)
         {
             if (source && clips.TryGetValue(name, out var clip))

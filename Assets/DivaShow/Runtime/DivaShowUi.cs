@@ -65,6 +65,53 @@ namespace Diva.Show
             bannerRoot = DivaUi.Stretch(root, "Banner");
             topRoot = DivaUi.Stretch(root, "Top");
             BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildCameraFeed();
+            if (DivaVR.Active && DivaVR.MomentsAnchor) MoveMomentsForward();
+        }
+
+        /// <summary>VR：倒数和技能横幅搬到前方 3 米多、3.6 米宽的空中面板上（更大、更有电影感；仪表盘只留数据）。</summary>
+        void MoveMomentsForward()
+        {
+            var go = new GameObject("Diva Show Moments", typeof(RectTransform), typeof(Canvas));
+            go.layer = 5;
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(DivaVR.MomentsAnchor, false);
+            rt.sizeDelta = new Vector2(1920, 1080);
+            rt.localPosition = Vector3.zero; rt.localRotation = Quaternion.identity;
+            rt.localScale = Vector3.one * (3.6f / 1920f);
+            var c = go.GetComponent<Canvas>();
+            c.renderMode = RenderMode.WorldSpace; c.worldCamera = mainCamera; c.sortingOrder = 55;
+            bannerRoot.SetParent(rt, false);
+            countdownRoot.SetParent(rt, false);
+            BuildVrCard(rt);
+        }
+
+        // VR 操作卡：点亮和倒数时出现在前方横幅下面，开跑两秒后淡出（第一次戴头显的人最需要）
+        CanvasGroup vrCard;
+        void BuildVrCard(RectTransform parent)
+        {
+            var card = DivaUi.Rect(parent, "VR Controls Card", new Vector2(.5f, .5f), new Vector2(0, -250), new Vector2(980, 420));
+            vrCard = card.gameObject.AddComponent<CanvasGroup>();
+            vrCard.alpha = 0; vrCard.blocksRaycasts = false;
+            DivaUi.Panel(card, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(980, 420), DivaUi.WithAlpha(Ink, .9f), DivaUi.WithAlpha(Ink, .6f), 28).stripeWidth = 8;
+            var title = DivaUi.Text(card, "Title", new Vector2(.5f, 1), new Vector2(0, -44), new Vector2(900, 60), 46, Color.white);
+            DivaUi.Localize(title, () => DivaText.T("vr.card.title"));
+            DivaUi.Glow(title, new Color(1, .3f, .7f, .9f));
+            for (int i = 1; i <= 5; i++)
+            {
+                int n = i;
+                float y = -100 - (i - 1) * 60;
+                var a = DivaUi.Text(card, "Row " + i, new Vector2(.5f, 1), new Vector2(-230, y), new Vector2(520, 56), 36, Color.white, TextAlignmentOptions.Right, false);
+                DivaUi.Localize(a, () => DivaText.T("vr.card." + n));
+                var b = DivaUi.Text(card, "Row " + i + " b", new Vector2(.5f, 1), new Vector2(280, y), new Vector2(460, 56), 34, new Color(.55f, 1f, .9f), TextAlignmentOptions.Left, false);
+                DivaUi.Localize(b, () => "— " + DivaText.T("vr.card." + n + "b"));
+            }
+        }
+
+        void UpdateVrCard()
+        {
+            if (!vrCard) return;
+            bool show = Phase == ShowPhase.PowerUp || Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 3;
+            vrCard.alpha = Mathf.MoveTowards(vrCard.alpha, show ? 1 : 0, DivaClock.DeltaTime * (show ? 3 : 1.2f));
         }
 
         void ShowRoots()

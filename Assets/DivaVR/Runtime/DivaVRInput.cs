@@ -24,6 +24,7 @@ namespace Diva.VR
         DivaVRSimulator simulator;
         DivaVRHands hands;
         DivaVRAutopilot autopilot;
+        Diva.Show.DivaShowDirector show;
 
         /// <summary>这一帧最终交给游戏的操作（给测试和调试看）。</summary>
         public DivaVRFrame Current { get; private set; }
@@ -35,6 +36,7 @@ namespace Diva.VR
             simulator = GetComponent<DivaVRSimulator>();
             hands = GetComponent<DivaVRHands>();
             autopilot = GetComponent<DivaVRAutopilot>();
+            show = FindAnyObjectByType<Diva.Show.DivaShowDirector>();
         }
 
         void Update()
@@ -44,6 +46,8 @@ namespace Diva.VR
             var frame = autopilot ? autopilot.Read() : simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
             // 只有"捏"的时候才用看的方向瞄准：选涂装时随便转头看不会切换涂装，捏住再看左 / 右才切
             frame.aim = frame.shoot ? LookAim(frame.look) : 0;
+            // 捏合的确认音（参考 Meta / Ultraleap 的手势设计：手势被识别要立刻有声音或画面反馈）
+            if (frame.shoot && !Current.shoot && show && show.Sound != null) show.Sound.Play("tick", .5f);
             Current = frame;
             demo.State.ClearPeople();
             demo.State.Accept(1, frame.go, frame.steer, frame.aim, frame.shoot, frame.drink, 1, Time.realtimeSinceStartup, frame.ult);

@@ -28,7 +28,12 @@ namespace Diva.Show
 
         public static void Toggle() => Set(Chinese ? Lang.En : Lang.Zh);
 
-        public static string T(string key) => Table.TryGetValue(key, out var v) ? (Chinese ? v.zh : v.en) : key;
+        public static string T(string key)
+        {
+            // VR 里有 ".vr" 版本的就用它（操作说明换成 Vision Pro 的手势）
+            if (Diva.VR.DivaVR.Active && Table.TryGetValue(key + ".vr", out var vr)) return Chinese ? vr.zh : vr.en;
+            return Table.TryGetValue(key, out var v) ? (Chinese ? v.zh : v.en) : key;
+        }
         public static string F(string key, params object[] args) => string.Format(T(key), args);
 
         // Eva 的任务名是英文写在场景里的；按关键词给出中文
@@ -74,6 +79,21 @@ namespace Diva.Show
             ["select.gesture"] = ("Raise one arm to switch  ·  Hold both hands above your head to start",
                                   "举起一只手切换  ·  双手举过头顶停一下开始"),
             ["select.keys"] = ("← → switch   ·   Enter start   ·   drag to turn", "← → 切换   ·   回车开始   ·   拖动旋转"),
+            // ---- Vision Pro（VR 模式下自动替换上面同名的说明）
+            ["select.gesture.vr"] = ("Look left or right and pinch to switch  ·  Raise both hands to start",
+                                     "往左 / 右看着捏一下切换  ·  双手举过头顶开始"),
+            ["select.keys.vr"] = ("Sit or stand comfortably  ·  your cockpit follows you", "坐着站着都可以  ·  驾驶舱会跟着你"),
+            ["status.test.vr"] = ("Pilot ready — pinch, lean, raise your hands", "驾驶员就绪——捏、倾身、举手都可以"),
+            ["key.boost.vr"] = ("LEAN FORWARD", "身体前倾"),
+            ["key.cannon.vr"] = ("LOOK + PINCH", "看着靶子捏"),
+            ["key.bubble.vr"] = ("HAND TO MOUTH", "手放嘴边"),
+            ["key.ult.vr"] = ("BOTH HANDS UP", "双手举高"),
+            ["vr.card.title"] = ("HOW TO PILOT", "驾驶方法"),
+            ["vr.card.1"] = ("LEAN FORWARD", "身体前倾"), ["vr.card.1b"] = ("run", "前进"),
+            ["vr.card.2"] = ("LEAN LEFT / RIGHT", "左右倾"), ["vr.card.2b"] = ("steer", "转向"),
+            ["vr.card.3"] = ("LOOK + PINCH", "看着靶子捏"), ["vr.card.3b"] = ("trunk cannon", "象鼻水炮"),
+            ["vr.card.4"] = ("HAND TO MOUTH", "手放嘴边"), ["vr.card.4b"] = ("refill", "补水"),
+            ["vr.card.5"] = ("BOTH HANDS UP", "双手举高"), ["vr.card.5b"] = ("MEGA BUBBLE", "超级泡泡"),
             ["select.skin"] = ("SKIN {0}/{1}", "涂装 {0}/{1}"),
 
             ["status.test"] = ("Test controls: keyboard and sliders", "测试模式：键盘和滑块控制"),

@@ -90,6 +90,14 @@ namespace Diva.VR
             }
             BuildStats(hud);
             gameObject.AddComponent<DivaVRCockpit>();
+            gameObject.AddComponent<DivaVRHologram>();
+            var show = FindAnyObjectByType<Diva.Show.DivaShowDirector>();
+            if (show && show.glowMaterial) gameObject.AddComponent<DivaVRAmbience>().glow = show.glowMaterial;
+            // 大时刻（倒数、技能横幅）的空中面板：前方 3.2 米、比眼睛高一点
+            var moments = new GameObject("Moments").transform;
+            moments.SetParent(transform, false);
+            moments.localPosition = new Vector3(0, eyeHeight + .25f, 3.2f);
+            DivaVR.MomentsAnchor = moments;
             if (!DivaVR.Simulated) HeadsetGraphics();
             if (DivaVRAutopilot.On) gameObject.AddComponent<DivaVRAutopilot>();
             gameObject.AddComponent<DivaVRInput>();

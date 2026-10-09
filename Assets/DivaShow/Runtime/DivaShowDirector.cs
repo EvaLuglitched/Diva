@@ -73,6 +73,8 @@ namespace Diva.Show
         public float PhaseTime => DivaClock.Time - phaseStart;
         /// <summary>Score shown by the show: the game's score plus combo and ultimate bonuses.</summary>
         public int TotalScore => (game ? game.Score : 0) + bonus;
+        /// <summary>界面音效（VR 输入用来给捏合一个"嗒"的确认音）。</summary>
+        public DivaShowSound Sound => sound;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => PhaseChanged = null;
@@ -258,6 +260,7 @@ namespace Diva.Show
             }
             UpdateHud();
             UpdateBanners();
+            UpdateVrCard();
         }
 
         float shake;

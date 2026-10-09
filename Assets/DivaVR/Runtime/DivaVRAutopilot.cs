@@ -24,13 +24,14 @@ namespace Diva.VR
         DivaGameManager game;
         float shootUntil, nextShot, ultUntil, phaseSeen;
         ShowPhase lastPhase;
-        Vector3 shootAt;
+        Vector3 shootAt, center;
 
         void Start()
         {
             show = FindAnyObjectByType<DivaShowDirector>();
             loco = FindAnyObjectByType<DigiPhantLocomotion>();
             game = FindAnyObjectByType<DivaGameManager>();
+            if (loco && loco.travelRoot) center = loco.travelRoot.position;
         }
 
         public DivaVRFrame Read()
@@ -55,6 +56,42 @@ namespace Diva.VR
             }
         }
 
+        static readonly RaycastHit[] hits = new RaycastHit[16];
+
+        /// <summary>从大象身体中间往某个方向扫一个 1.2 米的球，最近的障碍物在多远（大象自己、驾驶舱不算）。</summary>
+        float Clearance(Transform root, Vector3 dir, float range = 9)
+        {
+            var from = root.position + Vector3.up * 1.6f;
+            int n = Physics.SphereCastNonAlloc(from, 1.2f, dir, hits, range, ~0, QueryTriggerInteraction.Ignore);
+            float best = range;
+            for (int i = 0; i < n; i++)
+            {
+                var c = hits[i].collider;
+                if (!c || c.transform.IsChildOf(root) || (DivaVR.Rig && c.transform.IsChildOf(DivaVR.Rig)) || hits[i].distance <= 0) continue;
+                best = Mathf.Min(best, hits[i].distance);
+            }
+            return best;
+        }
+
+        static readonly float[] Tries = { 0, -20, 20, -40, 40, -65, 65, -95, 95 };
+
+        Vector3 PickHeading(Transform root, Vector3 desired, float dist, out float clear)
+        {
+            var best = desired; float bestScore = float.MinValue; clear = 0;
+            float range = Mathf.Min(9, dist);
+            foreach (float a in Tries)
+            {
+                var dir = Quaternion.Euler(0, a, 0) * desired;
+                float c = Clearance(root, dir, range);
+                // 场地边缘：前方 6 米出界就当堵住了
+                var ahead = root.position + dir * 6;
+                if (loco.stageRadius > 0 && Vector3.ProjectOnPlane(ahead - center, Vector3.up).magnitude > loco.stageRadius - 2) c = 0;
+                float score = c - Mathf.Abs(a) * .05f;
+                if (score > bestScore) { bestScore = score; best = dir; clear = c; }
+            }
+            return best;
+        }
+
         void Drive(ref DivaVRFrame f, float now)
         {
             var root = loco.travelRoot;
@@ -68,10 +105,12 @@ namespace Diva.VR
             if (task != null)
             {
                 var to = Vector3.ProjectOnPlane(task.landmark.position - root.position, Vector3.up);
-                float angle = Vector3.SignedAngle(fwd, to, Vector3.up);
                 float dist = to.magnitude;
+                // 朝目标的方向为中心，左右各试几个角度，挑最空、又最接近目标的方向（场地边缘也算障碍）
+                var heading = PickHeading(root, to / Mathf.Max(.01f, dist), dist, out float clear);
+                float angle = Vector3.SignedAngle(fwd, heading, Vector3.up);
                 f.steer = Mathf.Clamp(angle / 30f, -1, 1);
-                f.go = Mathf.Abs(angle) > 70 ? .25f : dist < task.radius * .5f ? 0 : 1;
+                f.go = Mathf.Abs(angle) > 70 ? .25f : dist < task.radius * .5f ? 0 : clear < 2.5f ? .35f : 1;
                 if (dist < task.radius * .8f && task.check == TaskCheck.CurlTrunk) { f.go = 0; f.steer = 0; f.drink = true; }
                 if (dist < task.radius * .8f && task.check == TaskCheck.LiftLegs) f.go = .5f;
             }

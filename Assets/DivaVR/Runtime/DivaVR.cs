@@ -27,12 +27,14 @@ namespace Diva.VR
         public static Transform Rig { get; internal set; }
         public static Transform Head { get; internal set; }
         public static Transform HudAnchor { get; internal set; }
+        /// <summary>前方 3 米多的空中面板：倒数和技能横幅这些大时刻放在这里。</summary>
+        public static Transform MomentsAnchor { get; internal set; }
         /// <summary>仪表盘面板宽多少米。</summary>
         public static float HudWidth { get; internal set; } = 1.6f;
 
         // 项目关了 domain reload，静态值会跨 Play 保留，进 Play 时清掉
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { active = null; Simulated = false; Rig = Head = HudAnchor = null; }
+        static void ResetStatics() { active = null; Simulated = false; Rig = Head = HudAnchor = MomentsAnchor = null; }
 
         static bool Detect()
         {

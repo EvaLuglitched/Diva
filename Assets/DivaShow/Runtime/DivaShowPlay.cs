@@ -151,7 +151,7 @@ namespace Diva.Show
             stats.hits++;
             if (Phase == ShowPhase.Ult) stats.ultHits++;
             Popup("+" + target.points, target.AimPoint, Color.white);
-            sound.Play("hit", .8f);
+            if (Diva.VR.DivaVR.Active) sound.PlayAt("hit", target.AimPoint, .8f); else sound.Play("hit", .8f);
             fx.Flash(target.AimPoint, Accent, 2.2f, .25f);
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }
