@@ -335,7 +335,8 @@ namespace Diva.Show
             var dir = desired - target;
             float dist = dir.magnitude;
             if (dist < .01f) return dist;
-            if (ignoreNear < 0) ignoreNear = elephantRadius * .6f;
+            // 只忽略大象身体里面的东西（大象自己的碰撞体本来就排除了）；起点台上的棒棒糖这种贴着大象的道具也要算
+            if (ignoreNear < 0) ignoreNear = elephantRadius * .25f;
             float nearest = dist;
             int n = Physics.SphereCastNonAlloc(target, .25f, dir / dist, hits, dist, ~(1 << 5), QueryTriggerInteraction.Ignore);
             for (int i = 0; i < n; i++)
@@ -359,7 +360,10 @@ namespace Diva.Show
             var offset = desired - target;
             float dist = offset.magnitude;
             if (dist < .01f) return desired;
-            bool Clear(Vector3 p) => ClearDistance(target, p) >= Vector3.Distance(target, p) - .01f;
+            // 从身体中心和腿的高度各看一次：矮的道具（起点台上的棒棒糖）挡的是腿，不在中心那条线上
+            var low = target + Vector3.down * centerOffset.y * .55f;
+            bool Clear(Vector3 p) => ClearDistance(target, p) >= Vector3.Distance(target, p) - .01f &&
+                                     ClearDistance(low, p) >= Vector3.Distance(low, p) - .01f;
             Vector3 At(float angle) => target + Quaternion.AngleAxis(angle, Vector3.up) * offset;
             // 当前用的角度还没被挡就继续用（避免来回跳），否则按顺序找
             if (!Clear(At(dodgeTarget)))
@@ -397,7 +401,8 @@ namespace Diva.Show
                 var dir = Quaternion.AngleAxis(i * 360f / n, Vector3.up) * Forward;
                 var cam = center + dir * distance + Vector3.up * height;
                 float score = 0;
-                foreach (var p in new[] { center, center + Forward * elephantRadius * .6f, center - Forward * elephantRadius * .6f })
+                var low = center + Vector3.down * centerOffset.y * .55f;
+                foreach (var p in new[] { center, low, center + Forward * elephantRadius * .6f, center - Forward * elephantRadius * .6f })
                     score += ClearDistance(p, cam) >= Vector3.Distance(p, cam) - .05f ? 1 : 0;
                 clear[i] = score;
             }

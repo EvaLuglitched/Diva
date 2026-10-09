@@ -15,7 +15,8 @@ namespace Diva.Show
             if (game) game.ResetRun();
             bonus = 0; combo = 0; charge = 0;
             ApplyPlayerMode();
-            if (!selectRing && fx != null) selectRing = fx.SelectRing();
+            // Eva 的圆形起点台自带旋转的霓虹圈，有它时不再加我们的光环（避免两个圈叠在一起）
+            if (!selectRing && fx != null && !GameObject.Find("Start pad")) selectRing = fx.SelectRing();
             if (selectRing) selectRing.gameObject.SetActive(true);
             orbitCenter = BestAngle(ElephantSize * 1.7f, ElephantSize * .2f, 80);
             orbitDrag = 0;
