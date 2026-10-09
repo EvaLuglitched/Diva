@@ -33949,6 +33949,7 @@ MonoBehaviour:
   thirdPersonCamera: {fileID: 211509062}
   solo: 0
   soloRole: 1
+  inputLocked: 0
   gestureConfidence: 0.3
   trackingTimeout: 0.5
   sprayInterval: 0.12
@@ -77018,6 +77019,104 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 29aa8177477c94a008de7656bc08dd1a, type: 3}
   m_PrefabInstance: {fileID: 1314314621}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1314722220
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1314722223}
+  - component: {fileID: 1314722222}
+  - component: {fileID: 1314722221}
+  m_Layer: 0
+  m_Name: Diva Show
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1314722221
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314722220}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0becfae3070d74f42b88ce894ee8899e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Diva.Show.DivaLook
+  targetCamera: {fileID: 211509062}
+  hero: {fileID: 2103336723}
+  bloomThreshold: 1.15
+  bloomIntensity: 0.9
+  contrast: 20
+  saturation: 10
+  vignette: 0.24
+  cinematicDepthOfField: 1
+  rimColour: {r: 0.72, g: 0.84, b: 1, a: 1}
+  rimIntensity: 1.4
+  heroLayer: 7
+  townReflections: 1
+--- !u!114 &1314722222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314722220}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59d2bf2ae5b244e8cb700e9f49fa1f9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Diva.Show.DivaShowDirector
+  demo: {fileID: 557435879}
+  controller: {fileID: 557435875}
+  locomotion: {fileID: 557435877}
+  game: {fileID: 2106754824}
+  laser: {fileID: 2106754826}
+  skins: {fileID: 2103336729}
+  boosters: {fileID: 2103336727}
+  bubbles: {fileID: 2103336726}
+  waterGun: {fileID: 319140376}
+  mainCamera: {fileID: 211509062}
+  raceIntro: {fileID: 2106754823}
+  introDirector: {fileID: 0}
+  look: {fileID: 1314722221}
+  latinFont: {fileID: 12800000, guid: ca7dc6e84c23b4ba8ae9fcb3383ae8e7, type: 3}
+  sdfShader: {fileID: 4800000, guid: 68e6db2ebdc24f95958faec2be5558d6, type: 3}
+  glowMaterial: {fileID: 2100000, guid: 1745e8dab69a74187b6f24c6d3dd4d1e, type: 2}
+  bubbleMaterial: {fileID: 2100000, guid: d3add7bb89f2344698b08021181dfbbe, type: 2}
+  trumpetClip: {fileID: 1827226128182048838, guid: 12dabfbad51df844d82a88638d46da61, type: 3}
+  entranceMusic: {fileID: 8300000, guid: 057afbc3d27e04341954fb259272035e, type: 3}
+  entranceVolume: 0.9
+  singlePlayer: 1
+  timeLimit: 0
+  highlightSeconds: 8
+  chargePerHit: 12
+  chargePerTask: 25
+  chargePerMetre: 1.2
+  ultRange: 18
+  volume: 0.7
+  hideDebugPanels: 1
+--- !u!4 &1314722223
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314722220}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1315500268
 GameObject:
   m_ObjectHideFlags: 0
@@ -106306,6 +106405,7 @@ GameObject:
   - component: {fileID: 2103336725}
   - component: {fileID: 2103336724}
   - component: {fileID: 2103336728}
+  - component: {fileID: 2103336729}
   m_Layer: 0
   m_Name: Elephant Travel
   m_TagString: Untagged
@@ -106457,6 +106557,182 @@ MonoBehaviour:
   hideDemoDroplets: 1
   waterShowsLaserShots: 1
   bubblesFromDrinking: 1
+--- !u!114 &2103336729
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2103336722}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21fa3bfe64c064848b4aec87cd2d02c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Diva.DivaMechSkins
+  skins:
+  - id: classic
+    nameEn: CLASSIC CANDY
+    nameZh: "\u7ECF\u5178\u7CD6\u679C"
+    atlas: {fileID: 2100000, guid: 51e988b011c3f44cebd38f906b423823, type: 2}
+    glass: {fileID: 2100000, guid: 4eae3f9a39eea49b3a272491ff10d978, type: 2}
+    elephant: {fileID: 2100000, guid: ca90a0ec82fa54820bb5d0cc19639b35, type: 2}
+    primary: {r: 0.93333334, g: 0.4862745, b: 0.7529412, a: 1}
+    secondary: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    accent: {r: 0.27058825, g: 0.9411765, b: 0.78431374, a: 1}
+    flame:
+      serializedVersion: 2
+      key0: {r: 1, g: 1, b: 1, a: 0.95}
+      key1: {r: 0.4509804, g: 0.9490196, b: 1, a: 0.85}
+      key2: {r: 0.8509804, g: 0.34901962, b: 0.9490196, a: 0.45}
+      key3: {r: 0.6, g: 0.2, b: 0.8, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
+      key5: {r: 0, g: 0, b: 0, a: 0}
+      key6: {r: 0, g: 0, b: 0, a: 0}
+      key7: {r: 0, g: 0, b: 0, a: 0}
+      ctime0: 0
+      ctime1: 16384
+      ctime2: 39321
+      ctime3: 65535
+      ctime4: 0
+      ctime5: 0
+      ctime6: 0
+      ctime7: 0
+      atime0: 0
+      atime1: 16384
+      atime2: 39321
+      atime3: 65535
+      atime4: 0
+      atime5: 0
+      atime6: 0
+      atime7: 0
+      m_Mode: 0
+      m_ColorSpace: -1
+      m_NumColorKeys: 4
+      m_NumAlphaKeys: 4
+    flameGlow: {r: 0.4509804, g: 0.9490196, b: 1, a: 0.35}
+  - id: amethyst
+    nameEn: AMETHYST NIGHT
+    nameZh: "\u7D2B\u6676\u591C\u8272"
+    atlas: {fileID: 2100000, guid: f30867b8b9b1c45448e399441e61fb17, type: 2}
+    glass: {fileID: 2100000, guid: 3b81bb9c14b1d48b3ba0214d93f76e3b, type: 2}
+    elephant: {fileID: 2100000, guid: de5ea2ba804f04229b8cd9fde4fbc4d8, type: 2}
+    primary: {r: 0.43137255, g: 0.20392157, b: 0.72156864, a: 1}
+    secondary: {r: 0.12156863, g: 0.101960786, b: 0.14901961, a: 1}
+    accent: {r: 1, g: 0.6039216, b: 0.18039216, a: 1}
+    flame:
+      serializedVersion: 2
+      key0: {r: 1, g: 1, b: 1, a: 0.95}
+      key1: {r: 1, g: 0.7529412, b: 0.3529412, a: 0.85}
+      key2: {r: 1, g: 0.47843137, b: 0.18039216, a: 0.45}
+      key3: {r: 0.5411765, g: 0.23137255, b: 0.8784314, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
+      key5: {r: 0, g: 0, b: 0, a: 0}
+      key6: {r: 0, g: 0, b: 0, a: 0}
+      key7: {r: 0, g: 0, b: 0, a: 0}
+      ctime0: 0
+      ctime1: 16384
+      ctime2: 39321
+      ctime3: 65535
+      ctime4: 0
+      ctime5: 0
+      ctime6: 0
+      ctime7: 0
+      atime0: 0
+      atime1: 16384
+      atime2: 39321
+      atime3: 65535
+      atime4: 0
+      atime5: 0
+      atime6: 0
+      atime7: 0
+      m_Mode: 0
+      m_ColorSpace: -1
+      m_NumColorKeys: 4
+      m_NumAlphaKeys: 4
+    flameGlow: {r: 1, g: 0.7529412, b: 0.3529412, a: 0.35}
+  - id: porcelain
+    nameEn: PORCELAIN SKY
+    nameZh: "\u9752\u74F7\u6674\u7A7A"
+    atlas: {fileID: 2100000, guid: 14e4f9f0ffde54c3eb8a0b7dfd8e3bb4, type: 2}
+    glass: {fileID: 2100000, guid: 9e06ce569fa224de7800fa1e1e2eb151, type: 2}
+    elephant: {fileID: 2100000, guid: 7117443ae3edd49bbb2c76023cde2e29, type: 2}
+    primary: {r: 0.9372549, g: 0.90588236, b: 0.8392157, a: 1}
+    secondary: {r: 0.24705882, g: 0.5254902, b: 0.8117647, a: 1}
+    accent: {r: 0.27450982, g: 0.9019608, b: 0.9607843, a: 1}
+    flame:
+      serializedVersion: 2
+      key0: {r: 1, g: 1, b: 1, a: 0.95}
+      key1: {r: 0.49803922, g: 0.9411765, b: 1, a: 0.85}
+      key2: {r: 0.24705882, g: 0.5254902, b: 0.8117647, a: 0.45}
+      key3: {r: 0.1764706, g: 0.30980393, b: 0.627451, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
+      key5: {r: 0, g: 0, b: 0, a: 0}
+      key6: {r: 0, g: 0, b: 0, a: 0}
+      key7: {r: 0, g: 0, b: 0, a: 0}
+      ctime0: 0
+      ctime1: 16384
+      ctime2: 39321
+      ctime3: 65535
+      ctime4: 0
+      ctime5: 0
+      ctime6: 0
+      ctime7: 0
+      atime0: 0
+      atime1: 16384
+      atime2: 39321
+      atime3: 65535
+      atime4: 0
+      atime5: 0
+      atime6: 0
+      atime7: 0
+      m_Mode: 0
+      m_ColorSpace: -1
+      m_NumColorKeys: 4
+      m_NumAlphaKeys: 4
+    flameGlow: {r: 0.49803922, g: 0.9411765, b: 1, a: 0.35}
+  - id: cherry
+    nameEn: CHERRY CAMPUS
+    nameZh: "\u6A31\u6843\u6821\u56ED"
+    atlas: {fileID: 2100000, guid: 2db0f0f4d206f47abb101db813aed377, type: 2}
+    glass: {fileID: 2100000, guid: 1c768bb4b8f9b4590bacb4630e62b830, type: 2}
+    elephant: {fileID: 2100000, guid: a81da33af32374e81a377571a1f4497c, type: 2}
+    primary: {r: 0.9254902, g: 0.18039216, b: 0.54901963, a: 1}
+    secondary: {r: 0.9607843, g: 0.9411765, b: 0.91764706, a: 1}
+    accent: {r: 0.23529412, g: 0.92156863, b: 0.5019608, a: 1}
+    flame:
+      serializedVersion: 2
+      key0: {r: 1, g: 1, b: 1, a: 0.95}
+      key1: {r: 0.54901963, g: 1, b: 0.6901961, a: 0.85}
+      key2: {r: 0.9254902, g: 0.18039216, b: 0.54901963, a: 0.45}
+      key3: {r: 0.6117647, g: 0.10980392, b: 0.36078432, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
+      key5: {r: 0, g: 0, b: 0, a: 0}
+      key6: {r: 0, g: 0, b: 0, a: 0}
+      key7: {r: 0, g: 0, b: 0, a: 0}
+      ctime0: 0
+      ctime1: 16384
+      ctime2: 39321
+      ctime3: 65535
+      ctime4: 0
+      ctime5: 0
+      ctime6: 0
+      ctime7: 0
+      atime0: 0
+      atime1: 16384
+      atime2: 39321
+      atime3: 65535
+      atime4: 0
+      atime5: 0
+      atime6: 0
+      atime7: 0
+      m_Mode: 0
+      m_ColorSpace: -1
+      m_NumColorKeys: 4
+      m_NumAlphaKeys: 4
+    flameGlow: {r: 0.54901963, g: 1, b: 0.6901961, a: 0.35}
+  startSkin: 0
+  toggle: {fileID: 2103336724}
+  boosters: {fileID: 2103336727}
 --- !u!1 &2106305957
 GameObject:
   m_ObjectHideFlags: 0
@@ -110437,3 +110713,4 @@ SceneRoots:
   - {fileID: 1774148633}
   - {fileID: 1503103948}
   - {fileID: 2106754827}
+  - {fileID: 1314722223}

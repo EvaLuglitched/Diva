@@ -10,6 +10,7 @@
 | --- | --- |
 | 机甲 | 背甲（接缝、六边形散热口、DVA 字样、兔子贴纸、GG 贴纸）、玻璃驾驶舱、尾翼、两个喷射口、背甲下沿两侧的炮舱（侧面贴 DIVA 绿色铭牌）、胸甲、四条腿甲、头盔加耳机和天线、鼻尖弯头水枪 |
 | 糖果粉皮肤 | 只给皮肤叠一层淡粉，象牙和眼睛保持原色（`Textures/Elephant_D_Candy.jpg`） |
+| 四款涂装 | 只换颜色不换模型：经典糖果、紫晶夜色（紫黑金、橙灯）、青瓷晴空（瓷白天蓝古铜、青灯、琥珀玻璃）、樱桃校园（亮粉白银、绿灯）。每款一张调色板材质，连大象肤色和火焰颜色一起换（`DivaMechSkins`） |
 | 鼻尖水枪 | 水柱、水雾、落地水花、喷口闪光、开喷/持续/停喷音效 |
 | 泡泡炮 | 两门炮喷彩虹肥皂泡，会飘、会上浮、落地破掉 |
 | 推进器火焰 | 跟移动速度联动：站着不喷，走路小火，跑起来大火，加速时多一点爆发；引擎声跟着变大变高 |
@@ -20,6 +21,7 @@
 `Assets/DigiPhant/Scenes/Diva.unity` 里的大象已经装上了。在 Hierarchy 选中 `Elephant Travel` 可以看到这些组件：
 
 - `DivaMechToggle`：**Show Mech** 开关整套机甲，**Candy Skin** 开关糖果粉皮肤。
+- `DivaMechSkins`：四款涂装，**Start Skin** 选开局用哪款；脚本里调用 `Apply(序号)` 或 `Next(±1)` 切换（选涂装界面就是这样做的）。
 - `DivaBoosters`：推进器火焰。**Boost Override** 设成 0~1 可以固定火焰大小来测试，-1 表示跟随速度。
 - `DivaBubbleCannons`：勾选 **Blowing** 喷泡泡。
 - `DivaMechAudio`：脚步和嗡鸣的音量。
@@ -33,6 +35,7 @@
 - 重复点会替换旧零件，不会装两套。
 - **Diva > Remove D.Va Mech**：移除机甲，并恢复大象原来的皮肤。
 - **Diva > Capture D.Va Mech Screenshots**：拍预览图，存到项目根目录的 `work/diva-mech-shots/`。
+- **Diva > Rebuild D.Va Mech Skins**：只重新生成四款涂装的材质（颜色在 `Editor/DivaMechBuilder.cs` 的 `SkinDefs`），不重建零件。
 
 ## 手势和动画对照
 
@@ -70,6 +73,7 @@ boost.SetBoost(1f);   // 固定大火；SetBoost(-1) 回到跟随速度
 ## 性能（为 Mac 和 Vision Pro 准备）
 
 - 17,828 个三角面，分成 8 个网格（每根骨骼一个）。
+- 换涂装只是换一张调色板材质，不增加三角面和绘制调用。
 - 机甲本身 9 次绘制调用：除了玻璃，所有零件共用一个调色板材质（`Generated/Mech Atlas.mat` 加 128×32 的调色板贴图）。顶点上存了明暗值，用来做掉漆、凹处和下部偏暗的效果，不需要展 UV。
 - 粒子：水枪约 260/秒（只在喷水时），泡泡每门炮 22/秒（只在喷泡泡时），火焰每个喷射口最多 230/秒（只在移动时）。
 
