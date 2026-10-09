@@ -13,7 +13,8 @@ namespace Diva.VR.EditorTools
     /// <summary>
     /// 一键打包到 Vision Pro：Metal 完全沉浸（VR），手部追踪，可以看到自己的真手，生成 Xcode 工程到 Builds/visionOS。
     /// 只在装了 Apple visionOS XR Plugin 的电脑上编译（需要 Pro / 学生授权；Personal 授权的电脑上这个插件会被卸载）。
-    /// 装机：visionOS/install.sh 或者在 Xcode 里打开 Builds/visionOS 按运行。
+    /// 装机：在 Xcode 里打开 Builds/visionOS 按运行。主屏幕上的名字要在 Unity 外面改（Unity 进程占着 Info.plist，在里面写会把它清空）：
+    /// plutil -replace CFBundleDisplayName -string "Diva VR" Builds/visionOS/Info.plist
     /// </summary>
     public static class DivaVRBuild
     {
@@ -57,21 +58,6 @@ namespace Diva.VR.EditorTools
             });
             Debug.Log($"DIVA_VR build {report.summary.result}: {report.summary.totalErrors} errors, {report.summary.totalTime}");
             return report.summary.result;
-        }
-
-        /// <summary>头显主屏幕上的名字叫 Diva VR（只改这个包的 Info.plist，不动电脑版的 productName）。打包写完文件后才改。</summary>
-        [UnityEditor.Callbacks.PostProcessBuild(100)]
-        static void NameTheApp(BuildTarget target, string path)
-        {
-            if (target != BuildTarget.VisionOS) return;
-            var plist = Path.Combine(path, "Info.plist");
-            try
-            {
-                var text = File.ReadAllText(plist);
-                text = System.Text.RegularExpressions.Regex.Replace(text, @"(<key>CFBundleDisplayName</key>\s*<string>)[^<]*(</string>)", "${1}Diva VR${2}");
-                File.WriteAllText(plist, text);
-            }
-            catch (System.Exception e) { Debug.LogWarning("DIVA_VR could not rename the app (run: plutil -replace CFBundleDisplayName -string \"Diva VR\" " + plist + "): " + e.Message); }
         }
 
         /// <summary>真机还是模拟器（PlayerSettings.VisionOS.sdkVersion；用反射，接口名在不同 Unity 版本里可能不同）。</summary>
