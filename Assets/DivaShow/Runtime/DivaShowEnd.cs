@@ -322,7 +322,8 @@ namespace Diva.Show
                 var row = boardRows[i];
                 foreach (var g in new Graphic[] { row.plate, row.rank, row.team, row.score, row.time, row.hits }) g.gameObject.SetActive(visible);
                 if (!visible) continue;
-                var r = board[index];
+                // 排行榜只存前 DivaLeaderboard.Keep 名：这一局排在外面时，最后一行直接用这一局的记录（名次照实显示）
+                var r = index < board.Count ? board[index] : record;
                 bool mine = index == current;
                 row.plate.Set(mine ? DivaUi.WithAlpha(Accent * .8f, .55f) : DivaUi.WithAlpha(Color.white, i % 2 == 0 ? .07f : .03f),
                               mine ? DivaUi.WithAlpha(Accent * .5f, .35f) : DivaUi.WithAlpha(Color.white, .02f));
