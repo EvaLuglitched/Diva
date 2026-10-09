@@ -23,6 +23,8 @@ namespace Diva
         public Sprite burstSprite;
         public AudioClip shotSound, hitSound;
         public bool spaceToFire = true;
+        [Tooltip("Draw the laser beam. Turned off when another effect (e.g. the trunk water gun) shows the shot.")]
+        public bool showBeam = true;
         public int Shots { get; private set; }
         public int Hits { get; private set; }
 
@@ -47,10 +49,17 @@ namespace Diva
 
         Vector3 Origin => muzzle ? muzzle.position : elephant.position + Vector3.up * 2;
 
+        /// <summary>Aim direction: the elephant's forward, turned by aimDegrees (e.g. P3's raised arm).</summary>
+        public Vector3 AimForward(float aimDegrees) =>
+            Quaternion.AngleAxis(aimDegrees, Vector3.up) * Vector3.ProjectOnPlane(elephant.forward, Vector3.up).normalized;
+
         /// <summary>Best standing target in the cone: small angle first, then distance.</summary>
-        public DivaTarget FindTarget()
+        public DivaTarget FindTarget() => FindTarget(0);
+
+        public DivaTarget FindTarget(float aimDegrees)
         {
-            Vector3 origin = Origin, forward = Vector3.ProjectOnPlane(elephant.forward, Vector3.up).normalized;
+            if (!elephant) return null;
+            Vector3 origin = Origin, forward = AimForward(aimDegrees);
             DivaTarget best = null;
             float bestScore = float.MaxValue;
             foreach (var target in DivaTarget.All)
@@ -67,17 +76,20 @@ namespace Diva
             return best;
         }
 
-        public void Fire()
+        public void Fire() => Fire(0);
+
+        /// <summary>Fire toward the elephant's forward turned by aimDegrees (Diva P3 aim).</summary>
+        public void Fire(float aimDegrees)
         {
             if (!elephant || Time.time - lastShot < cooldownSeconds) return;
             lastShot = Time.time;
             Shots++;
-            var target = FindTarget();
+            var target = FindTarget(aimDegrees);
             Vector3 origin = Origin;
-            Vector3 end = target ? target.AimPoint : origin + Vector3.ProjectOnPlane(elephant.forward, Vector3.up).normalized * range;
+            Vector3 end = target ? target.AimPoint : origin + AimForward(aimDegrees) * range;
             beam.SetPosition(0, origin);
             beam.SetPosition(1, end);
-            beam.enabled = true;
+            beam.enabled = showBeam;
             beamUntil = Time.time + beamSeconds;
             if (shotSound) audioSource.PlayOneShot(shotSound, .7f);
             if (target && target.TryHit())

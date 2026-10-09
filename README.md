@@ -4,21 +4,23 @@ Three people control one elephant on the Savannah course using pretrained MediaP
 
 ## Open and try the newest scene
 
-Use Unity **6000.6.3f1** with Universal Render Pipeline **17.6.0**. Open **Assets/DigiPhant/Scenes/Diva.unity** and press Play. The original DigiPhant scene remains available.
+Use Unity **6000.6.3f1** with Universal Render Pipeline **17.6.0**. Open **Assets/DigiPhant/Scenes/Diva.unity** and press Play. It now holds everything: the three-player gestures, Eva's candy-town game layer (targets, trunk shots, HUD, course tasks) and the D.Va mech elephant. The original DigiPhant scene remains available with the game layer only (no Diva gestures).
 
 Choose **Try alone** to test P1 Move, P2 Turn or P3 Water individually. Choose **Camera**, click **Get ready (10 seconds)** and hold a natural resting pose with arms down. Changing roles requires calibration again. **Test controls** provides manual movement, turn, aim, spray and refill controls.
 
 - P1: pump raised arms up and down to go; stop pumping to stop.
-- P2: lean both hands and body left/right to turn; stand upright for straight. Hips must be visible.
-- P3: raise one arm to aim. Push both hands forward and open them for water spray. A quick opening gives one burst; holding both open hands extended continues spraying. Curl hands together near a visible mouth to drink/refill.
+- P2: lean both hands and body left/right to turn; stand upright for straight. Hips must be visible. Once turning, a smaller lean keeps the turn going, and short tracking blips (up to 0.25 s) no longer cancel it.
+- P3: raise one arm to aim. Push both hands forward and open them for water spray; while spraying, push both hands toward one side to aim that way. A quick opening gives one burst; holding both open hands extended continues spraying. Each burst fires at the best target in the aimed direction and scores in the HUD. Curl hands together near the mouth to drink/refill; covering the mouth with your hands is fine for a few seconds once your face has been seen.
 
 For group play, start left-to-right in the unmirrored preview: P1 movement, P2 turning, P3 water. Keep background people out of view and avoid crossing. Use Reassign players and recalibrate if roles are lost.
 
-The demo includes a third-person camera, five water targets, hit counting and a water tank. Refill currently works anywhere. Aim returns to center when neither arm is raised, which may center the spray gesture. See **DIVA_TRY_IT.md** for details.
+The demo includes a third-person camera, the game layer's 16 targets, scoring, a water tank and the course tasks. Course tasks follow the Diva gestures: drink/eat by bringing hands to the mouth near the bush or basin, step over the log by pumping (P1) next to it. Refill currently works anywhere. See **DIVA_TRY_IT.md** for details.
+
+If the camera panel says **Camera stopped: …**, the text after the colon is the tracker's own error (for example a missing model or file). **Waiting for P2, P3 …** names the players the camera cannot see; for one person choose **Try alone**.
 
 ## D.Va-style mech elephant (eva大象)
 
-The elephant in **Diva.unity** wears a pink D.Va-style mech suit with a candy-pink skin, a trunk water gun, bubble cannons, thruster flames that follow speed, and sound effects. Everything lives in **Assets/eva大象**; see **Assets/eva大象/README.md** (Chinese) for toggles, the trigger API for gestures, and how to install it in another scene (**Diva > Add D.Va Mech to Elephant**).
+The elephant in **Diva.unity** wears a pink D.Va-style mech suit with a candy-pink skin, a trunk water gun, bubble cannons, thruster flames that follow speed, and sound effects. Everything lives in **Assets/eva大象**; see **Assets/eva大象/README.md** (Chinese) for toggles and how to install it in another scene (**Diva > Add D.Va Mech to Elephant**). Gestures drive it: P1/P2 movement grows the thruster flames, P3's spray fires the trunk water gun along the target-hit path (aim follows P3's raised arm), and P3's drink blows bubbles. The trigger logic is written up in **Assets/eva大象/GESTURES.md**.
 
 ## Restore assets after a fresh clone
 
@@ -37,13 +39,16 @@ Invoke-WebRequest -Uri 'https://storage.googleapis.com/mediapipe-models/hand_lan
 & DigiPhantStarter/Tracking/.venv/Scripts/python.exe -m unittest discover -s DigiPhantStarter/Tracking -p 'test_*.py'
 ```
 
+**macOS:** run `bash Tools/setup_tracking_mac.sh` from the project folder instead; it does the same steps and runs the tests. In Play mode Unity also copies TrackingOverrides into DigiPhantStarter/Tracking when they differ and downloads the hand model if it is missing.
+
 Python **3.14.7** was used on Windows. Preserve the elephant metadata. Do not overwrite the tracked DigiPhant or SavannahCourse folders with starter copies. The starter's third-party asset terms continue to apply.
 
 Unity starts the local camera bridge automatically in Play mode. Stop Play to stop it. Camera messages use localhost ports 5055–5057. Gesture thresholds live in **TrackingOverrides/diva_gestures.json** and detection rules in **TrackingOverrides/diva_gestures.py**.
 
 ## Verified behavior and current limitation
 
-- 32 Python tests cover tracking, gesture rules, hand association and bounded camera recovery.
+- 39 Python tests cover tracking, gesture rules (including steering hysteresis, aiming while spraying and the remembered mouth), hand association and bounded camera recovery.
+- A simulated three-player Play-mode run in Diva.unity: calibration names missing players, P1 runs with full thruster flames, P2 turns, P3 spray fires the trunk shots at targets with the water jet, P3 drink refills the tank and blows bubbles, and the eat and log tasks complete with gestures.
 - Unity native gesture validation passed, including role routing, solo testing, neutral calibration, tracking loss, bursts, held spray and refill.
 - Diva entered Play mode with the course, elephant and targets. Manual spray registered target hits and refill restored the water tank.
 - Live camera preview appeared, but the integrated webcam repeatedly stopped supplying frames. Three reconnect attempts did not restore a reliable feed. Sustained gesture-driven gameplay and the three-person physical trial remain unverified.

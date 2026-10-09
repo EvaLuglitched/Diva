@@ -84,7 +84,10 @@ namespace DigiPhant
             {
                 string detail;
                 lock (outputLock) detail = bridgeOutput;
-                Status = "Camera stopped. Check camera permission or close an old tracking window, then Retry.";
+                // Show the bridge's own error (missing model, unknown --diva option, camera not opening...) instead of a guess.
+                string reason = BridgeReason(detail);
+                Status = reason != null ? "Camera stopped: " + reason + " Fix it, then Retry."
+                                        : "Camera stopped. Check camera permission or close an old tracking window, then Retry.";
                 if (!string.IsNullOrWhiteSpace(detail)) UnityEngine.Debug.LogWarning("DigiPhant camera bridge: " + detail);
                 ownedBridge.Dispose();
                 ownedBridge = null;
@@ -99,6 +102,12 @@ namespace DigiPhant
                 ? ".venv/Scripts/python.exe" : ".venv/bin/python");
             if (!File.Exists(executable) || !File.Exists(Path.Combine(folder, "pose_landmarker_full.task")))
             { Status = "Camera setup needed: follow DigiPhantStarter/README.md section 3."; return; }
+            bool divaMode = GetComponent<DivaDemo>() != null && GetComponent<DivaDemo>().isActiveAndEnabled;
+            // Diva gestures need the team's bridge files and the hand model next to the starter bridge.
+            // Copy TrackingOverrides in when they are missing or out of date, so a forgotten or stale copy cannot
+            // make the bridge reject --diva; let the bridge download the hand model on first use.
+            if (divaMode && !SyncTrackingOverrides(folder)) return;
+            bool needHandModel = divaMode && !File.Exists(Path.Combine(folder, "hand_landmarker.task"));
             try
             {
                 lock (outputLock) bridgeOutput = "";
@@ -107,7 +116,7 @@ namespace DigiPhant
                     "-u bridge.py --no-window --people " + controller.performerCount +
                     " --camera " + Mathf.Clamp(cameraIndex, 0, 8) + " --port " + controller.port +
                     (controller.upperBodyOnly ? " --upper-body-only" : "") +
-                    (GetComponent<DivaDemo>() != null && GetComponent<DivaDemo>().isActiveAndEnabled ? " --diva" : ""))
+                    (divaMode ? " --diva" : "") + (needHandModel ? " --download-model" : ""))
                 {
                     WorkingDirectory = folder, UseShellExecute = false, CreateNoWindow = true,
                     RedirectStandardOutput = true, RedirectStandardError = true
@@ -118,7 +127,8 @@ namespace DigiPhant
                 ownedBridge.Start();
                 ownedBridge.BeginOutputReadLine();
                 ownedBridge.BeginErrorReadLine();
-                Status = "Opening webcam — allow camera access if prompted";
+                Status = needHandModel ? "Downloading the hand model (first run, needs internet), then opening the webcam"
+                                       : "Opening webcam — allow camera access if prompted";
             }
             catch (Exception e)
             {
@@ -129,6 +139,44 @@ namespace DigiPhant
             Status = "Start the camera bridge on this computer.";
 #endif
         }
+#if UNITY_EDITOR
+        bool SyncTrackingOverrides(string folder)
+        {
+            string source = Path.GetFullPath(Path.Combine(Application.dataPath, "../TrackingOverrides"));
+            if (!Directory.Exists(source)) { Status = "Diva gestures need the TrackingOverrides folder from the repo."; return false; }
+            try
+            {
+                foreach (var name in new[] { "bridge.py", "diva_gestures.py", "diva_gestures.json" })
+                {
+                    string from = Path.Combine(source, name), to = Path.Combine(folder, name);
+                    if (!File.Exists(from)) { Status = "TrackingOverrides is missing " + name + "."; return false; }
+                    if (File.Exists(to) && File.ReadAllText(from) == File.ReadAllText(to)) continue;
+                    File.Copy(from, to, true);
+                    UnityEngine.Debug.Log("DigiPhant: updated DigiPhantStarter/Tracking/" + name + " from TrackingOverrides");
+                }
+                return true;
+            }
+            catch (Exception e) { Status = "Could not install Diva tracking files: " + e.Message; return false; }
+        }
+#endif
+
+        // The most useful line of the bridge output: an error, a missing file, or the camera failing to open.
+        static string BridgeReason(string output)
+        {
+            if (string.IsNullOrWhiteSpace(output)) return null;
+            var lines = output.Split('\n');
+            for (int i = lines.Length - 1; i >= 0; i--)
+            {
+                string line = lines[i].Trim();
+                if (line.Length == 0) continue;
+                string lower = line.ToLowerInvariant();
+                if (lower.Contains("error") || lower.Contains("missing") || lower.Contains("could not") || lower.Contains("denied")
+                    || lower.Contains("not authorized") || lower.Contains("unrecognized") || lower.Contains("no such file"))
+                    return line.Length > 160 ? line.Substring(0, 160) + "…" : line;
+            }
+            return null;
+        }
+
         void CaptureOutput(object sender, DataReceivedEventArgs args)
         {
             if (args.Data == null) return;

@@ -38,7 +38,7 @@ namespace Diva.EditorTools
             var toggle = smr.transform.root.GetComponentInChildren<DivaMechToggle>(true);
             if (toggle && toggle.skin && toggle.originalSkin) { Undo.RecordObject(toggle.skin, "Diva mech"); toggle.skin.sharedMaterial = toggle.originalSkin; }
             if (toggle) Undo.DestroyObjectImmediate(toggle);
-            foreach (var c in new Component[] { smr.transform.root.GetComponent<DivaBoosters>(), smr.transform.root.GetComponent<DivaBubbleCannons>() })
+            foreach (var c in new Component[] { smr.transform.root.GetComponent<DivaMechGestureLink>(), smr.transform.root.GetComponent<DivaBoosters>(), smr.transform.root.GetComponent<DivaBubbleCannons>() })
                 if (c) Undo.DestroyObjectImmediate(c);
             EditorSceneManager.MarkSceneDirty(smr.gameObject.scene);
             Debug.Log("DIVA_MECH_REMOVED " + n + " parts");
@@ -113,6 +113,7 @@ namespace Diva.EditorTools
             }
             var boosters = SetUpBoosters(host, cores, glows);
             SetUpBubbles(host, bubbleSystems);
+            SetUpGestureLink(host);
             SetUpAudio(host, smr, parts, boosters);
             var toggle = host.GetComponentInChildren<DivaMechToggle>(true);
             if (!toggle) toggle = Undo.AddComponent<DivaMechToggle>(host);
@@ -154,6 +155,29 @@ namespace Diva.EditorTools
             string shots = Arg("-divaShots");
             if (!string.IsNullOrEmpty(shots)) Capture(shots);
             Debug.Log("DIVA_MECH_CLI_OK " + scene);
+        }
+
+        /// <summary>
+        /// Only (re)wire the gesture link on an elephant that already has the mech, without rebuilding the parts,
+        /// so the scene diff stays small. Menu: Diva > Link D.Va Mech to Diva Gestures.
+        /// </summary>
+        [MenuItem("Diva/Link D.Va Mech to Diva Gestures")]
+        public static void LinkGesturesMenu()
+        {
+            var smr = FindElephant();
+            SetUpGestureLink(smr.transform.root.gameObject);
+            EditorSceneManager.MarkSceneDirty(smr.gameObject.scene);
+        }
+
+        public static void LinkGesturesFromCommandLine()
+        {
+            var args = Environment.GetCommandLineArgs();
+            int i = Array.IndexOf(args, "-divaScene");
+            string scene = i >= 0 && i + 1 < args.Length ? args[i + 1] : "Assets/DigiPhant/Scenes/Diva.unity";
+            EditorSceneManager.OpenScene(scene, OpenSceneMode.Single);
+            LinkGesturesMenu();
+            EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+            Debug.Log("DIVA_MECH_LINK_OK " + scene);
         }
 
         static SkinnedMeshRenderer FindElephant()
@@ -738,6 +762,20 @@ namespace Diva.EditorTools
             EditorUtility.SetDirty(b);
         }
 
+        // Diva 三人手势 -> 水枪和泡泡（场景里没有 DivaDemo 时组件也会加上，但什么都不做）
+        static void SetUpGestureLink(GameObject host)
+        {
+            var link = host.GetComponent<DivaMechGestureLink>();
+            if (!link) link = Undo.AddComponent<DivaMechGestureLink>(host);
+            Undo.RecordObject(link, "Diva mech gestures");
+            link.demo = host.scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<MonoBehaviour>(true))
+                .FirstOrDefault(m => m && m.GetType().Name == "DivaDemo");
+            link.waterGun = host.GetComponentInChildren<DivaTrunkBlaster>(true);
+            link.bubbles = host.GetComponent<DivaBubbleCannons>();
+            EditorUtility.SetDirty(link);
+            Debug.Log("DIVA_MECH_GESTURES " + (link.demo ? "linked to " + link.demo.name : "no DivaDemo in this scene"));
+        }
+
         // 大象本身只叠一层很淡的糖果粉（原材质不改，另存一份）
         static readonly Color CandyTint = new Color(1.12f, .90f, 1.0f, 1);
 
@@ -993,6 +1031,7 @@ namespace Diva.EditorTools
                     foreach (var c in boost.cores) if (c) c.Clear(true);
                     boost.Apply(0);
                 }
+                CaptureGestures(dir, cam, rt, smr, root, fwd, right, size);
                 var bub = root.GetComponent<DivaBubbleCannons>();
                 if (bub)
                 {
@@ -1051,6 +1090,76 @@ namespace Diva.EditorTools
                     foreach (var (t, q) in saved) t.localRotation = q;
                     blaster.jet.Clear(true);
                     blaster.Apply(0, 0);
+                }
+            }
+        }
+
+        // 手势预览：按 DivaDemo 的姿势摆鼻子（喷水时上抬 12°/节并按瞄准左右偏，喝水时上抬 18°/节），
+        // 喷水用 DivaMechGestureLink 的弹道，喝水时冒泡泡。拍完全部还原，不改场景。
+        static void CaptureGestures(string dir, Camera cam, RenderTexture rt, SkinnedMeshRenderer smr, Transform root, Vector3 fwd, Vector3 right, float size)
+        {
+            var link = root.GetComponent<DivaMechGestureLink>();
+            if (!link || !link.demo || !link.waterGun || !link.waterGun.jet) return;
+            var demoType = link.demo.GetType();
+            var trunkBones = demoType.GetField("trunkBones")?.GetValue(link.demo) as Transform[];
+            float aimDegrees = demoType.GetField("trunkAimDegrees")?.GetValue(link.demo) is float f ? f : 35;
+            var loco = link.demo.GetComponent<DigiPhant.DigiPhantLocomotion>();
+            var travel = loco ? loco.travelRoot : root;
+            var gun = link.waterGun;
+            var main = gun.jet.main;
+            var gravity = main.gravityModifier; var life = main.startLifetime;
+            var gunRot = gun.transform.localRotation; float gunSpeed = gun.jetSpeed;
+            void Pose(float pitch, float aim, List<(Transform, Quaternion)> saved)
+            {
+                if (trunkBones == null) return;
+                foreach (var bone in trunkBones)
+                {
+                    if (!bone) continue;
+                    saved.Add((bone, bone.localRotation));
+                    var pitchAxis = bone.InverseTransformDirection(travel.right).normalized;
+                    var yawAxis = bone.InverseTransformDirection(Vector3.up).normalized;
+                    bone.localRotation *= Quaternion.AngleAxis(pitch, pitchAxis) * Quaternion.AngleAxis(aim * aimDegrees / Mathf.Max(1, trunkBones.Length), yawAxis);
+                }
+            }
+            var head = smr.bones.FirstOrDefault(t => t && t.name == "elephant_Head_bone");
+            Vector3 focus = (head ? head.position : smr.bounds.center) + fwd * size * .55f - Vector3.up * size * .08f;
+            foreach (var (label, aim) in new[] { ("left", -1f), ("center", 0f), ("right", 1f) })
+            {
+                var saved = new List<(Transform, Quaternion)>();
+                try
+                {
+                    Pose(12, aim, saved);
+                    main.gravityModifier = 2.5f / 9.81f;
+                    main.startLifetime = new ParticleSystem.MinMaxCurve(1.1f, 1.5f);
+                    link.PreviewAim(aim);
+                    gun.Apply(1, .3f);
+                    gun.jet.Simulate(1.3f, true, true, true);
+                    Shoot(cam, rt, focus, (-fwd * .55f - right * .55f + Vector3.up * .25f).normalized, .35f, size * 1.25f, Path.Combine(dir, "gesture_spray_" + label + ".png"));
+                }
+                finally
+                {
+                    foreach (var (t, q) in saved) t.localRotation = q;
+                    gun.jet.Clear(true); gun.Apply(0, 0);
+                    main.gravityModifier = gravity; main.startLifetime = life;
+                    gun.transform.localRotation = gunRot; gun.jetSpeed = gunSpeed;
+                }
+            }
+            var bub = root.GetComponent<DivaBubbleCannons>();
+            if (bub)
+            {
+                var saved = new List<(Transform, Quaternion)>();
+                try
+                {
+                    Pose(18, 0, saved);
+                    bub.Apply(1);
+                    foreach (var b2 in bub.bubbles) if (b2) b2.Simulate(2.5f, true, true, true);
+                    Shoot(cam, rt, smr.bounds.center + fwd * size * .3f, (fwd * .7f - right * .7f).normalized, .15f, size * 1.15f, Path.Combine(dir, "gesture_drink_bubbles.png"));
+                }
+                finally
+                {
+                    foreach (var (t, q) in saved) t.localRotation = q;
+                    foreach (var b2 in bub.bubbles) if (b2) b2.Clear(true);
+                    bub.Apply(0);
                 }
             }
         }
