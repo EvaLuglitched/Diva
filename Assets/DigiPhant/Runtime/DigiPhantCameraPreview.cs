@@ -105,7 +105,9 @@ namespace DigiPhant
                 // WorkingDirectory makes all arguments fixed filenames or validated integers.
                 var info = new ProcessStartInfo(executable,
                     "-u bridge.py --no-window --people " + controller.performerCount +
-                    " --camera " + Mathf.Clamp(cameraIndex, 0, 8) + " --port " + controller.port)
+                    " --camera " + Mathf.Clamp(cameraIndex, 0, 8) + " --port " + controller.port +
+                    (controller.upperBodyOnly ? " --upper-body-only" : "") +
+                    (GetComponent<DivaDemo>() != null && GetComponent<DivaDemo>().isActiveAndEnabled ? " --diva" : ""))
                 {
                     WorkingDirectory = folder, UseShellExecute = false, CreateNoWindow = true,
                     RedirectStandardOutput = true, RedirectStandardError = true
