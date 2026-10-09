@@ -21,6 +21,7 @@ namespace Diva.VR
         RenderTexture rt;
         Texture2D read;
         string dir;
+        readonly string session = DateTime.Now.ToString("HHmmss");
         int index;
         float next, shotAt = -1;
         string shotName;
@@ -91,9 +92,10 @@ namespace Diva.VR
             var prev = RenderTexture.active; RenderTexture.active = rt;
             read.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); read.Apply();
             RenderTexture.active = prev;
-            var file = Path.Combine(dir, $"{++index:000}_{name}.jpg");
-            File.WriteAllBytes(file, read.EncodeToJPG(85));
-            Debug.Log("DIVA_VR capture " + file);
+            // 每次启动用时间做前缀、名字小写：不和上次留下的文件撞名（macOS 文件名不分大小写）
+            var file = Path.Combine(dir, $"{session}_{++index:000}_{name.ToLowerInvariant()}.jpg");
+            try { File.WriteAllBytes(file, read.EncodeToJPG(85)); Debug.Log("DIVA_VR capture " + file); }
+            catch (Exception e) { Debug.LogWarning("DIVA_VR capture failed: " + e.Message); }
         }
     }
 }
