@@ -66,6 +66,7 @@ namespace Diva.Show
             topRoot = DivaUi.Stretch(root, "Top");
             BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildCameraFeed();
             if (DivaVR.Active && DivaVR.MomentsAnchor) MoveMomentsForward();
+            if (DivaVR.Active && DivaVR.DashAnchor) MoveSkillsToDash();
         }
 
         /// <summary>VR：倒数和技能横幅搬到前方 3 米多、3.6 米宽的空中面板上（更大、更有电影感；仪表盘只留数据）。</summary>
@@ -83,6 +84,30 @@ namespace Diva.Show
             bannerRoot.SetParent(rt, false);
             countdownRoot.SetParent(rt, false);
             BuildVrCard(rt);
+        }
+
+        // VR：技能栏和大招充能环搬到仪表台上斜放的小屏（低头看仪表就知道冲刺、水量、大招），漂浮面板只留分数和任务
+        RectTransform dashDisplay;
+        void MoveSkillsToDash()
+        {
+            var go = new GameObject("Diva Show Dash", typeof(RectTransform), typeof(Canvas));
+            go.layer = 5;
+            dashDisplay = (RectTransform)go.transform;
+            dashDisplay.SetParent(DivaVR.DashAnchor, false);
+            dashDisplay.sizeDelta = new Vector2(1920, 280);
+            dashDisplay.localPosition = Vector3.zero; dashDisplay.localRotation = Quaternion.identity;
+            dashDisplay.localScale = Vector3.one * (.7f / 1920f);
+            var c = go.GetComponent<Canvas>();
+            c.renderMode = RenderMode.WorldSpace; c.worldCamera = mainCamera; c.sortingOrder = 52;
+            var move = new List<Transform>();
+            foreach (Transform child in hudRoot)
+            {
+                var n = child.name;
+                if (n.StartsWith("Boost") || n.StartsWith("Cannon") || n.StartsWith("Bubble") ||
+                    n.StartsWith("Ult Back") || n.StartsWith("Ult Charge") || n.StartsWith("Ult Percent") || n.StartsWith("Ult Name") || n.StartsWith("Ult Key"))
+                    move.Add(child);
+            }
+            foreach (var t in move) t.SetParent(dashDisplay, false);
         }
 
         // VR 操作卡：点亮和倒数时出现在前方横幅下面，开跑两秒后淡出（第一次戴头显的人最需要）
@@ -109,6 +134,7 @@ namespace Diva.Show
 
         void UpdateVrCard()
         {
+            if (dashDisplay) dashDisplay.gameObject.SetActive(hudRoot.gameObject.activeSelf);
             if (!vrCard) return;
             bool show = Phase == ShowPhase.PowerUp || Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 3;
             vrCard.alpha = Mathf.MoveTowards(vrCard.alpha, show ? 1 : 0, DivaClock.DeltaTime * (show ? 3 : 1.2f));

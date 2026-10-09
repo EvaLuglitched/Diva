@@ -98,6 +98,12 @@ namespace Diva.VR
             moments.SetParent(transform, false);
             moments.localPosition = new Vector3(0, eyeHeight + .25f, 3.2f);
             DivaVR.MomentsAnchor = moments;
+            // 仪表台小屏：眼睛前下方 0.6 米，斜着正对眼睛
+            var dash = new GameObject("Dash Display").transform;
+            dash.SetParent(transform, false);
+            dash.localPosition = new Vector3(.05f, eyeHeight - .3f, .6f);
+            dash.localRotation = Quaternion.LookRotation(new Vector3(0, -.3f, .6f), Vector3.up);
+            DivaVR.DashAnchor = dash;
             if (!DivaVR.Simulated) HeadsetGraphics();
             if (DivaVRAutopilot.On) gameObject.AddComponent<DivaVRAutopilot>();
             gameObject.AddComponent<DivaVRInput>();
