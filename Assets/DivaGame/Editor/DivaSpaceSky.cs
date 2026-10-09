@@ -14,6 +14,11 @@ public static class DivaSpaceSky
 
     /// <summary>The horizon colour; the scene fog uses it too, so far buildings fade into the sky.</summary>
     public static readonly Color Horizon = new Color(.44f, .29f, .6f);
+    /// <summary>
+    /// Where the planet and moon are painted (yaw around the sky in this file's convention, elevation in degrees).
+    /// The intro turns the sky so they frame the countdown: planet left of straight ahead, moon to the right.
+    /// </summary>
+    public const float PlanetYaw = 35, PlanetElevation = 24, MoonYaw = PlanetYaw + 62, MoonElevation = 26;
     static readonly Color Zenith = new Color(.03f, .02f, .09f);
     static readonly Color Mid = new Color(.12f, .06f, .26f);
     static readonly Color Glow = new Color(.82f, .45f, .78f);   // thin candy glow right at the horizon
@@ -134,8 +139,8 @@ public static class DivaSpaceSky
             Sparkle(px, d, 1.2f + Rand() * 1.4f, 7 + Rand() * 12, sparkle[i % sparkle.Length] * (.9f + Rand() * .4f));
         }
 
-        Planet(px, Quaternion.Euler(-24, 35, 0) * Vector3.forward, 6.5f);
-        Moon(px, Quaternion.Euler(-40, 215, 0) * Vector3.forward, 2.6f);
+        Planet(px, Quaternion.Euler(-PlanetElevation, PlanetYaw, 0) * Vector3.forward, 6.5f);
+        Moon(px, Quaternion.Euler(-MoonElevation, MoonYaw, 0) * Vector3.forward, 2.6f);
         return px;
     }
 

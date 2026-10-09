@@ -42,6 +42,10 @@ namespace Diva
         public const float RocketShow = CountStart + 1.6f;
         /// <summary>Extra degrees the camera looks up during the countdown to frame the rocket.</summary>
         const float CountdownLookUp = 7;
+        /// <summary>Degrees left of the camera's view where the sky's planet sits in the rocket fly-by shot.</summary>
+        const float PlanetLeft = 25;
+        DivaSkyRotate skyTurn;
+        float skyRotation0;
 
         public bool Playing { get; private set; }
         public float Time { get; private set; } = -1;
@@ -99,6 +103,13 @@ namespace Diva
                 rocketAngle0 = RocketStartAngle();
                 rocket.SetAngle(rocketAngle0, UnityEngine.Time.time);
             }
+            if (!skyTurn) skyTurn = FindAnyObjectByType<DivaSkyRotate>();
+            if (skyTurn)
+            {
+                // Turn the starry sky so the ringed planet shows behind the rocket in the fly-by shot.
+                skyRotation0 = SkyStartRotation();
+                skyTurn.SetRotation(skyRotation0);
+            }
             Playing = true;
             Time = 0;
             nextCue = 0;
@@ -116,6 +127,7 @@ namespace Diva
             if (!Playing || Time >= OrbitEnd) return;
             Time = OrbitEnd;
             if (rocket) rocket.SetAngle(rocketAngle0 + rocket.AngularSpeed * Time, UnityEngine.Time.time);   // keep its countdown pass
+            if (skyTurn) skyTurn.SetRotation(skyRotation0 + skyTurn.speed * Time);
             ignited = true;   // no burst when jumping straight to the countdown
             while (nextCue < cues.Count && cues[nextCue].time < Time) nextCue++;
         }
@@ -130,7 +142,7 @@ namespace Diva
                 lockRot = Quaternion.LookRotation(Flat(locomotion.travelRoot.forward));
                 boosters = locomotion.travelRoot.GetComponent<DivaBoosters>();
             }
-            rocketAngle0 = rocket ? (Application.isPlaying ? rocket.Angle : rocket.startAngle * Mathf.Deg2Rad) : 0;
+            rocketAngle0 = RocketStartAngle();   // after lockPos: the rocket's countdown pass depends on it
             parts.Clear();
             if (locomotion && locomotion.travelRoot)
             {
@@ -262,6 +274,21 @@ namespace Diva
             if (q < 0) return now;   // camera outside the orbit and looking away: leave it
             Vector3 hit = p + f * (-pf + Mathf.Sqrt(q));
             return Mathf.Atan2(hit.z, hit.x) - rocket.AngularSpeed * RocketShow;
+        }
+
+        /// <summary>
+        /// Sky rotation (degrees) at intro time 0 that puts the planet in the upper left of the rocket fly-by shot,
+        /// whichever way that camera faces. Needs Prepare() first.
+        /// </summary>
+        public float SkyStartRotation()
+        {
+            if (!skyTurn) skyTurn = FindAnyObjectByType<DivaSkyRotate>();
+            if (!skyTurn || !locomotion || !locomotion.travelRoot) return 0;
+            const float mid = (AerialEnd + RocketEnd) / 2;
+            PoseAt(mid, out _, out var rot, out _);
+            Vector3 f = Flat(rot * Vector3.forward);
+            float view = Mathf.Atan2(f.z, f.x) * Mathf.Rad2Deg;   // world azimuth; larger is further left
+            return skyTurn.RotationForPlanet(view + PlanetLeft, mid);
         }
 
         /// <summary>Camera pose at a time on the intro timeline.</summary>

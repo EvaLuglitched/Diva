@@ -65,7 +65,7 @@ Plays when entering Play (about 20 s), kart-racer style:
 | Time | Shot | On screen / sound |
 | --- | --- | --- |
 | 0 – 3.5 s | Aerial, slowly circling the town (no haze) | "DIVA SAFARI · Candy Town Course" banner, chime |
-| 3.5 – 6.5 s | Camera beside the rocket's path; it crosses the frame side-on | whoosh |
+| 3.5 – 6.5 s | Camera beside the rocket's path; it crosses the frame side-on, with the sky turned so the ringed planet is in the upper left | whoosh |
 | 6.5 – 9 s | Swoop down over the course to the start line | lower whoosh |
 | 9 – 13 s | One full orbit of the mech elephant | parts power up one by one (dark → flash → lit) with rising chirps |
 | 13 – 15.5 s | Low hero close-up, pushing in | thrusters ignite: smoke billows out of both nozzles, a dust ring rolls out along the ground, sparks, a pink-orange flash, flames twice as big for a moment, a short camera shake |

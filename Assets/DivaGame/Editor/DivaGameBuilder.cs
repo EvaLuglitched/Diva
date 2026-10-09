@@ -916,7 +916,10 @@ public static class DivaGameBuilder
         volume.isGlobal = true;
         volume.priority = 1;
         volume.sharedProfile = profile;
-        root.gameObject.AddComponent<DivaSkyRotate>();
+        var skyTurn = root.gameObject.AddComponent<DivaSkyRotate>();
+        // The panoramic shader maps a texel painted at yaw Y (DivaSpaceSky's convention) to world azimuth -Y.
+        skyTurn.planetAzimuth = -DivaSpaceSky.PlanetYaw;
+        skyTurn.planetElevation = DivaSpaceSky.PlanetElevation;
         foreach (var camera in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
             if (camera.CompareTag("MainCamera"))
             {
@@ -1372,6 +1375,9 @@ public static class DivaGameBuilder
         intro.Prepare();
         var orbit = intro.rocket;
         float a0 = intro.RocketStartAngle();   // as in Play: the rocket passes in front of the elephant during 3-2-1
+        var skyTurn = root.GetComponent<DivaSkyRotate>();
+        var skyMaterial = RenderSettings.skybox;
+        float sky0 = intro.SkyStartRotation();
         var go = new GameObject("Intro preview camera");
         try
         {
@@ -1397,6 +1403,13 @@ public static class DivaGameBuilder
                     Vector3 vp = camera.WorldToViewportPoint(orbit.PositionAt(a0 + orbit.AngularSpeed * t));
                     Debug.Log($"DIVA_INTRO_ROCKET t={t:0.0} viewport=({vp.x:0.00}, {vp.y:0.00}) distance={vp.z:0}");
                 }
+                if (skyTurn && skyMaterial && skyMaterial.HasProperty("_Rotation"))
+                {
+                    float turn = sky0 + skyTurn.speed * t;
+                    skyMaterial.SetFloat("_Rotation", Mathf.Repeat(turn, 360));
+                    Vector3 pp = camera.WorldToViewportPoint(camera.transform.position + skyTurn.PlanetDirection(turn) * 500);
+                    Debug.Log($"DIVA_INTRO_PLANET t={t:0.0} viewport=({pp.x:0.00}, {pp.y:0.00}) in front={pp.z > 0}");
+                }
                 camera.Render();
                 RenderTexture.active = rt;
                 var image = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
@@ -1413,6 +1426,7 @@ public static class DivaGameBuilder
         finally
         {
             intro.EndPreviewUi();
+            if (skyMaterial && skyMaterial.HasProperty("_Rotation")) skyMaterial.SetFloat("_Rotation", 0);   // the asset stays unturned
             UnityEngine.Object.DestroyImmediate(go);
             intro.ApplyBoot(float.MaxValue);
             intro.ApplyFog(float.MaxValue);
