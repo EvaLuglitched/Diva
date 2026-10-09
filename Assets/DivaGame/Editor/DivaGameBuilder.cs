@@ -863,15 +863,16 @@ public static class DivaGameBuilder
 
     static void BuildLook(Transform root)
     {
-        // Candy fantasy town: pink-lavender sky, pastel ambient, soft pink haze for depth.
+        // Candy town under a starry space sky: the town stays bright pastel (a soft lavender "moonlight" and ambient),
+        // the haze takes the sky's violet horizon colour so distant buildings melt into the night.
         RenderSettings.skybox = sky;
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(1, .82f, .96f);
-        RenderSettings.ambientEquatorColor = new Color(.96f, .8f, .92f);
-        RenderSettings.ambientGroundColor = new Color(.74f, .6f, .8f);
+        RenderSettings.ambientSkyColor = new Color(.86f, .78f, 1);
+        RenderSettings.ambientEquatorColor = new Color(.9f, .76f, .92f);
+        RenderSettings.ambientGroundColor = new Color(.6f, .5f, .74f);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Linear;
-        RenderSettings.fogColor = new Color(.98f, .82f, .95f);
+        RenderSettings.fogColor = DivaSpaceSky.Horizon;
         RenderSettings.fogStartDistance = 85;
         RenderSettings.fogEndDistance = 300;
         DynamicGI.UpdateEnvironment();
@@ -879,8 +880,8 @@ public static class DivaGameBuilder
         if (sun)
         {
             Undo.RecordObject(sun, "Diva sunlight");
-            sun.color = new Color(1, .93f, .96f);
-            sun.intensity = 1.3f;
+            sun.color = new Color(.94f, .9f, 1);
+            sun.intensity = 1.25f;
             sun.shadows = LightShadows.Soft;
             EditorUtility.SetDirty(sun);
         }
@@ -915,6 +916,7 @@ public static class DivaGameBuilder
         volume.isGlobal = true;
         volume.priority = 1;
         volume.sharedProfile = profile;
+        root.gameObject.AddComponent<DivaSkyRotate>();
         foreach (var camera in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
             if (camera.CompareTag("MainCamera"))
             {
@@ -1094,13 +1096,16 @@ public static class DivaGameBuilder
         beam = MaterialAsset("Diva Laser Beam", "Universal Render Pipeline/Unlit");
         beam.SetColor("_BaseColor", new Color(1, .3f, .8f) * 6);   // pink laser
         EditorUtility.SetDirty(beam);
-        sky = MaterialAsset("Diva Sky", "Skybox/Procedural");
-        sky.SetColor("_SkyTint", new Color(1, .55f, .85f));
-        sky.SetColor("_GroundColor", new Color(.9f, .7f, .92f));
-        sky.SetFloat("_AtmosphereThickness", .6f); // thicker turns the horizon sunset-yellow
-        sky.SetFloat("_Exposure", 1.2f);
-        // No sun disc: its HDR highlight reflects off every surface when seen from above and blows out bloom.
-        sky.SetFloat("_SunDisk", 0);
+        // Night in space: a generated star panorama (Editor/DivaSpaceSky.cs). The old pink daytime sky stays in "Diva Sky".
+        sky = MaterialAsset("Diva Space Sky", "Skybox/Panoramic");
+        sky.SetTexture("_MainTex", DivaSpaceSky.Get());
+        sky.SetFloat("_Mapping", 1);        // latitude-longitude layout
+        sky.SetFloat("_ImageType", 0);      // 360 degrees
+        sky.SetFloat("_MirrorOnBack", 0);
+        sky.SetFloat("_Layout", 0);
+        sky.SetColor("_Tint", new Color(.5f, .5f, .5f));
+        sky.SetFloat("_Exposure", 1.1f);
+        sky.SetFloat("_Rotation", 0);
         EditorUtility.SetDirty(sky);
         RemapKitMaterials();
         PrepareFabMaterials();

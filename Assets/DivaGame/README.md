@@ -7,13 +7,14 @@ separate root in the scene: **`Diva Game Layer`**.
 
 ## Art direction
 
-Candy fantasy town: macaron pastels (strawberry milk, mint, peach, lavender, baby blue),
+Candy fantasy town under a starry space sky: macaron pastels (strawberry milk, mint, peach, lavender, baby blue),
 bubblegum and coral roofs, raspberry timber, cherry-blossom trees, pink screens, with neon
 cyan/magenta light strips. Value still steps up from back to front, so the course reads first:
 
 | Layer | Look |
 | --- | --- |
-| Background | Two rows of pastel buildings: half-timbered townhouses, then taller lilac tech blocks with pink screens, plus clock towers; soft pink haze (fog 85–300 m) |
+| Sky | Night in space: a generated star panorama (`Editor/DivaSpaceSky.cs` → `Textures/Diva Space Sky.png`) with an indigo-to-violet gradient, a candy-pink glow on the horizon, a pink/cyan nebula band, thousands of stars, four-point sparkle stars, a ringed candy planet and a small moon. It turns slowly in Play mode (`DivaSkyRotate`). Delete the PNG and rebuild to regenerate; the old pink day sky is still the `Diva Sky` material |
+| Background | Two rows of pastel buildings: half-timbered townhouses, then taller lilac tech blocks with pink screens, plus clock towers; violet haze matching the sky's horizon (fog 85–300 m) |
 | Middle | Lavender ring street, pink paving, icing-white kerbs, tech street lamps, poles with pink string lights, "WELCOME / DIVA SAFARI" banners, stone railing |
 | Course | Light grey blue-violet plaza; holo billboards, kiosks with benches, blossom planters, butter-yellow crates, candy-cane barriers in the same spots as before |
 | Foreground | Bright cream path with cyan neon edges that run parallel to both sides and meet in mitred corners (a glowing bead on each joint), candy gumdrops every 3 m and a lollipop outside every bend; a round candy start pad under the elephant (pink rim, cream disc, lilac centre, a slowly turning dashed neon ring, gumdrops and two lollipops); arches with rainbow neon bands; classic red/white targets with orange neon halo rings and a point light each (it fades while a target is down), the strongest accent in the scene; a soft light on the elephant |
