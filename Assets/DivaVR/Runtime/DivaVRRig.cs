@@ -99,18 +99,49 @@ namespace Diva.VR
             Debug.Log($"DIVA_VR rig on: seat {seat} eye {eyeHeight} simulated {DivaVR.Simulated}");
         }
 
-        /// <summary>按大象身体量座位：背最高处再高一点，靠前（肩膀上方，前面是大象的头和耳朵）。</summary>
+        /// <summary>
+        /// 按大象和机甲外壳的形状量座位：沿背的中线每 25 厘米取最高点，在背的中段找外壳最低的地方坐下
+        /// （前面隆起的外壳和头戴就是"引擎盖"，身后是推进器）。没有机甲时就坐在身体上。
+        /// </summary>
         Vector3 MeasureSeat()
         {
             var animator = loco.elephantAnimator;
             var skin = animator ? animator.GetComponentsInChildren<SkinnedMeshRenderer>(true).OrderByDescending(r => r.bones.Length).FirstOrDefault() : null;
             if (!skin) return new Vector3(0, 3, 0);
-            var b = skin.bounds;
-            var center = root.InverseTransformPoint(b.center);
-            // 包围盒在 travel root 坐标里的半长（大象可能不是轴对齐）
-            var ext = root.InverseTransformVector(b.extents);
-            ext = new Vector3(Mathf.Abs(ext.x), Mathf.Abs(ext.y), Mathf.Abs(ext.z));
-            return new Vector3(center.x, center.y + ext.y * .92f, center.z + ext.z * .18f);
+            const float step = .25f, halfWidth = .35f;
+            var top = new System.Collections.Generic.Dictionary<int, float>();
+            void Add(Vector3 world)
+            {
+                var p = root.InverseTransformPoint(world);
+                if (Mathf.Abs(p.x) > halfWidth) return;
+                int k = Mathf.FloorToInt(p.z / step);
+                top[k] = top.TryGetValue(k, out var y) ? Mathf.Max(y, p.y) : p.y;
+            }
+            var baked = new Mesh();
+            skin.BakeMesh(baked, true);
+            float minZ = float.MaxValue, maxZ = float.MinValue;
+            foreach (var v in baked.vertices)
+            {
+                var w = skin.transform.TransformPoint(v);
+                Add(w);
+                float z = root.InverseTransformPoint(w).z;
+                minZ = Mathf.Min(minZ, z); maxZ = Mathf.Max(maxZ, z);
+            }
+            Destroy(baked);
+            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+                if (mf.sharedMesh && mf.sharedMesh.isReadable && mf.GetComponent<Renderer>() && mf.GetComponent<Renderer>().enabled)
+                    foreach (var v in mf.sharedMesh.vertices) Add(mf.transform.TransformPoint(v));
+            // 背的中段：身体长度（含鼻子）的 20%–45% 之间，也就是尾巴和肩膀之间
+            float from = Mathf.Lerp(minZ, maxZ, .2f), to = Mathf.Lerp(minZ, maxZ, .45f);
+            float bestZ = (from + to) / 2, bestY = float.MaxValue;
+            foreach (var pair in top)
+            {
+                float z = (pair.Key + .5f) * step;
+                if (z < from || z > to) continue;
+                if (pair.Value < bestY) { bestY = pair.Value; bestZ = z; }
+            }
+            if (bestY == float.MaxValue) bestY = skin.bounds.max.y;
+            return new Vector3(0, bestY + .05f, bestZ);
         }
 
         void LateUpdate()
