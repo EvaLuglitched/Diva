@@ -22,6 +22,12 @@ If the camera panel says **Camera stopped: …**, the text after the colon is th
 
 Press Play in **Diva.unity** and the game now runs as a full match: choose one of four mech skins on a turntable → Eva's race intro (aerial, rocket, swoop, mech power-up, 3·2·1 GO) with Carl's entrance sting when the elephant appears → play with FPS-style HUD, skill banners, picture-in-picture close-ups, combos and an ultimate (MEGA BUBBLE: hold both hands above your head) → finish cutscene → automatic 8-second highlight replay → results cards and a local leaderboard. It is a single-player game by default: one person has every control (Try alone > **All**); **3 PLAYERS** keeps the original roles. The UI is English by default; the **EN 中文** button (or L) switches to Chinese. F1 or **SETUP** shows the old setup panel. See **Assets/DivaShow/README.md** (Chinese), **PLAYTEST_TODO.md** for what still needs a real-camera test, and **NOTE_FOR_EVA.md** for how the show uses the intro.
 
+## Fab rocket and clouds (not in git)
+
+The giant rocket and clouds in the sky are Fab models whose licence does not allow a public repo. Eva shares
+**Diva_Fab_Assets.zip** privately; unzip it into `Assets/DivaGame/ThirdParty/` as described in **FAB_SETUP.md**.
+Without it the scene shows stand-ins (our kit rocket and Kenney clouds) and a "Missing Prefab" warning.
+
 ## D.Va-style mech elephant (eva大象)
 
 The elephant in **Diva.unity** wears a pink D.Va-style mech suit with a candy-pink skin, a trunk water gun, bubble cannons, thruster flames that follow speed, and sound effects. Everything lives in **Assets/eva大象**; see **Assets/eva大象/README.md** (Chinese) for toggles and how to install it in another scene (**Diva > Add D.Va Mech to Elephant**). Gestures drive it: P1/P2 movement grows the thruster flames, P3's spray fires the trunk water gun along the target-hit path (aim follows P3's raised arm), and P3's drink blows bubbles. The trigger logic is written up in **Assets/eva大象/GESTURES.md**.
