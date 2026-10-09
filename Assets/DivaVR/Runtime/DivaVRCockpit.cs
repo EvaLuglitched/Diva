@@ -18,7 +18,37 @@ namespace Diva.VR
         DivaVRRig rig;
         DigiPhantLocomotion loco;
         DivaMechSkins skins;
-        Material body, glowA, glowB, vignette;
+        Material body, glowA, glowB, screen, vignette;
+
+        [System.Serializable] class CockpitPart { public string name, material; public float[] v, n; public int[] t; }
+        [System.Serializable] class CockpitData { public CockpitPart[] parts; }
+
+        /// <summary>读 Blender 做的驾驶舱（Assets/DivaVR/Source~/build_cockpit.py 导出到 Resources/DivaVR Cockpit.json）。</summary>
+        bool BuildFromBlender(Transform root)
+        {
+            var json = Resources.Load<TextAsset>("DivaVR Cockpit");
+            if (!json) return false;
+            var data = JsonUtility.FromJson<CockpitData>(json.text);
+            if (data?.parts == null || data.parts.Length == 0) return false;
+            foreach (var p in data.parts)
+            {
+                int count = p.v.Length / 3;
+                var verts = new Vector3[count];
+                var norms = new Vector3[count];
+                for (int i = 0; i < count; i++)
+                {
+                    verts[i] = new Vector3(p.v[i * 3], p.v[i * 3 + 1], p.v[i * 3 + 2]);
+                    norms[i] = new Vector3(p.n[i * 3], p.n[i * 3 + 1], p.n[i * 3 + 2]);
+                }
+                var mesh = new Mesh { name = p.name, indexFormat = count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16 };
+                mesh.vertices = verts; mesh.normals = norms; mesh.triangles = p.t;
+                mesh.RecalculateBounds();
+                var m = p.material == "glowA" ? glowA : p.material == "glowB" ? glowB : p.material == "screen" ? screen : body;
+                Part(root, p.name, mesh, m);
+            }
+            Resources.UnloadAsset(json);
+            return true;
+        }
         float vignetteNow, lastYaw;
         bool haveYaw;
 
@@ -33,7 +63,10 @@ namespace Diva.VR
             glowB = Unlit(new Color(.3f, .95f, .85f) * 2f);
             var root = new GameObject("Cockpit").transform;
             root.SetParent(transform, false);
+            screen = Unlit(new Color(.05f, .22f, .28f));
+            if (BuildFromBlender(root)) { if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); } BuildVignette(); return; }
 
+            // 没有 Blender 导出的模型时的简易框架
             // 仪表台：半径 0.52–0.70 米、左右各 55°，比眼睛低 0.36–0.52 米
             Part(root, "Dash", Sector(.52f, .70f, -55, 55, eye - .52f, eye - .36f, 28), body);
             Part(root, "Dash Glow", Sector(.515f, .535f, -55, 55, eye - .365f, eye - .35f, 28), glowA);
