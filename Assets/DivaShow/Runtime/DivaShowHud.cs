@@ -3,6 +3,7 @@ using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Diva.VR;
 
 namespace Diva.Show
 {
@@ -195,7 +196,7 @@ namespace Diva.Show
             }
 
             // 速度线只在推进冲刺时出现（一直跑的时候不挡画面）
-            float lines = boosting ? Mathf.Clamp01((speed / run - .75f) / .25f) : 0;
+            float lines = boosting && !DivaVR.Active ? Mathf.Clamp01((speed / run - .75f) / .25f) : 0;
             speedLines.color = new Color(1, 1, 1, Mathf.Lerp(speedLines.color.a, lines * .2f, 1 - Mathf.Exp(-DivaClock.DeltaTime * 4)));
             speedLines.uvRect = new Rect(Random.Range(-.01f, .01f), Random.Range(-.01f, .01f), 1, 1);
             fovKick = Mathf.Lerp(fovKick, boosting ? 8 : 0, 1 - Mathf.Exp(-DivaClock.DeltaTime * 4));
@@ -207,7 +208,8 @@ namespace Diva.Show
         bool ScreenPoint(Vector3 world, out Vector2 anchored)
         {
             anchored = Vector2.zero;
-            if (!mainCamera) return false;
+            // VR 里面板在 1.7 米处，靶子在几十米外，画在面板上两只眼睛会对不上：之后改成挂在靶子上的标记
+            if (!mainCamera || DivaVR.Active) return false;
             var sp = mainCamera.WorldToScreenPoint(world);
             if (sp.z <= 0) return false;
             // 主镜头的屏幕点换算成界面坐标（截图用的界面摄像机和主镜头分辨率可能不同，按比例换算）
@@ -319,6 +321,7 @@ namespace Diva.Show
 
         void SetPip(bool on)
         {
+            on &= !DivaVR.Active;   // VR 里没有画中画（多一个摄像机太贵，之后做成驾驶舱里的小屏）
             pipImage.gameObject.SetActive(on); pipFrame.gameObject.SetActive(on); pipLabel.gameObject.SetActive(on);
             if (pipCamera) pipCamera.enabled = on;
         }

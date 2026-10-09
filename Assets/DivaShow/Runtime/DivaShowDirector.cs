@@ -7,6 +7,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.Playables;
+using Diva.VR;
 
 namespace Diva.Show
 {
@@ -115,6 +116,8 @@ namespace Diva.Show
             if (!look) look = GetComponent<DivaLook>();
             // Eva 的开场本来在进入 Play 时自动播放；整局流程里改成选完涂装后由这里调用（不改她的组件设置，只在运行时关掉）
             if (raceIntro) raceIntro.playOnStart = false;
+            // VR 里 Eva 的开场是飞行镜头，坐在驾驶舱里不能用（会晕）：先走我们自己的点亮和倒数，之后做成"在现场"的版本
+            if (DivaVR.Active) raceIntro = null;
         }
 
         DivaSkyCamera skyCamera;
@@ -237,7 +240,7 @@ namespace Diva.Show
             bool play = Phase == ShowPhase.Play;
             demo.inputLocked = !play;
             // 选角色和过场时由我们拿镜头；Eva 的开场和游戏中交回去（DivaDemo 平滑跟随）
-            demo.cameraHeld = Phase != ShowPhase.Play && Phase != ShowPhase.Countdown;
+            demo.cameraHeld = DivaVR.Active || Phase != ShowPhase.Play && Phase != ShowPhase.Countdown;
             if (laser) laser.spaceToFire = play && previousSpace;
             if (sound != null) sound.volume = volume;
             switch (Phase)
@@ -272,7 +275,8 @@ namespace Diva.Show
                 case ShowPhase.Highlight: PoseHighlight(); break;
                 case ShowPhase.Results: CameraResults(); break;
             }
-            if (mainCamera)
+            // VR 里镜头只跟着头走（DivaVRRig），过场镜头都不写
+            if (mainCamera && !DivaVR.Active)
             {
                 if (cameraSet)
                 {
@@ -497,7 +501,7 @@ namespace Diva.Show
             bool panel = controller && controller.showControls;
             bool inIntro = raceIntro && raceIntro.Playing;
             if (!inIntro) cameraPreview.showPreview = panel;   // 面板打开时照常画在面板里；Eva 的开场自己管
-            ShowCameraFeed(!panel && !inIntro && (Phase == ShowPhase.Select || Phase == ShowPhase.Play));
+            ShowCameraFeed(!DivaVR.Active && !panel && !inIntro && (Phase == ShowPhase.Select || Phase == ShowPhase.Play));
         }
 
         // ------------------------------------------------------------------ intro (Timeline, optional)

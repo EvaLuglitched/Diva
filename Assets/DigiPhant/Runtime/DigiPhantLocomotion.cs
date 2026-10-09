@@ -178,8 +178,9 @@ namespace DigiPhant
                 throttle = Mathf.Lerp(throttle, Mathf.Clamp(desiredForward, -1, 1), blend);
                 turn = Mathf.Lerp(turn, Mathf.Clamp(desiredTurn, -1, 1), blend);
             }
-            if (Mathf.Abs(throttle) < .015f) throttle = 0;
-            if (Mathf.Abs(turn) < .015f) turn = 0;
+            // Snap to zero only when stopping; at high frame rates each step is tiny and would never get past the snap.
+            if (Mathf.Abs(throttle) < .015f && Mathf.Abs(desiredForward) < .015f) throttle = 0;
+            if (Mathf.Abs(turn) < .015f && Mathf.Abs(desiredTurn) < .015f) turn = 0;
             bool running = throttle > runThreshold;
             CurrentSpeed = throttle < 0 ? throttle * backwardSpeed : throttle <= runThreshold
                 ? throttle / runThreshold * walkSpeed : Mathf.Lerp(walkSpeed, runSpeed, Mathf.InverseLerp(runThreshold, 1, throttle));

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Diva.VR;
 
 namespace Diva.Show
 {
@@ -22,8 +23,19 @@ namespace Diva.Show
             go.layer = 5;
             go.transform.SetParent(transform, false);
             canvas = go.GetComponent<Canvas>();
+            // VR：界面是驾驶舱前方的一块空间面板（还是 1920×1080 的布局，按米缩放），跟着驾驶舱走，不跟着头飘
+            if (DivaVR.Active && DivaVR.HudAnchor)
+            {
+                canvas.renderMode = RenderMode.WorldSpace;
+                canvas.worldCamera = mainCamera;
+                var rt = (RectTransform)go.transform;
+                rt.SetParent(DivaVR.HudAnchor, false);
+                rt.sizeDelta = new Vector2(1920, 1080);
+                rt.localPosition = Vector3.zero; rt.localRotation = Quaternion.identity;
+                rt.localScale = Vector3.one * (DivaVR.HudWidth / 1920f);
+            }
             // 后台模式没有屏幕，最上层界面拍不到：改用一个只拍界面的摄像机（不动、不加后期），测试截图时叠在主镜头上
-            if (Application.isBatchMode)
+            else if (Application.isBatchMode)
             {
                 var camGo = new GameObject("Diva UI Capture Camera");
                 camGo.transform.SetParent(transform, false);

@@ -17,6 +17,8 @@ namespace DigiPhant
         public bool inputLocked;
         /// <summary>Another script (DivaShow, an intro timeline) owns the camera this frame; don't follow.</summary>
         [System.NonSerialized] public bool cameraHeld;
+        /// <summary>Another component (the VR input) feeds State.Accept every frame; skip the sliders and calibration.</summary>
+        [System.NonSerialized] public bool externalInput;
         [Range(0, 1)] public float gestureConfidence = .3f;
         [Range(.1f, 2)] public float trackingTimeout = .5f;
         [Range(.04f, .5f)] public float sprayInterval = .12f;
@@ -111,7 +113,7 @@ namespace DigiPhant
             State.BurstInterval = sprayInterval;
             State.HoldDelay = heldSprayDelay;
             State.RefillPerSecond = refillRate;
-            bool manual = controller.inputMode == InputMode.TestSliders;
+            bool manual = controller.inputMode == InputMode.TestSliders && !externalInput;
             if (manual)
             {
                 State.ClearPeople();
@@ -123,7 +125,7 @@ namespace DigiPhant
                 }
             }
             State.Locked = inputLocked;
-            State.Step(now, dt, solo ? 1 : 3, soloRole, manual || controller.IsCalibrated);
+            State.Step(now, dt, solo ? 1 : 3, soloRole, manual || externalInput || controller.IsCalibrated);
         }
         void LateUpdate()
         {

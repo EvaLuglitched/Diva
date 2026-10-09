@@ -1,4 +1,5 @@
 using UnityEngine;
+using Diva.VR;
 
 namespace Diva.Show
 {
@@ -206,7 +207,7 @@ namespace Diva.Show
             ClearMechGlow();
             if (boosters) boosters.SetBoost(-1);
             lastCount = 4;
-            if (mainCamera)
+            if (mainCamera && !DivaVR.Active)
             {
                 FollowPose(out var pos, out var look);
                 mainCamera.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(look - pos));

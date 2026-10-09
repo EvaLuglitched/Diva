@@ -243,6 +243,9 @@ namespace Diva.Show
             float dt = DivaClock.DeltaTime;
             blend = Mathf.MoveTowards(blend, cinematicDepthOfField ? Mathf.Clamp01(cinematic) : 0, dt * 2.5f);
             pulse = Mathf.MoveTowards(pulse, 0, dt * 2.2f);
+            // VR：景深、胶片颗粒、色差、暗角都会让人不舒服（眼睛对不了焦、画面边缘发暗像近视），全部关掉
+            bool vr = Diva.VR.DivaVR.Active;
+            if (vr) blend = 0;
             dof.active = blend > .02f;
             if (dof.active)
             {
@@ -251,8 +254,8 @@ namespace Diva.Show
                 dof.aperture.value = Mathf.Lerp(22, 4f, blend);
             }
             grain.intensity.value = .22f * blend;
-            vig.intensity.value = vignette + .08f * blend + .1f * pulse;
-            aberration.intensity.value = .45f * pulse;
+            vig.intensity.value = vr ? 0 : vignette + .08f * blend + .1f * pulse;
+            aberration.intensity.value = vr ? 0 : .45f * pulse;
             bloom.intensity.value = bloomIntensity * (1 + .6f * pulse);
         }
     }

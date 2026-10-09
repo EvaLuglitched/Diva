@@ -1,0 +1,56 @@
+using DigiPhant;
+using UnityEngine;
+
+namespace Diva.VR
+{
+    /// <summary>VR 里一帧的操作：和电脑版摄像头手势一样的 6 个量，交给原来的 DivaControlState，玩法不用改。</summary>
+    public struct DivaVRFrame
+    {
+        public float go, steer, aim;
+        public bool shoot, drink, ult;
+    }
+
+    /// <summary>
+    /// 把 VR 的操作交给游戏。来源：Vision Pro 的手部追踪（M2 再接），电脑上是模拟器（键盘鼠标）。
+    /// 瞄准用"看哪儿打哪儿"：头的水平朝向相对大象正前方的角度，换算成象鼻水炮的瞄准量。
+    /// </summary>
+    [DefaultExecutionOrder(-50)]   // 在 DigiPhantController（0）调用 DivaDemo.UpdateInputs 之前
+    public class DivaVRInput : MonoBehaviour
+    {
+        DivaDemo demo;
+        DigiPhantLocomotion loco;
+        DivaVRSimulator simulator;
+
+        /// <summary>这一帧最终交给游戏的操作（给测试和调试看）。</summary>
+        public DivaVRFrame Current { get; private set; }
+
+        void Start()
+        {
+            demo = FindAnyObjectByType<DivaDemo>();
+            loco = FindAnyObjectByType<DigiPhantLocomotion>();
+            simulator = GetComponent<DivaVRSimulator>();
+        }
+
+        void Update()
+        {
+            if (!demo) return;
+            var frame = simulator ? simulator.Read() : default;
+            frame.aim = LookAim();
+            Current = frame;
+            demo.State.ClearPeople();
+            demo.State.Accept(1, frame.go, frame.steer, frame.aim, frame.shoot, frame.drink, 1, Time.realtimeSinceStartup, frame.ult);
+        }
+
+        /// <summary>头相对大象正前方转了多少度，按象鼻能转的角度换算成 -1..1。</summary>
+        float LookAim()
+        {
+            var head = DivaVR.Head;
+            if (!head || !loco || !loco.travelRoot) return 0;
+            var look = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+            var forward = Vector3.ProjectOnPlane(loco.travelRoot.forward, Vector3.up);
+            if (look.sqrMagnitude < 1e-4f || forward.sqrMagnitude < 1e-4f) return 0;
+            float degrees = Vector3.SignedAngle(forward, look, Vector3.up);
+            return Mathf.Clamp(degrees / Mathf.Max(1, demo.trunkAimDegrees), -1, 1);
+        }
+    }
+}
