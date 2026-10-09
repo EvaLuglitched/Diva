@@ -21,6 +21,8 @@ namespace Diva
         public Renderer skin;
         public Material originalSkin;
         public Material candyMaterial;
+        [Tooltip("Set by DivaMechSkins at runtime: the chosen skin's elephant material (not saved).")]
+        [System.NonSerialized] public Material skinOverride;
 
         void OnEnable() => Apply();
         void OnValidate() => Apply();
@@ -33,7 +35,7 @@ namespace Diva
                         part.SetActive(showMech);
             if (skin && originalSkin && candyMaterial)
             {
-                var want = candySkin ? candyMaterial : originalSkin;
+                var want = candySkin ? (skinOverride ? skinOverride : candyMaterial) : originalSkin;
                 if (skin.sharedMaterial != want) skin.sharedMaterial = want;
             }
         }

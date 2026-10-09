@@ -11,7 +11,12 @@ namespace DigiPhant
         public Transform trunkTip;
         public Camera thirdPersonCamera;
         public bool solo;
-        [Range(1, 3)] public int soloRole = 1;
+        [Tooltip("One player: 0 = all controls (single-player game), 1..3 = only that role (testing).")]
+        [Range(0, 3)] public int soloRole = 1;
+        [Tooltip("Menus and cutscenes (DivaShow): gestures are read but do not move or spray.")]
+        public bool inputLocked;
+        /// <summary>Another script (DivaShow, an intro timeline) owns the camera this frame; don't follow.</summary>
+        [System.NonSerialized] public bool cameraHeld;
         [Range(0, 1)] public float gestureConfidence = .3f;
         [Range(.1f, 2)] public float trackingTimeout = .5f;
         [Range(.04f, .5f)] public float sprayInterval = .12f;
@@ -70,7 +75,7 @@ namespace DigiPhant
             foreach (var person in frame.people)
             {
                 var g = person.gestures;
-                if (g != null) State.Accept(person.slot, g.go, g.steer, g.aim, g.shoot, g.drink, g.confidence, now);
+                if (g != null) State.Accept(person.slot, g.go, g.steer, g.aim, g.shoot, g.drink, g.confidence, now, g.ult);
             }
         }
         public void ResetTracking() { State.Clear(); manualGo = manualTurn = manualAim = 0; manualShoot = manualDrink = false; }
@@ -94,7 +99,7 @@ namespace DigiPhant
         public void SetSolo(bool enabled, int role)
         {
             EnsureDependencies();
-            solo = enabled; soloRole = Mathf.Clamp(role, 1, 3);
+            solo = enabled; soloRole = Mathf.Clamp(role, 0, 3);
             ResetTracking();
             controller.SetPerformerCount(solo ? 1 : 3);
         }
@@ -117,6 +122,7 @@ namespace DigiPhant
                     State.Accept(3, 0, 0, manualAim, manualShoot, manualDrink, 1, now);
                 }
             }
+            State.Locked = inputLocked;
             State.Step(now, dt, solo ? 1 : 3, soloRole, manual || controller.IsCalibrated);
         }
         void LateUpdate()
@@ -132,7 +138,7 @@ namespace DigiPhant
                         bone.localRotation *= Quaternion.AngleAxis(State.Shoot ? 12 : State.Drink ? 18 : 0, pitchAxis) *
                             Quaternion.AngleAxis(State.Aim * trunkAimDegrees / Mathf.Max(1, trunkBones.Length), yawAxis);
                     }
-            if (thirdPersonCamera)
+            if (thirdPersonCamera && !cameraHeld)
             {
                 Vector3 desired = root.position + root.rotation * cameraOffset;
                 thirdPersonCamera.transform.position = Vector3.Lerp(thirdPersonCamera.transform.position, desired, 1 - Mathf.Exp(-Time.deltaTime * 5));
@@ -235,7 +241,7 @@ namespace DigiPhant
             Label("DIVA | Three players, one elephant");
             bool selectedSolo = GUILayout.Toolbar(solo ? 1 : 0, new[] { "3 players", "Try alone" }) == 1;
             int role = soloRole;
-            if (selectedSolo) role = GUILayout.Toolbar(soloRole - 1, new[] { "P1 Move", "P2 Turn", "P3 Water" }) + 1;
+            if (selectedSolo) role = GUILayout.Toolbar(soloRole, new[] { "All", "P1 Move", "P2 Turn", "P3 Water" });
             if (selectedSolo != solo || role != soloRole) SetSolo(selectedSolo, role);
             int mode = GUILayout.Toolbar((int)controller.inputMode, new[] { "Test controls", "Camera" });
             if (mode != (int)controller.inputMode) controller.SetInputMode((InputMode)mode);

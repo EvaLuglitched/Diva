@@ -25,7 +25,9 @@ DEFAULTS = dict(min_quality=.30, go_window=.65, go_range=.16,
                 # Aim while spraying: both hands pushed toward one side (shooting keeps hands below aim_height).
                 shoot_aim_full_offset=.35, shoot_aim_deadzone=.06,
                 # Hands in front of the face hide the mouth landmarks; reuse its last seen place for a while.
-                mouth_memory=3.)
+                mouth_memory=3.,
+                # Ultimate: both wrists well above the head (torso lengths above the shoulders), held still.
+                ult_height=.85, ult_hold=.8)
 
 def val(point,name,default=0.):
     return point.get(name,default) if isinstance(point,dict) else getattr(point,name,default)
@@ -87,24 +89,24 @@ class DivaGestureDetector:
         if config_path and Path(config_path).exists():
             self.config.update(json.loads(Path(config_path).read_text(encoding='utf-8')))
         self.history={}; self.last_motion={}; self.neutral={}; self.latest_geometry={}
-        self.steering={}; self.mouth={}
+        self.steering={}; self.mouth={}; self.ult_since={}
     def calibrate(self):
         """Capture the last valid upright stance; camera must be unmirrored."""
         self.neutral={slot:dict(g) for slot,g in self.latest_geometry.items()}
-        self.history.clear();self.last_motion.clear();self.steering.clear()
+        self.history.clear();self.last_motion.clear();self.steering.clear();self.ult_since.clear()
     def reset(self,slot=None,preserve_neutral=False):
         if slot is None:
             self.history.clear();self.last_motion.clear();self.neutral.clear();self.latest_geometry.clear()
-            self.steering.clear();self.mouth.clear()
+            self.steering.clear();self.mouth.clear();self.ult_since.clear()
         else:
-            self.history.pop(slot,None);self.last_motion.pop(slot,None);self.steering.pop(slot,None)
+            self.history.pop(slot,None);self.last_motion.pop(slot,None);self.steering.pop(slot,None);self.ult_since.pop(slot,None)
             if not preserve_neutral:self.neutral.pop(slot,None);self.mouth.pop(slot,None)
             self.latest_geometry.pop(slot,None)
     def retain(self,slots):
         for slot in list(self.history):
             if slot not in slots:self.reset(slot,preserve_neutral=True)
     def update(self,slot,body,time,hands=None,aspect=1.,allow_estimated_mouth=False):
-        out=dict(go=0.,steer=0.,aim=0.,shoot=False,drink=False,confidence=0.)
+        out=dict(go=0.,steer=0.,aim=0.,shoot=False,drink=False,ult=False,confidence=0.)
         cfg=self.config
         if body is None or len(body)<25:
             self.reset(slot,preserve_neutral=True);return out
@@ -162,6 +164,14 @@ class DivaGestureDetector:
             self.steering.pop(slot,None)
         raised=[h>cfg['aim_height'] for h in heights]
         if raised[0]!=raised[1]:out['aim']=-1. if raised[0] else 1.
+        # Ultimate: both hands above the head and held there. Pumping (go) passes through this height
+        # only briefly, so the hold time keeps them apart; the pose itself never walks the elephant.
+        if min(heights)>cfg['ult_height']:
+            since=self.ult_since.setdefault(slot,time)
+            out['ult']=time-since>=cfg['ult_hold']
+            out['go']=0.
+        else:
+            self.ult_since.pop(slot,None)
         # Face landmarks prevent closed fists held at chest/shoulder height from
         # becoming a drink gesture. Legacy recorded samples lack face joints,
         # so their replay uses an estimated mouth (flagged in evaluation notes).

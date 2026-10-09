@@ -6,8 +6,15 @@ a third-person camera, 16 targets, the score HUD and the course tasks.
 The original DigiPhant scene is preserved (game layer only, no Diva gestures).
 On a Mac, run `bash Tools/setup_tracking_mac.sh` once before the first Play.
 
-## One person
-Select Try alone, then P1 Move, P2 Turn or P3 Water. Keep Camera selected.
+## The game (single player)
+Press Play: the skin select opens (Diva Show). Stand in view; the 10-second calibration starts by itself.
+Raise one arm to switch skins, then hold both hands above your head to start; Eva's race intro plays
+(both hands up, Enter or Esc skip to the countdown) and the run starts at GO. One person has every
+control (Try alone > All). Hold both hands above your head again when MEGA BUBBLE is charged.
+Keyboard: arrows switch skins, Enter starts or skips, U fires the ultimate, L switches EN/中文, F1 shows the setup panel.
+
+## One person, one role (testing)
+Press F1 for the setup panel. Select Try alone, then P1 Move, P2 Turn or P3 Water. Keep Camera selected.
 Click Get ready (10 seconds), then stand naturally with arms down until ready.
 Changing roles resets calibration, so use Get ready again after changing roles.
 
