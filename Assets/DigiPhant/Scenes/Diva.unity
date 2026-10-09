@@ -13663,7 +13663,7 @@ ParticleSystem:
           m_PostInfinity: 2
           m_RotationOrder: 4
       cycleCount: 1
-      repeatInterval: 0.0001
+      repeatInterval: 0.01
       probability: 1
   SizeModule:
     enabled: 0
@@ -16917,7 +16917,7 @@ ParticleSystem:
           m_PostInfinity: 2
           m_RotationOrder: 4
       cycleCount: 1
-      repeatInterval: 0.0001
+      repeatInterval: 0.01
       probability: 1
   SizeModule:
     enabled: 1
@@ -32167,7 +32167,7 @@ ParticleSystem:
           m_PostInfinity: 2
           m_RotationOrder: 4
       cycleCount: 1
-      repeatInterval: 0.0001
+      repeatInterval: 0.01
       probability: 1
   SizeModule:
     enabled: 0
@@ -40168,6 +40168,7 @@ GameObject:
   - component: {fileID: 2103336726}
   - component: {fileID: 2103336725}
   - component: {fileID: 2103336724}
+  - component: {fileID: 2103336728}
   m_Layer: 0
   m_Name: Elephant Travel
   m_TagString: Untagged
@@ -40299,6 +40300,25 @@ MonoBehaviour:
   walkLevel: 0.35
   accelerationKick: 0.5
   boostOverride: -1
+--- !u!114 &2103336728
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2103336722}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87945eb7d8b174940a5ebda21b3a7fa7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Diva.DivaMechGestureLink
+  demo: {fileID: 557435879}
+  waterGun: {fileID: 319140376}
+  bubbles: {fileID: 2103336726}
+  sprayFromGesture: 1
+  followGameAim: 1
+  hideDemoDroplets: 1
+  bubblesFromDrinking: 1
 --- !u!1 &2121699801
 GameObject:
   m_ObjectHideFlags: 0

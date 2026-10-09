@@ -18,7 +18,7 @@ The demo includes a third-person camera, five water targets, hit counting and a 
 
 ## D.Va-style mech elephant (eva大象)
 
-The elephant in **Diva.unity** wears a pink D.Va-style mech suit with a candy-pink skin, a trunk water gun, bubble cannons, thruster flames that follow speed, and sound effects. Everything lives in **Assets/eva大象**; see **Assets/eva大象/README.md** (Chinese) for toggles, the trigger API for gestures, and how to install it in another scene (**Diva > Add D.Va Mech to Elephant**).
+The elephant in **Diva.unity** wears a pink D.Va-style mech suit with a candy-pink skin, a trunk water gun, bubble cannons, thruster flames that follow speed, and sound effects. Everything lives in **Assets/eva大象**; see **Assets/eva大象/README.md** (Chinese) for toggles and how to install it in another scene (**Diva > Add D.Va Mech to Elephant**). Gestures drive it: P1/P2 movement grows the thruster flames, P3's spray fires the trunk water gun along the target-hit path (aim follows P3's raised arm), and P3's drink blows bubbles. The trigger logic is written up in **Assets/eva大象/GESTURES.md**.
 
 ## Restore assets after a fresh clone
 

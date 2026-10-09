@@ -23,7 +23,10 @@ namespace Diva
         float burstUntil = -1;
         bool wasBlowing;
 
-        public bool IsBlowing => blowing || Time.time < burstUntil;
+        /// <summary>Set every frame by a gesture script (DivaMechGestureLink); separate from the Inspector test box.</summary>
+        [System.NonSerialized] public bool gestureBlow;
+
+        public bool IsBlowing => blowing || gestureBlow || Time.time < burstUntil;
 
         public void StartBubbles() => blowing = true;
 
