@@ -4,6 +4,7 @@ using System.Linq;
 using Diva.Show;
 using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace Diva.VR
 {
@@ -81,10 +82,62 @@ namespace Diva.VR
 
         static readonly int RoomPreview = Shader.PropertyToID("_DivaRoomPreview");
 
+        float probeAt = -1;
+        string probeName;
+        /// <summary>过 delay 秒做一次透视检查（见 AlphaProbe）。</summary>
+        public void QueueProbe(string name, float delay) { probeName = name; probeAt = Time.unscaledTime + delay; }
+
         void LateUpdate()
         {
+            if (probeAt > 0 && Time.unscaledTime >= probeAt) { probeAt = -1; AlphaProbe(probeName); }
             if (shotAt > 0 && Time.unscaledTime >= shotAt) { shotAt = -1; Shot(shotName); }
             if (show && show.Phase == ShowPhase.Play && Time.unscaledTime >= next) { next = Time.unscaledTime + 6; Shot("play"); }
+        }
+
+        /// <summary>
+        /// 透视检查（传送门开场用）：模拟器的截图拍不到 Metal 画的那一层，没法看房间有没有透出来。
+        /// 这里用和头显一样的设置（主摄像机此刻的 HDR 和后期处理）画一帧，读每个像素的透明度：
+        /// 房间应该是透明的（alpha≈0，真机上露出真实房间），门里的镇子不透明。存一张图：透明的地方画成棋盘格。
+        /// </summary>
+        void AlphaProbe(string name)
+        {
+            if (!DivaVR.Head) return;
+            var main = DivaVR.Head.GetComponent<Camera>();
+            var data = cam.GetUniversalAdditionalCameraData();
+            var mainData = main ? main.GetUniversalAdditionalCameraData() : null;
+            bool post = data.renderPostProcessing, hdr = cam.allowHDR;
+            data.renderPostProcessing = mainData ? mainData.renderPostProcessing : true;
+            cam.allowHDR = main ? main.allowHDR : false;
+            const int w = 800, h = 450;
+            var probe = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { name = "Diva VR Alpha Probe" };
+            cam.targetTexture = probe;
+            cam.transform.SetPositionAndRotation(DivaVR.Head.position, DivaVR.Head.rotation);
+            cam.Render();
+            cam.targetTexture = rt;
+            data.renderPostProcessing = post; cam.allowHDR = hdr;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            var prev = RenderTexture.active; RenderTexture.active = probe;
+            tex.ReadPixels(new Rect(0, 0, w, h), 0, 0); tex.Apply();
+            RenderTexture.active = prev;
+            probe.Release(); Destroy(probe);
+            var px = tex.GetPixels32();
+            int clear = 0, solid = 0; long glow = 0;
+            for (int i = 0; i < px.Length; i++)
+            {
+                var c = px[i];
+                if (c.a < 26) { clear++; glow += c.r + c.g + c.b; }
+                else if (c.a > 229) solid++;
+                // 棋盘格上按透明度叠
+                int x = i % w, y = i / w;
+                byte board = (byte)(((x / 20 + y / 20) & 1) == 0 ? 70 : 150);
+                float a = c.a / 255f;
+                px[i] = new Color32((byte)Mathf.Lerp(board, c.r, a), (byte)Mathf.Lerp(board, c.g, a), (byte)Mathf.Lerp(board, c.b, a), 255);
+            }
+            tex.SetPixels32(px); tex.Apply();
+            Debug.Log($"DIVA_VR alpha {name}: transparent {clear * 100f / px.Length:F1}% opaque {solid * 100f / px.Length:F1}% mean rgb in transparent {(clear > 0 ? glow / (3f * clear) : 0):F1} hdr {main && main.allowHDR} post {data.renderPostProcessing}");
+            var file = Path.Combine(dir, $"{session}_{++index:000}_{name.ToLowerInvariant()}_alpha.jpg");
+            try { File.WriteAllBytes(file, tex.EncodeToJPG(85)); } catch (Exception e) { Debug.LogWarning("DIVA_VR alpha probe write failed: " + e.Message); }
+            Destroy(tex);
         }
 
         void Shot(string name)

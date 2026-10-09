@@ -153,6 +153,7 @@ namespace Diva.VR
             if (rig.PoseReady) Align();
             Debug.Log($"DIVA_VR arrival start: room {room.position} portal {center} elephant from {root.position} hidden {hidden.Count}");
             Capture("portal_waiting", 3);
+            Probe("portal_waiting", 2.2f);
         }
 
         void OnDestroy()
@@ -396,6 +397,7 @@ namespace Diva.VR
                     if (hum) hum.Play();
                     flash = 1;
                     Capture("portal_open", 1.6f);
+                    Probe("portal_open", 1.2f);
                     break;
                 case Stage.Arriving:
                     loco.inputSmoothing = 9;   // 停得准：起点就是选涂装时大象的位置
@@ -414,6 +416,7 @@ namespace Diva.VR
                     // 门升到驾驶舱正前方：从镇子这边回头看，门里是你自己的房间
                     liftFrom = center;
                     Capture("portal_cockpit", 1.4f);
+                    Probe("portal_cockpit", 1.8f);
                     break;
                 case Stage.Closing:
                     sound?.PlayAt("whoosh", center, .7f);
@@ -1059,6 +1062,12 @@ namespace Diva.VR
             mesh.SetVertices(verts); mesh.SetColors(colors); mesh.SetUVs(0, uvs); mesh.SetTriangles(tris, 0);
             mesh.RecalculateNormals(); mesh.RecalculateBounds();
             return mesh;
+        }
+
+        void Probe(string name, float delay)
+        {
+            var capture = GetComponent<DivaVRCapture>();
+            if (capture) capture.QueueProbe(name, delay);
         }
 
         void Capture(string name, float delay)
