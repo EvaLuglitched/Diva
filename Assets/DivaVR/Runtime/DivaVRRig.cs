@@ -140,6 +140,15 @@ namespace Diva.VR
             if (seat == Vector3.zero) seat = MeasureSeat();
             yaw = root.eulerAngles.y;
             Debug.Log($"DIVA_VR rig on: seat {seat} eye {eyeHeight} simulated {DivaVR.Simulated}");
+            // 机甲点亮时（人已经坐好准备开跑）再校正一次：前倾 / 侧倾按开跑时的坐姿算
+            Diva.Show.DivaShowDirector.PhaseChanged += OnPhase;
+        }
+
+        void OnDestroy() => Diva.Show.DivaShowDirector.PhaseChanged -= OnPhase;
+
+        void OnPhase(Diva.Show.ShowPhase phase)
+        {
+            if (phase == Diva.Show.ShowPhase.PowerUp && !DivaVR.Simulated) Recenter(true);
         }
 
         /// <summary>
@@ -229,14 +238,15 @@ namespace Diva.VR
         }
 
         /// <summary>把头对到眼睛的位置：头显里人的头在哪儿都行（站着、坐着），都放到座位上方 eyeHeight 处。</summary>
-        public void Recenter()
+        /// <param name="keepFacing">只重新对齐位置，不改"正前方"（开跑前人可能正转头看别处）。</param>
+        public void Recenter(bool keepFacing = false)
         {
             if (!cam) return;
             var head = cam.transform.localPosition;
             // 等头显给出第一帧有效的位置（模拟器里头可能就在原点，所以不能用"不为 0"判断）；2 秒还没有就照现在的算
             if (!DivaVR.Simulated && headPose && !headPose.Valid && Time.unscaledTime - startTime < 2) return;
             // 人一开始面朝哪儿都行：把那个方向转成大象的正前方
-            var turn = Quaternion.Euler(0, DivaVR.Simulated ? 0 : -cam.transform.localEulerAngles.y, 0);
+            var turn = keepFacing ? offset.localRotation : Quaternion.Euler(0, DivaVR.Simulated ? 0 : -cam.transform.localEulerAngles.y, 0);
             var p = turn * head;
             offset.localRotation = turn;
             offset.localPosition = new Vector3(-p.x, eyeHeight - head.y, -p.z);

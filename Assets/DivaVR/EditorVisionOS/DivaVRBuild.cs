@@ -56,6 +56,14 @@ namespace Diva.VR.EditorTools
                 options = BuildOptions.None
             });
             Debug.Log($"DIVA_VR build {report.summary.result}: {report.summary.totalErrors} errors, {report.summary.totalTime}");
+            // 头显主屏幕上的名字（只改这个包的 Info.plist，不动电脑版的 productName）
+            var plist = Path.Combine(simulator ? Output + "-sim" : Output, "Info.plist");
+            if (report.summary.result == BuildResult.Succeeded && File.Exists(plist))
+            {
+                var text = File.ReadAllText(plist);
+                text = System.Text.RegularExpressions.Regex.Replace(text, @"(<key>CFBundleDisplayName</key>\s*<string>)[^<]*(</string>)", "${1}Diva VR${2}");
+                File.WriteAllText(plist, text);
+            }
             return report.summary.result;
         }
 

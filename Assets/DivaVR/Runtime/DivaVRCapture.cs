@@ -42,6 +42,8 @@ namespace Diva.VR
             cam.targetTexture = rt;
             read = new Texture2D(1600, 900, TextureFormat.RGB24, false);
             Queue("start", 2.5f);
+            // 测试用：DIVA_LANG=zh 时用中文开始（检查 visionOS 上的中文字体）
+            if (Environment.GetEnvironmentVariable("DIVA_LANG") == "zh") DivaText.Set(Lang.Zh);
             Debug.Log("DIVA_VR capture → " + dir);
         }
 
