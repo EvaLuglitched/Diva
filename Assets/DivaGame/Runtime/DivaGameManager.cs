@@ -56,7 +56,7 @@ namespace Diva
                         m.HasProperty("_EmissionColor") && m.GetColor("_EmissionColor").maxColorComponent > .01f && !m.IsKeywordEnabled("_EMISSION"))
                     {
                         m.EnableKeyword("_EMISSION");
-                        m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                        m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
                     }
         }
 

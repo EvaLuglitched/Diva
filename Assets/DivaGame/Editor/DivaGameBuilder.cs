@@ -985,6 +985,12 @@ public static class DivaGameBuilder
         return material;
     }
 
+    /// <summary>
+    /// Global strength of every glow. The emission values in this file were tuned while URP was silently turning
+    /// emission off on reload; with emission working, full strength washes the pastel neons out to white.
+    /// </summary>
+    const float EmissionScale = .3f;
+
     static Material Lit(string name, Color color, float smoothness = .4f, float metallic = 0, Color? emission = null)
     {
         var material = MaterialAsset(name, "Universal Render Pipeline/Lit");
@@ -997,8 +1003,8 @@ public static class DivaGameBuilder
         if (emission.HasValue)
         {
             material.EnableKeyword("_EMISSION");
-            material.SetColor("_EmissionColor", emission.Value);
-            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            material.SetColor("_EmissionColor", emission.Value * EmissionScale);
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;   // URP 17 keeps _EMISSION only for AnyEmissive
         }
         else
         {
