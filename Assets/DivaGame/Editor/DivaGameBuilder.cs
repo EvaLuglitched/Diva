@@ -923,6 +923,9 @@ public static class DivaGameBuilder
                 var data = camera.GetUniversalAdditionalCameraData();
                 data.renderPostProcessing = true;
                 EditorUtility.SetDirty(data);
+                // The starter scene's camera cleared to a solid dark colour, which hides the starry skybox in Play.
+                camera.clearFlags = CameraClearFlags.Skybox;
+                EditorUtility.SetDirty(camera);
                 camera.farClipPlane = Mathf.Max(camera.farClipPlane, 400);
             }
     }
