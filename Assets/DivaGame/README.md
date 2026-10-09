@@ -94,7 +94,8 @@ The 8 clouds come from the Fab **Stylized Clouds Pack – Vol 07** with a candy 
 
 **These Fab files are not in git** (licence: no redistributing raw files in a public repo). Each teammate
 downloads them into `Assets/DivaGame/ThirdParty/Fab/` as described in that folder's README, then runs
-**Diva > Game > Use Fab Rocket and Clouds**. Without them the scene uses the kit rocket and Kenney clouds.
+**Diva > Game > Use Fab Rocket and Clouds**. Without them the scene shows the kit rocket and Kenney clouds
+automatically (each Fab model has a stand-in beside it, switched by `DivaModelFallback`).
 
 ## Swap in your own models
 
