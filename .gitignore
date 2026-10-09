@@ -30,3 +30,11 @@ Thumbs.db
 *.unitypackage
 .env
 .env.*
+
+# Fab assets: licence does not allow redistributing raw files in a public repo
+/Assets/DivaGame/ThirdParty/Fab/
+/Assets/DivaGame/ThirdParty/Fab.meta
+
+# Blender working file (25 MB); regenerate with Art/Blender/build_town_kit.py
+/Art/Blender/*.blend
+/Art/Blender/*.blend1
