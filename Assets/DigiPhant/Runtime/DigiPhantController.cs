@@ -287,7 +287,7 @@ namespace DigiPhant
             var diva = GetComponent<DivaDemo>();
             if (diva != null && diva.isActiveAndEnabled)
             {
-                if (!diva.AllVisible(now)) { Status = "Keep every player visible, standing naturally"; return false; }
+                if (!diva.AllVisible(now)) { Status = diva.WaitingMessage(now); return false; }
                 IsCalibrated = true;
                 if (socket != null)
                 {

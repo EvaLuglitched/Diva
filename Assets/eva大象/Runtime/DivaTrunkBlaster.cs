@@ -36,7 +36,10 @@ namespace Diva
         float burstUntil = -1;
         float level, previousLevel;
 
-        public bool IsSpraying => spraying || Time.time < burstUntil;
+        /// <summary>Set every frame by a gesture script (DivaMechGestureLink); separate from the Inspector test box.</summary>
+        [System.NonSerialized] public bool gestureSpray;
+
+        public bool IsSpraying => spraying || gestureSpray || Time.time < burstUntil;
         public float Level => level;
 
         public void StartSpray() => spraying = true;

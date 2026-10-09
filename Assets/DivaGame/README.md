@@ -35,6 +35,18 @@ changing them and rebuilding never moves anything.
    textured URP material (`Looks` table in `Editor/DivaGameBuilder.cs`), places the town and props,
    recolours the course and sets lighting. It replaces only `Diva Game Layer`, then reloads the scene.
 
+## Playable scene and gestures
+
+The layer is also built into **`Assets/DigiPhant/Scenes/Diva.unity`**, which has the Diva three-player
+gestures and the D.Va mech elephant; `TeamScene` now points there, so the command-line `BuildInTeamScene`
+rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Game Layer in Open Scene**). In Diva mode:
+
+- P3's spray gesture calls `DivaLaserBlaster.Fire(aim)` on every water burst, aimed by P3; the trunk water
+  jet shows the shot and the beam is hidden (`showBeam`). Space and the HUD button still work.
+- Course tasks use the gestures (the body sliders are not driven in Diva mode): hands to mouth (P3 drink)
+  counts as curling the trunk for the eat/drink tasks, P1 pumping counts as lifting the legs at the log.
+- DivaDemo no longer spawns its own five placeholder spheres when these targets exist.
+
 ## What changed in `Assets/DigiPhant/Scenes/DigiPhant.unity`
 
 | Change | Where |

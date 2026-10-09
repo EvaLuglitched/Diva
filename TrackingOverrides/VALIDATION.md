@@ -3,8 +3,21 @@
 Uses pretrained MediaPipe pose and hand landmark models plus configurable rules.
 It does not train a custom neural action classifier.
 
-32 automated tests pass: 20 gesture tests, 8 existing bridge/preview tests,
-and 4 bounded camera recovery tests.
+36 automated tests pass: 24 gesture tests, 8 existing bridge/preview tests,
+and 4 bounded camera recovery tests (39 together with the starter's recording tests).
+
+Rule changes after the first group test (2026-10-08), each covered by a new test:
+- Steering hysteresis: a turn starts at a hand offset of 0.12 but continues down to 0.07
+  without the lean check, and survives tracking blips of up to 0.25 s (`steer_release_offset`,
+  `steer_hold`). Returning the hands to the middle still stops the turn at once.
+- Aiming while spraying: raising one arm (aim) and spraying exclude each other, so while
+  shooting the aim comes from both hands pushed toward one side (`shoot_aim_full_offset`,
+  `shoot_aim_deadzone`; negative = left, as for steering).
+- Remembered mouth: the mouth position relative to the shoulders is stored whenever the face
+  is visible and reused for `mouth_memory` (3 s) when the hands hide it. Without a recent face
+  sighting drinking is still blocked.
+These are synthetic-landmark checks; the replay numbers below predate them and live
+three-player testing is still needed.
 Tests cover temporal pumping and freeze, 30 fps pumping, lowered arms, upright
 neutral, corrected LEFT/RIGHT directions, opposing hand/body cues, open versus
 curled fingers, continuous held shooting and release, missing tracking, other

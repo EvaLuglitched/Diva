@@ -23,6 +23,7 @@
 - `DivaBoosters`：推进器火焰。**Boost Override** 设成 0~1 可以固定火焰大小来测试，-1 表示跟随速度。
 - `DivaBubbleCannons`：勾选 **Blowing** 喷泡泡。
 - `DivaMechAudio`：脚步和嗡鸣的音量。
+- `DivaMechGestureLink`：把 Diva 手势接到水枪和泡泡上，可以分别关掉（见 GESTURES.md）。
 - 水枪在 `DivaMech Trunk Blaster`（大象鼻尖骨骼下面）上的 `DivaTrunkBlaster`，勾选 **Spraying** 喷水。
 
 ## 装到别的场景
@@ -35,25 +36,22 @@
 
 ## 手势和动画对照
 
-手势来自 `TrackingOverrides/diva_gestures.py`，游戏作用来自 `DivaDemo` / `DivaControlState`。
+完整的触发逻辑（识别条件、阈值、时序）见 **[GESTURES.md](GESTURES.md)**。
 
-| 玩家 | 手势 | 游戏里的作用 | 机甲大象的动画和特效 | 现在是否联动 |
+| 玩家 | 手势 | 游戏里的作用 | 机甲大象的动画和特效 | 联动 |
 | --- | --- | --- | --- | --- |
-| P1 | 双臂举起上下摆（pump） | 前进，摆得越快越快 | 走路/跑步动画、脚步声、推进器火焰（越快越大，加速时多一点爆发）、引擎声变大变高 | ✅ 自动，跟移动速度走 |
-| P1 | 停止摆臂 | 停下 | 火焰熄灭、脚步停止 | ✅ 自动 |
+| P1 | 双臂举起上下摆 | 前进 | 走路/跑步动画、脚步声、推进器火焰和引擎声随速度变大 | ✅ 自动（读移动速度） |
 | P2 | 双手和身体往左/右倾 | 转向 | 转向动画；有速度时火焰照常 | ✅ 自动 |
-| P3 | 举起左手或右手 | 瞄准（水往左/右） | 无 | — |
-| P3 | 双手张开往前推 | 喷水：快速张开一次短喷，持续张开一直喷 | 鼻尖水枪 `DivaTrunkBlaster`（水柱、水雾、水花、闪光、水声） | ❌ 还没接。DivaDemo 现在喷的是它自己的蓝色水滴 |
-| P3 | 双手合在嘴边 | 喝水，补充水箱 | 无 | — |
-| 无 | 还没分配 | — | 泡泡炮 `DivaBubbleCannons` | ❌ 需要选一个手势 |
-| 原 DigiPhant 场景 | 抬左/右手（坐姿）或抬脚（站姿） | 腿抬起 | 腿甲跟着腿动、落地有脚步声 | ✅ 自动 |
-| 原 DigiPhant 场景 | 抬右手 | 卷鼻子（Trunk curl） | 鼻尖枪管跟着卷；往前卷时枪口朝前 | ✅ 自动 |
+| P3 | 举起左手或右手 | 瞄准 | 水枪的水柱跟着往左/右 | ✅ `DivaMechGestureLink` |
+| P3 | 双手张开往前推 | 喷水打靶 | 鼻尖水枪喷水（弹道和打靶判定一致；原来的蓝色小球默认隐藏，照样计分） | ✅ `DivaMechGestureLink` |
+| P3 | 双手合在嘴边 | 喝水补水箱 | 两门泡泡炮冒泡泡 | ✅ `DivaMechGestureLink` |
+| 原 DigiPhant 场景 | 抬手/抬脚 | 腿抬起 | 腿甲跟着腿动、落地有脚步声 | ✅ 自动 |
 
-接水枪最简单的做法：在 `DivaDemo` 里 `EmitBurst` 的地方加一行 `trunkBlaster.Burst(0.15f)`，持续喷时就会连成水柱。泡泡可以接一个新手势，或者先用 P3 喝水的手势测试。
+![手势预览：往左、正中、往右喷水](Docs~/gesture_spray_center.png)
 
-## 给 MediaPipe 手势用的触发接口
+## 自己写脚本触发
 
-触发方式还没接，留给手势脚本调用：
+Diva 场景里已经由 `DivaMechGestureLink` 接好手势。在别的场景或想换手势时，可以直接调用：
 
 ```csharp
 var root = elephantTravel; // 场景里的 Elephant Travel
@@ -111,4 +109,3 @@ LETTER_SIZE=.92 EXPORT=$PWD/diva_mech.bytes blender -b --factory-startup --pytho
 
 - Play 模式下用真实摄像头控制时的整体表现，以及音效的实际听感。
 - Vision Pro：全沉浸模式应该和 Mac 一样；混合现实模式（PolySpatial）下，喷口点光源和部分粒子功能可能不支持，需要在设备上试。
-- 鼻尖水枪还没有接到 Diva 场景里 P3 的喷水手势上。

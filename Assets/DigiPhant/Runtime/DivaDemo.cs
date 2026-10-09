@@ -23,6 +23,8 @@ namespace DigiPhant
         public int TargetsHit { get; private set; }
         DigiPhantController controller;
         DigiPhantLocomotion locomotion;
+        Diva.DivaLaserBlaster laser;
+        Diva.DivaGameManager game;
         readonly List<Transform> targets = new List<Transform>();
         readonly List<Renderer> targetRenderers = new List<Renderer>();
         readonly List<float> lastHit = new List<float>();
@@ -72,6 +74,16 @@ namespace DigiPhant
             }
         }
         public void ResetTracking() { State.Clear(); manualGo = manualTurn = manualAim = 0; manualShoot = manualDrink = false; }
+        /// <summary>Calibration hint: who is missing, and the solo option for one-person testing.</summary>
+        public string WaitingMessage(float now)
+        {
+            int count = solo ? 1 : 3;
+            var missing = new List<string>();
+            for (int i = 1; i <= count; i++) if (!State.Visible(i, now)) missing.Add(solo ? "you" : "P" + i);
+            if (missing.Count == 0) return "Keep every player visible, standing naturally";
+            return "Waiting for " + string.Join(", ", missing) + " to be visible, standing naturally" +
+                   (solo ? "" : ". Testing alone? Choose Try alone.");
+        }
         public bool AllVisible(float now)
         {
             State.MinimumConfidence = gestureConfidence;
@@ -126,7 +138,12 @@ namespace DigiPhant
                 thirdPersonCamera.transform.position = Vector3.Lerp(thirdPersonCamera.transform.position, desired, 1 - Mathf.Exp(-Time.deltaTime * 5));
                 thirdPersonCamera.transform.LookAt(root.position + Vector3.up * 1.5f);
             }
-            if (State.Bursts > 0) EmitBurst(Time.realtimeSinceStartup);
+            if (State.Bursts > 0)
+            {
+                EmitBurst(Time.realtimeSinceStartup);
+                if (!laser) laser = FindAnyObjectByType<Diva.DivaLaserBlaster>();
+                if (laser) laser.Fire(State.Aim * trunkAimDegrees);
+            }
             UpdateDroplets(Time.realtimeSinceStartup, Time.deltaTime);
             for (int i = 0; i < targetRenderers.Count; i++)
                 if (targetRenderers[i]) targetRenderers[i].sharedMaterial = Time.realtimeSinceStartup - lastHit[i] < .4f ? hitMaterial : targetMaterial;
@@ -142,6 +159,8 @@ namespace DigiPhant
         void CreateRange()
         {
             if (!locomotion.travelRoot || rangeRoot) return;
+            // The Diva game layer has its own targets, scored by its laser; don't add a second set of spheres.
+            if (FindAnyObjectByType<Diva.DivaTarget>(FindObjectsInactive.Exclude) != null) return;
             waterMaterial = MakeMaterial(new Color(.05f, .65f, 1));
             targetMaterial = MakeMaterial(new Color(1, .35f, .1f));
             hitMaterial = MakeMaterial(new Color(.1f, 1, .25f));
@@ -229,7 +248,8 @@ namespace DigiPhant
             if (!solo) Label("Start left to right in the unmirrored preview: P1, P2, P3. Avoid crossing.");
             Label("P1 " + (State.Forward > 0 ? "GO" : "STOP") + " | P2 " + (State.Turn < -.05f ? "LEFT" : State.Turn > .05f ? "RIGHT" : "STRAIGHT"));
             Label("P3 " + (State.Drink ? "REFILLING" : State.Shoot ? "SPRAYING" : "READY") + " | Water " + Mathf.RoundToInt(State.Water * 100) + "%");
-            Label("Target hits: " + TargetsHit);
+            if (!game) game = FindAnyObjectByType<Diva.DivaGameManager>();
+            Label("Target hits: " + (game ? game.TargetsHit : TargetsHit));
             if (controller.inputMode == InputMode.Camera)
             {
                 for (int i = 1; i <= (solo ? 1 : 3); i++) Label((solo ? "Your camera" : "P" + i) + (State.Visible(i, now) ? " · visible" : " · waiting / lost"));
