@@ -16,6 +16,10 @@ For group play, start left-to-right in the unmirrored preview: P1 movement, P2 t
 
 The demo includes a third-person camera, five water targets, hit counting and a water tank. Refill currently works anywhere. Aim returns to center when neither arm is raised, which may center the spray gesture. See **DIVA_TRY_IT.md** for details.
 
+## D.Va-style mech elephant (eva大象)
+
+The elephant in **Diva.unity** wears a pink D.Va-style mech suit with a candy-pink skin, a trunk water gun, bubble cannons, thruster flames that follow speed, and sound effects. Everything lives in **Assets/eva大象**; see **Assets/eva大象/README.md** (Chinese) for toggles, the trigger API for gestures, and how to install it in another scene (**Diva > Add D.Va Mech to Elephant**).
+
 ## Restore assets after a fresh clone
 
 The shared elephant assets, pretrained model files, Python environment and Unity caches are excluded from Git. Run the following PowerShell commands from a fresh project checkout. Inspect and reuse existing starter/Elephant folders rather than copying over them.
