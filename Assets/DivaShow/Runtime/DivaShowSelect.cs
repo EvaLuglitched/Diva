@@ -150,7 +150,7 @@ namespace Diva.Show
             if (selectRing)
             {
                 selectRing.position = new Vector3(elephant.position.x, startPosition.y + .04f, elephant.position.z);
-                selectRing.rotation = Quaternion.Euler(90, Time.unscaledTime * 12, 0);
+                selectRing.rotation = Quaternion.Euler(90, DivaClock.Time * 12, 0);
                 selectRing.localScale = Vector3.one * size * .95f * DivaUi.EaseOutBack(PhaseTime / .6f);
             }
         }

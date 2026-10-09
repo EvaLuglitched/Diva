@@ -70,7 +70,7 @@ namespace Diva.Show
             {
                 boosting = true; rushCooldown = Time.time + 8;
                 if (look) look.Pulse(.6f);
-                boostSlot.flash = Time.unscaledTime;
+                boostSlot.flash = DivaClock.Time;
                 Banner(DivaText.T("skill.boost"), null, Primary);
                 Pip("boost", DivaText.T("skill.boost"));
                 Feed(DivaText.T("skill.boost"), Primary);
@@ -81,7 +81,7 @@ namespace Diva.Show
             bool shooting = demo.State.Shoot;
             if (shooting && !wasShooting)
             {
-                cannonSlot.flash = Time.unscaledTime;
+                cannonSlot.flash = DivaClock.Time;
                 if (Time.time > cannonCooldownUntil)
                 {
                     cannonCooldownUntil = Time.time + 8;
@@ -95,7 +95,7 @@ namespace Diva.Show
             bool drinking = demo.State.Drink;
             if (drinking && !wasDrinking)
             {
-                bubbleSlot.flash = Time.unscaledTime;
+                bubbleSlot.flash = DivaClock.Time;
                 if (Time.time > bubbleCooldownUntil)
                 {
                     bubbleCooldownUntil = Time.time + 6;
@@ -156,8 +156,8 @@ namespace Diva.Show
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }
             charge = Mathf.Min(100, charge + chargePerHit);
-            combo = Time.unscaledTime - lastHitTime <= ComboWindow ? combo + 1 : 1;
-            lastHitTime = Time.unscaledTime;
+            combo = DivaClock.Time - lastHitTime <= ComboWindow ? combo + 1 : 1;
+            lastHitTime = DivaClock.Time;
             stats.bestCombo = Mathf.Max(stats.bestCombo, combo);
             Feed(DivaText.F("feed.hit", target.points), new Color(.35f, .8f, 1f));
             replay.Mark(t, "hit", 30, combo >= 3 ? "skill.combo3" : "skill.cannon", target);

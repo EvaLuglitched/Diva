@@ -11,6 +11,11 @@ namespace Diva.Show
         readonly AudioSource source, music;
         readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
         public float volume = .7f;
+        /// <summary>For recording tools (video capture): every clip played, with its gain.</summary>
+        public static event Action<AudioClip, float> Played;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => Played = null;
 
         public DivaShowSound(GameObject host)
         {
@@ -85,19 +90,24 @@ namespace Diva.Show
         {
             if (!music || !clip) return;
             music.Stop(); music.clip = clip; music.volume = volume * gain; music.Play();
+            Played?.Invoke(clip, volume * gain);
         }
 
         /// <summary>Fade the music out (call every frame while fading).</summary>
         public void FadeMusic(float seconds)
         {
             if (!music || !music.isPlaying) return;
-            music.volume = Mathf.MoveTowards(music.volume, 0, Time.unscaledDeltaTime / Mathf.Max(.01f, seconds));
+            music.volume = Mathf.MoveTowards(music.volume, 0, DivaClock.DeltaTime / Mathf.Max(.01f, seconds));
             if (music.volume <= 0) music.Stop();
         }
 
         public void Play(string name, float gain = 1)
         {
-            if (source && clips.TryGetValue(name, out var clip)) source.PlayOneShot(clip, volume * gain);
+            if (source && clips.TryGetValue(name, out var clip))
+            {
+                source.PlayOneShot(clip, volume * gain);
+                Played?.Invoke(clip, volume * gain);
+            }
         }
     }
 }
