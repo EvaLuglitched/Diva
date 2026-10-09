@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using DigiPhant;
+using TMPro;
+using UnityEngine.UI;
 
 namespace Diva
 {
@@ -12,7 +14,9 @@ namespace Diva
     /// Race-start intro in the style of kart-racer openings: aerial view of the town, the rocket flying
     /// past, a swoop down to the start line, a full orbit of the mech elephant while it powers up part by
     /// part, a low hero close-up as its thrusters ignite, then a 3-2-1-GO countdown. All sounds are synthesised here.
-    /// The elephant is held on the start line until GO. Esc skips to the countdown, I replays.
+    /// The elephant is held on the start line until GO. Esc skips to the countdown, I replays (not while Diva Show runs the match).
+    /// On-screen text is uGUI + TextMeshPro, so it also draws on Vision Pro (IMGUI does not).
+    /// Diva Show relies on Begin(), Skip(), Playing, Time, playOnStart, SwoopEnd, BootStart, OrbitEnd and Go: keep their names and meaning.
     /// </summary>
     [DefaultExecutionOrder(2000)]   // after DivaDemo's camera and DivaSkyCamera
     public class DivaIntro : MonoBehaviour
@@ -27,6 +31,8 @@ namespace Diva
         public string title = "DIVA SAFARI";
         public string subtitle = "Candy Town Course";
         [Range(0, 1)] public float volume = .8f;
+        [Tooltip("Font for the banner and countdown. Empty: Diva Show's font when it is in the scene, else the TextMesh Pro default.")]
+        public TMP_FontAsset font;
 
         // Timeline, in seconds.
         public const float AerialEnd = 3.5f, RocketEnd = 6.5f, SwoopEnd = 9f, HeroStart = 13f, OrbitEnd = 15.5f;
@@ -49,7 +55,12 @@ namespace Diva
         AudioClip beep, beepGo, whoosh, chirp, ignite, fanfare, chime;
         readonly List<(float time, AudioClip clip, float pitch, float gain)> cues = new List<(float, AudioClip, float, float)>();
         int nextCue;
-        GUIStyle textStyle;
+        // On-screen UI (built on first Begin).
+        Canvas canvas;
+        RectTransform barTop, barBottom, banner, bannerLine, titleRect, subtitleRect;
+        Image bannerFill, bannerLineFill;
+        TextMeshProUGUI titleText, subtitleText, skipText, countText;
+        bool showDirectsMatch;
         // Ignition burst.
         bool ignited;
         Light flash;
@@ -62,6 +73,8 @@ namespace Diva
 
         void Start()
         {
+            // Diva Show starts the intro after its skin select and owns replays, so the I key stays out of its way.
+            showDirectsMatch = FindAnyObjectByType<Diva.Show.DivaShowDirector>();
             if (playOnStart) Begin();
         }
 
@@ -85,6 +98,7 @@ namespace Diva
             if (controller) controller.showControls = false;
             if (game) game.showHud = false;
             if (preview) preview.showPreview = false;   // its floating window would cover the cinematic
+            if (Application.isPlaying) { BuildUi(); UpdateUi(0); }
         }
 
         /// <summary>Jumps to the countdown, with the mech already powered up.</summary>
@@ -136,7 +150,7 @@ namespace Diva
             var keys = Keyboard.current;
             if (keys == null) return;
             if (keys.escapeKey.wasPressedThisFrame) Skip();
-            if (keys.iKey.wasPressedThisFrame) Begin();
+            if (keys.iKey.wasPressedThisFrame && !showDirectsMatch) Begin();
         }
 
         void LateUpdate()
@@ -169,6 +183,7 @@ namespace Diva
                 gameCamera.transform.SetPositionAndRotation(pos, rot);
                 gameCamera.fieldOfView = fov;
             }
+            UpdateUi(Time);
             if (Time >= End) Finish();
         }
 
@@ -183,9 +198,11 @@ namespace Diva
             if (controller) controller.showControls = savedControls;
             if (game) game.showHud = savedHud;
             if (preview) preview.showPreview = savedPreview;
+            if (canvas) canvas.gameObject.SetActive(false);
         }
 
         void OnDisable() { if (Playing) Finish(); }
+        void OnDestroy() { if (canvas) Destroy(canvas.gameObject); }
 
         // ---------- Camera ----------
 
@@ -546,64 +563,154 @@ namespace Diva
 
         // ---------- Overlay ----------
 
-        void OnGUI()
+        // ---------- On-screen UI (uGUI + TextMeshPro) ----------
+
+        static readonly Color Outline = new Color(.35f, .1f, .35f, .9f);
+        static readonly Color[] CountColours = { new Color(1, .4f, .75f), new Color(.35f, .9f, 1), new Color(1, .86f, .3f), new Color(1, .3f, .7f) };
+
+        /// <summary>A screen-space canvas laid out in screen fractions; the scaler keeps 1080 units of height, so font sizes are fractions of 1080.</summary>
+        void BuildUi()
         {
-            if (!Playing) return;
-            float t = Time, w = Screen.width, h = Screen.height;
-            textStyle ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = false };
+            if (canvas) { canvas.gameObject.SetActive(true); return; }
+            var go = new GameObject("Diva Intro UI", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+            go.layer = 5;
+            go.transform.SetParent(transform, false);
+            canvas = go.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 60;   // above Diva Show's UI (50)
+            var scaler = go.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 1;
+            var root = go.transform;
+            var face = font ? font : Diva.Show.DivaUi.Font ? Diva.Show.DivaUi.Font : TMP_Settings.defaultFontAsset;
+
+            barTop = Box(root, "Bar top", Color.black, out _);
+            barBottom = Box(root, "Bar bottom", Color.black, out _);
+            banner = Box(root, "Banner", new Color(1, .35f, .72f, .92f), out bannerFill);
+            bannerLine = Box(root, "Banner line", new Color(.3f, .95f, 1), out bannerLineFill);
+            titleText = Label(root, "Title", face, title, 1080 * .075f, TextAlignmentOptions.Left, out titleRect);
+            subtitleText = Label(root, "Subtitle", face, subtitle, 1080 * .035f, TextAlignmentOptions.Left, out subtitleRect);
+            skipText = Label(root, "Skip hint", face, "Esc  skip", 22, TextAlignmentOptions.Right, out var skipRect);
+            Place(skipRect, .7f, .09f, .99f, .09f + 40 / 1080f);
+            skipText.color = new Color(1, 1, 1, .8f);
+            countText = Label(root, "Countdown", face, "", 280, TextAlignmentOptions.Center, out var countRect);
+            Place(countRect, 0, .3f, 1, .8f);
+        }
+
+        static void Place(RectTransform rt, float xMin, float yMin, float xMax, float yMax)
+        {
+            rt.anchorMin = new Vector2(xMin, yMin); rt.anchorMax = new Vector2(xMax, yMax);
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+        }
+
+        static RectTransform Box(Transform parent, string name, Color colour, out Image image)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.layer = 5;
+            go.transform.SetParent(parent, false);
+            image = go.GetComponent<Image>();
+            image.color = colour;
+            image.raycastTarget = false;
+            return (RectTransform)go.transform;
+        }
+
+        static TextMeshProUGUI Label(Transform parent, string name, TMP_FontAsset face, string text, float size, TextAlignmentOptions align, out RectTransform rect)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            go.layer = 5;
+            go.transform.SetParent(parent, false);
+            rect = (RectTransform)go.transform;
+            var t = go.GetComponent<TextMeshProUGUI>();
+            if (face) t.font = face;
+            t.text = text;
+            t.fontSize = size;
+            t.fontStyle = FontStyles.Bold;
+            t.alignment = align;
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.overflowMode = TextOverflowModes.Overflow;
+            t.raycastTarget = false;
+            // Dark plum outline plus a soft shadow, so candy-coloured text reads on the bright town.
+            var m = t.fontMaterial;
+            m.EnableKeyword("OUTLINE_ON");
+            m.EnableKeyword("UNDERLAY_ON");
+            m.SetFloat("_OutlineWidth", .25f);
+            m.SetColor("_OutlineColor", Outline);
+            m.SetColor("_UnderlayColor", new Color(.2f, .05f, .2f, .55f));
+            m.SetFloat("_UnderlaySoftness", .6f);
+            m.SetFloat("_UnderlayDilate", .4f);
+            t.UpdateMeshPadding();
+            return t;
+        }
+
+        /// <summary>Letterbox bars, the sliding course banner, the skip hint and 3-2-1-GO, all driven by the intro time.</summary>
+        void UpdateUi(float t)
+        {
+            if (!canvas) return;
+            canvas.gameObject.SetActive(Playing);
+            if (Playing) DrawUi(t);
+        }
+
+        /// <summary>Editor keyframes: draws the UI at time t onto a camera (screen-space overlays are not in camera renders).</summary>
+        public void PreviewUi(float t, Camera camera)
+        {
+            BuildUi();
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = camera;
+            canvas.planeDistance = camera.nearClipPlane + .05f;
+            DrawUi(t);
+            Canvas.ForceUpdateCanvases();
+        }
+
+        public void EndPreviewUi()
+        {
+            if (canvas) DestroyImmediate(canvas.gameObject);
+            canvas = null;
+        }
+
+        void DrawUi(float t)
+        {
 
             // Cinematic bars until the countdown.
             float bars = t < OrbitEnd ? 1 : 1 - Ease((t - OrbitEnd) / .6f);
-            if (bars > 0)
-            {
-                GUI.color = Color.black;
-                GUI.DrawTexture(new Rect(0, 0, w, h * .09f * bars), Texture2D.whiteTexture);
-                GUI.DrawTexture(new Rect(0, h - h * .09f * bars, w, h * .09f * bars), Texture2D.whiteTexture);
-                GUI.color = Color.white;
-            }
+            Place(barTop, 0, 1 - .09f * bars, 1, 1);
+            Place(barBottom, 0, 0, 1, .09f * bars);
 
             // Course title banner, sliding in from the left.
-            if (t > .3f && t < AerialEnd + .4f)
+            bool showBanner = t > .3f && t < AerialEnd + .4f;
+            banner.gameObject.SetActive(showBanner); bannerLine.gameObject.SetActive(showBanner);
+            titleText.gameObject.SetActive(showBanner); subtitleText.gameObject.SetActive(showBanner);
+            if (showBanner)
             {
                 float a = Mathf.Min(Ease((t - .3f) / .5f), 1 - Ease((t - AerialEnd + .2f) / .6f));
-                float x = Mathf.Lerp(-w * .5f, 0, Ease((t - .3f) / .5f));
-                var banner = new Rect(x, h * .64f, w * .52f, h * .17f);
-                GUI.color = new Color(1, .35f, .72f, .92f * a);
-                GUI.DrawTexture(banner, Texture2D.whiteTexture);
-                GUI.color = new Color(.3f, .95f, 1, a);
-                GUI.DrawTexture(new Rect(x, banner.yMax, w * .52f, h * .012f), Texture2D.whiteTexture);
-                GUI.color = Color.white;
-                Outlined(new Rect(x + w * .03f, banner.y + h * .01f, banner.width - w * .05f, h * .1f), title, (int)(h * .075f), new Color(1, 1, 1, a), TextAnchor.MiddleLeft);
-                Outlined(new Rect(x + w * .03f, banner.y + h * .1f, banner.width - w * .05f, h * .06f), subtitle, (int)(h * .035f), new Color(1, .95f, .98f, a), TextAnchor.MiddleLeft);
+                float x = Mathf.Lerp(-.5f, 0, Ease((t - .3f) / .5f));
+                Place(banner, x, .19f, x + .52f, .36f);
+                Place(bannerLine, x, .178f, x + .52f, .19f);
+                Place(titleRect, x + .03f, .25f, x + .5f, .35f);
+                Place(subtitleRect, x + .03f, .2f, x + .5f, .26f);
+                bannerFill.color = new Color(1, .35f, .72f, .92f * a);
+                bannerLineFill.color = new Color(.3f, .95f, 1, a);
+                titleText.text = title; subtitleText.text = subtitle;
+                titleText.color = new Color(1, 1, 1, a);
+                subtitleText.color = new Color(1, .95f, .98f, a);
             }
 
-            if (t < OrbitEnd)
-                Outlined(new Rect(w - 240, h - h * .09f - 4, 230, 30), "Esc  skip", 16, new Color(1, 1, 1, .8f), TextAnchor.MiddleRight);
+            skipText.gameObject.SetActive(t < OrbitEnd);
 
             // 3, 2, 1, GO!
-            Color[] colours = { new Color(1, .4f, .75f), new Color(.35f, .9f, 1), new Color(1, .86f, .3f), new Color(1, .3f, .7f) };
+            countText.gameObject.SetActive(false);
             for (int i = 0; i < 4; i++)
             {
                 float start = CountStart + i, length = i < 3 ? 1 : 1.2f, p = t - start;
                 if (p < 0 || p >= length) continue;
                 float pop = 1.7f - .7f * Ease(p / .18f);
-                float alpha = p > length - .3f ? 1 - (p - (length - .3f)) / .3f : 1;
-                var c = colours[i]; c.a = alpha;
-                Outlined(new Rect(0, h * .2f, w, h * .5f), i < 3 ? (3 - i).ToString() : "GO!", (int)(h * (i < 3 ? .26f : .22f) * pop), c, TextAnchor.MiddleCenter);
+                var c = CountColours[i];
+                c.a = p > length - .3f ? 1 - (p - (length - .3f)) / .3f : 1;
+                countText.gameObject.SetActive(true);
+                countText.text = i < 3 ? (3 - i).ToString() : "GO!";
+                countText.fontSize = 1080 * (i < 3 ? .26f : .22f) * pop;
+                countText.color = c;
             }
-        }
-
-        void Outlined(Rect rect, string text, int size, Color colour, TextAnchor anchor)
-        {
-            textStyle.fontSize = Mathf.Max(8, size);
-            textStyle.alignment = anchor;
-            float o = Mathf.Max(2, size * .05f);
-            textStyle.normal.textColor = new Color(.35f, .1f, .35f, colour.a * .9f);
-            for (int dx = -1; dx <= 1; dx++)
-                for (int dy = -1; dy <= 1; dy++)
-                    if (dx != 0 || dy != 0) GUI.Label(new Rect(rect.x + dx * o, rect.y + dy * o, rect.width, rect.height), text, textStyle);
-            textStyle.normal.textColor = colour;
-            GUI.Label(rect, text, textStyle);
         }
     }
 }

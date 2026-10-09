@@ -16,7 +16,7 @@ cyan/magenta light strips. Value still steps up from back to front, so the cours
 | Background | Two rows of pastel buildings: half-timbered townhouses, then taller lilac tech blocks with pink screens, plus clock towers; soft pink haze (fog 85–300 m) |
 | Middle | Lavender ring street, pink paving, icing-white kerbs, tech street lamps, poles with pink string lights, "WELCOME / DIVA SAFARI" banners, stone railing |
 | Course | Light grey blue-violet plaza; holo billboards, kiosks with benches, blossom planters, butter-yellow crates, candy-cane barriers in the same spots as before |
-| Foreground | Bright cream path with cyan neon edges and pink runway lights; arches with rainbow neon bands; classic red/white targets with orange neon halo rings and a point light each (it fades while a target is down), the strongest accent in the scene; a soft light on the elephant |
+| Foreground | Bright cream path with cyan neon edges that run parallel to both sides and meet in mitred corners (a glowing bead on each joint), candy gumdrops every 3 m and a lollipop outside every bend; a round candy start pad under the elephant (pink rim, cream disc, lilac centre, a slowly turning dashed neon ring, gumdrops and two lollipops); arches with rainbow neon bands; classic red/white targets with orange neon halo rings and a point light each (it fades while a target is down), the strongest accent in the scene; a soft light on the elephant |
 
 All colours live in the `Looks` table and `RecolourCourse` / `BuildLook` in `Editor/DivaGameBuilder.cs`;
 changing them and rebuilding never moves anything.
@@ -71,8 +71,18 @@ Plays when entering Play (about 20 s), kart-racer style:
 | 15.5 – 20 s | Settles into the game camera | 3 · 2 · 1 · GO! with beeps and a fanfare |
 
 The elephant is held on the start line until GO; panels and HUD are hidden until then. **Esc** skips
-to the countdown, **I** replays. All sounds are synthesised in code. **Diva > Game > Render Intro Frames**
-saves keyframes to `Recordings/preview/intro-*.png`. Untick *Play On Start* on the Diva Intro component
+to the countdown, **I** replays (ignored when Diva Show is in the scene, since Diva Show starts the intro after
+its skin select). All sounds are synthesised in code.
+
+The bars, banner, skip hint and countdown are a uGUI canvas with TextMesh Pro (not IMGUI), so they also draw
+on Vision Pro; they use Diva Show's font when it is in the scene. **Diva > Game > Render Intro Frames** saves
+keyframes, text included, to `Recordings/preview/intro-*.png`. **Diva > Game > Play Intro Now** starts the
+intro straight away in Play mode (skipping the skin select), for testing.
+
+Diva Show calls `Begin()`, `Skip()`, `Playing`, `Time`, `playOnStart`, `SwoopEnd`, `BootStart`, `OrbitEnd` and
+`Go`: timings can change, names and meaning must stay.
+
+Untick *Play On Start* on the Diva Intro component
 (on `Diva Game Layer`) to turn it off.
 
 ## Sky: flying rocket and clouds
@@ -84,7 +94,8 @@ The 8 clouds come from the Fab **Stylized Clouds Pack – Vol 07** with a candy 
 
 **These Fab files are not in git** (licence: no redistributing raw files in a public repo). Each teammate
 downloads them into `Assets/DivaGame/ThirdParty/Fab/` as described in that folder's README, then runs
-**Diva > Game > Use Fab Rocket and Clouds**. Without them the scene uses the kit rocket and Kenney clouds.
+**Diva > Game > Use Fab Rocket and Clouds**. Without them the scene shows the kit rocket and Kenney clouds
+automatically (each Fab model has a stand-in beside it, switched by `DivaModelFallback`).
 
 ## Swap in your own models
 
