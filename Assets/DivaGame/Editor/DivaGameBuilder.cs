@@ -1319,6 +1319,17 @@ public static class DivaGameBuilder
     }
 
     /// <summary>Renders keyframes of the race intro (camera, rocket position, mech power-up) to Recordings/preview/intro-*.png.</summary>
+    /// <summary>Starts the race intro straight away in Play mode (skips Diva Show's skin select; useful for testing).</summary>
+    [MenuItem("Diva/Game/Play Intro Now (Play mode)")]
+    public static void PlayIntroNow()
+    {
+        var intro = UnityEngine.Object.FindAnyObjectByType<DivaIntro>();
+        if (intro) intro.Begin();
+    }
+
+    [MenuItem("Diva/Game/Play Intro Now (Play mode)", true)]
+    static bool CanPlayIntroNow() => Application.isPlaying;
+
     [MenuItem("Diva/Game/Render Intro Frames")]
     public static void RenderIntroFrames()
     {
@@ -1342,7 +1353,7 @@ public static class DivaGameBuilder
             var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
             camera.targetTexture = rt;
             camera.Render();   // warm-up frame
-            foreach (float t in new[] { 1.5f, 4.6f, 5.4f, 7.6f, 9.6f, 10.8f, 12.2f, 14.2f, 16.8f })
+            foreach (float t in new[] { 1.5f, 4.6f, 5.4f, 7.6f, 9.6f, 10.8f, 12.2f, 14.2f, 16.1f, 16.8f, 19.0f })
             {
                 if (orbit) orbit.SetAngle(a0 + orbit.AngularSpeed * t, 0);
                 intro.ApplyBoot(t);
@@ -1350,6 +1361,7 @@ public static class DivaGameBuilder
                 intro.PoseAt(t, out var pos, out var rot, out float fov);
                 camera.transform.SetPositionAndRotation(pos, rot);
                 camera.fieldOfView = fov;
+                intro.PreviewUi(t, camera);
                 camera.Render();
                 RenderTexture.active = rt;
                 var image = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
@@ -1365,6 +1377,7 @@ public static class DivaGameBuilder
         }
         finally
         {
+            intro.EndPreviewUi();
             UnityEngine.Object.DestroyImmediate(go);
             intro.ApplyBoot(float.MaxValue);
             intro.ApplyFog(float.MaxValue);

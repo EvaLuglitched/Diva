@@ -71,8 +71,18 @@ Plays when entering Play (about 20 s), kart-racer style:
 | 15.5 – 20 s | Settles into the game camera | 3 · 2 · 1 · GO! with beeps and a fanfare |
 
 The elephant is held on the start line until GO; panels and HUD are hidden until then. **Esc** skips
-to the countdown, **I** replays. All sounds are synthesised in code. **Diva > Game > Render Intro Frames**
-saves keyframes to `Recordings/preview/intro-*.png`. Untick *Play On Start* on the Diva Intro component
+to the countdown, **I** replays (ignored when Diva Show is in the scene, since Diva Show starts the intro after
+its skin select). All sounds are synthesised in code.
+
+The bars, banner, skip hint and countdown are a uGUI canvas with TextMesh Pro (not IMGUI), so they also draw
+on Vision Pro; they use Diva Show's font when it is in the scene. **Diva > Game > Render Intro Frames** saves
+keyframes, text included, to `Recordings/preview/intro-*.png`. **Diva > Game > Play Intro Now** starts the
+intro straight away in Play mode (skipping the skin select), for testing.
+
+Diva Show calls `Begin()`, `Skip()`, `Playing`, `Time`, `playOnStart`, `SwoopEnd`, `BootStart`, `OrbitEnd` and
+`Go`: timings can change, names and meaning must stay.
+
+Untick *Play On Start* on the Diva Intro component
 (on `Diva Game Layer`) to turn it off.
 
 ## Sky: flying rocket and clouds
