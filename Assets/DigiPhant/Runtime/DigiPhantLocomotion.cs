@@ -127,6 +127,8 @@ namespace DigiPhant
         }
         public bool InputsVisible(float now)
         {
+            var diva = GetComponent<DivaDemo>();
+            if (diva != null && diva.isActiveAndEnabled) return diva.AllVisible(now);
             if (!enableLocomotion) return true;
             if (controller == null) controller = GetComponent<DigiPhantController>();
             foreach (var driver in new[] { forward, steering })
@@ -154,7 +156,16 @@ namespace DigiPhant
             dt = Mathf.Clamp(dt, 0, .1f);
             float desiredForward = testForward, desiredTurn = testSteering;
             bool valid = true;
-            if (controller.inputMode == InputMode.Camera)
+            var diva = GetComponent<DivaDemo>();
+            bool custom = diva != null && diva.isActiveAndEnabled;
+            if (custom)
+            {
+                desiredForward = diva.State.Forward;
+                desiredTurn = diva.State.Turn;
+                if (desiredForward == 0) throttle = 0;
+                if (desiredTurn == 0) turn = 0;
+            }
+            else if (controller.inputMode == InputMode.Camera)
             {
                 bool moving = forward.TryRead(controller, now, out desiredForward);
                 bool turning = steering.TryRead(controller, now, out desiredTurn);

@@ -15,12 +15,14 @@ namespace DigiPhant
         public int slot;
         public float[] values;
         public float[] confidence;
+        public DivaGestureFrame gestures;
     }
     [Serializable] public class PoseFrame
     {
         public int version;
         public int performerCount;
         public bool upperBodyOnly;
+        public bool divaGestures;
         public PerformerFrame[] people;
     }
     [Serializable] public class BoneControl
@@ -58,6 +60,7 @@ namespace DigiPhant
         public bool IsCalibrated { get; private set; }
         float calibrationDeadline = -1;
         public bool CalibrationPending => calibrationDeadline >= 0;
+        public float CalibrationSecondsRemaining(float now) => Mathf.Max(0, calibrationDeadline - now);
         readonly float[,] values = new float[4, 6];
         readonly float[,] confidence = new float[4, 6];
         readonly float[,] neutral = new float[4, 6];
@@ -146,6 +149,7 @@ namespace DigiPhant
         }
         void ClearTracking()
         {
+            GetComponent<DivaDemo>()?.ResetTracking();
             calibrationDeadline = -1;
             GetComponent<DigiPhantLocomotion>()?.StopMotion();
             IsCalibrated = false;
@@ -155,6 +159,8 @@ namespace DigiPhant
         }
         public bool AcceptPacket(string json, float now)
         {
+            var customDemo = GetComponent<DivaDemo>();
+            if (customDemo != null && customDemo.isActiveAndEnabled) customDemo.State.ClearPeople();
             PoseFrame frame;
             try { frame = JsonUtility.FromJson<PoseFrame>(json); }
             catch (ArgumentException) { return false; }
@@ -178,6 +184,10 @@ namespace DigiPhant
                     p.values == null || p.confidence == null || p.values.Length != 6 || p.confidence.Length != 6) return false;
                 for (int k = 0; k < 6; k++)
                     if (!Finite(p.values[k]) || !Finite(p.confidence[k]) || p.confidence[k] < 0 || p.confidence[k] > 1) return false;
+                if (p.gestures != null && (!Finite(p.gestures.go) || !Finite(p.gestures.steer) || !Finite(p.gestures.aim) ||
+                    !Finite(p.gestures.confidence) || p.gestures.go < 0 || p.gestures.go > 1 ||
+                    Mathf.Abs(p.gestures.steer) > 1 || Mathf.Abs(p.gestures.aim) > 1 ||
+                    p.gestures.confidence < 0 || p.gestures.confidence > 1)) return false;
             }
             Array.Clear(confidence, 0, confidence.Length);
             foreach (var p in frame.people)
@@ -188,6 +198,7 @@ namespace DigiPhant
                 { values[i, k] = Mathf.Clamp(p.values[k], -3, 3); confidence[i, k] = p.confidence[k]; }
             }
             ReceivedFrames++;
+            GetComponent<DivaDemo>()?.AcceptFrame(frame, now);
             return true;
         }
         static bool Finite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
@@ -232,6 +243,7 @@ namespace DigiPhant
         }
         public void InvalidateCalibration()
         {
+            GetComponent<DivaDemo>()?.ResetTracking();
             calibrationDeadline = -1;
             IsCalibrated = false;
             GetComponent<DigiPhantLocomotion>()?.StopMotion();
@@ -272,6 +284,24 @@ namespace DigiPhant
         public bool CalibrateAt(float now)
         {
             calibrationDeadline = -1;
+            var diva = GetComponent<DivaDemo>();
+            if (diva != null && diva.isActiveAndEnabled)
+            {
+                if (!diva.AllVisible(now)) { Status = "Keep every player visible, standing naturally"; return false; }
+                IsCalibrated = true;
+                if (socket != null)
+                {
+                    try
+                    {
+                        var request = Encoding.UTF8.GetBytes("{\"version\":1,\"divaCalibrate\":true}");
+                        socket.Send(request, request.Length, new IPEndPoint(IPAddress.Loopback, port + 1));
+                    }
+                    catch (SocketException e) { Status = "Could not set neutral pose: " + e.Message; IsCalibrated = false; return false; }
+                }
+                diva.ResetTracking();
+                Status = "Ready — try your gestures";
+                return true;
+            }
             // Require every mapped input, so occluded landmarks cannot silently become neutral.
             foreach (var c in controls)
             {
@@ -295,9 +325,13 @@ namespace DigiPhant
         }
         public void ApplyControls(float now, float dt)
         {
+            var diva = GetComponent<DivaDemo>();
+            bool custom = diva != null && diva.isActiveAndEnabled;
+            if (custom) diva.UpdateInputs(now, dt);
             foreach (var pair in rest) if (pair.Key != null) pair.Key.localRotation = pair.Value;
             var locomotion = GetComponent<DigiPhantLocomotion>();
             bool animated = locomotion != null && locomotion.isActiveAndEnabled && locomotion.Evaluate(now, dt);
+            if (custom) return;
             foreach (var c in controls)
             {
                 float target = 0;
@@ -335,6 +369,8 @@ namespace DigiPhant
         void OnGUI()
         {
             if (!showControls) return;
+            var diva = GetComponent<DivaDemo>();
+            if (diva != null && diva.isActiveAndEnabled) { diva.DrawControls(); return; }
             float width = Mathf.Min(350, Screen.width * .32f);
             GUI.DrawTexture(new Rect(0, 0, width + 20, Screen.height), Texture2D.blackTexture, ScaleMode.StretchToFill, false);
             var labelStyle = new GUIStyle(GUI.skin.label) { wordWrap = true };
