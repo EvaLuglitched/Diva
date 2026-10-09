@@ -56,7 +56,10 @@ keep your scene, then run **Diva > Rebuild D.Va Mech Skins** and **Diva > Show >
    back before committing. Watch for it in diffs.
 3. The `.mat` files in `Assets/DivaGame/Materials` still lose `_EMISSION` whenever Unity saves them in batch mode. Your
    runtime `RestoreEmission()` covers Play mode.
-4. The intro's text, bars and countdown use IMGUI, which Vision Pro mixed reality does not draw. If we demo on Vision
+4. **The Main Camera clears to a solid colour** (dark navy `0.055, 0.085, 0.11`), so your procedural purple-blue sky is
+   never visible in Play (your Render Intro Frames uses its own camera, which shows the sky). `DivaLook` switches the
+   camera to Skybox at runtime. If you agree, set *Background Type: Skybox* on the Main Camera in your builder.
+5. The intro's text, bars and countdown use IMGUI, which Vision Pro mixed reality does not draw. If we demo on Vision
    Pro, they need uGUI/TMP. TMP is now in the project, and `Assets/DivaShow/Runtime/DivaUi.cs` has helpers.
 
 Real-device test list: `PLAYTEST_TODO.md`. Show details (Chinese): `Assets/DivaShow/README.md`.

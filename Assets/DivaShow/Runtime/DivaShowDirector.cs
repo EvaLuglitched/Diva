@@ -69,7 +69,7 @@ namespace Diva.Show
 
         public static event Action<ShowPhase> PhaseChanged;
         public ShowPhase Phase { get; private set; } = ShowPhase.Intro;
-        public float PhaseTime => Time.unscaledTime - phaseStart;
+        public float PhaseTime => DivaClock.Time - phaseStart;
         /// <summary>Score shown by the show: the game's score plus combo and ultimate bonuses.</summary>
         public int TotalScore => (game ? game.Score : 0) + bonus;
 
@@ -191,7 +191,11 @@ namespace Diva.Show
             if (canvas) canvas.gameObject.SetActive(false);
         }
 
-        void OnDestroy() { if (canvas) Destroy(canvas.gameObject); }
+        void OnDestroy()
+        {
+            if (canvas) Destroy(canvas.gameObject);
+            foreach (var b in blockers) if (b) Destroy(b);
+        }
 
         void OnLanguage() { DivaUi.RefreshLanguage(); RefreshSelect(); }
 
@@ -200,7 +204,7 @@ namespace Diva.Show
         {
             var previous = Phase;
             Phase = next;
-            phaseStart = Time.unscaledTime;
+            phaseStart = DivaClock.Time;
             Time.timeScale = 1;
             switch (next)
             {
@@ -222,6 +226,7 @@ namespace Diva.Show
 
         void Update()
         {
+            DivaClock.Tick();
             ReadInputs();
             if (raceIntro && raceIntro.Playing && raceIntro.Time < DivaIntro.Go && Phase != ShowPhase.RaceIntro)
             {
@@ -257,7 +262,7 @@ namespace Diva.Show
         void LateUpdate()
         {
             cameraSet = false;
-            shake = Mathf.MoveTowards(shake, 0, Time.unscaledDeltaTime * 1.5f);
+            shake = Mathf.MoveTowards(shake, 0, DivaClock.DeltaTime * 1.5f);
             switch (Phase)
             {
                 case ShowPhase.Select: CameraSelect(); break;
@@ -275,7 +280,7 @@ namespace Diva.Show
                     mainCamera.fieldOfView = cameraFov;
                 }
                 else if (Phase == ShowPhase.Play || Phase == ShowPhase.Countdown)
-                    mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, BaseFov + fovKick, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 6));
+                    mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, BaseFov + fovKick, 1 - Mathf.Exp(-DivaClock.DeltaTime * 6));
             }
             UpdatePip();
             UpdateLook();
@@ -285,7 +290,7 @@ namespace Diva.Show
         {
             cameraSet = true;
             position = Unblocked(ElephantCenter, position);
-            position += shake * (Mathf.PerlinNoise(Time.unscaledTime * 25, 0) - .5f) * Vector3.up + shake * (Mathf.PerlinNoise(0, Time.unscaledTime * 25) - .5f) * Vector3.right;
+            position += shake * (Mathf.PerlinNoise(DivaClock.Time * 25, 0) - .5f) * Vector3.up + shake * (Mathf.PerlinNoise(0, DivaClock.Time * 25) - .5f) * Vector3.right;
             cameraPosition = position;
             var dir = lookAt - position;
             cameraRotation = dir.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(dir, Vector3.up) : cameraRotation;
@@ -297,48 +302,86 @@ namespace Diva.Show
         Vector3 ElephantCenter => elephant.TransformPoint(centerOffset);
         float ElephantSize => elephantRadius * 2;
 
-        // 场景里可能挡镜头的道具（很多道具没有碰撞体，所以用渲染包围盒判断）：不含大象、粒子、地面这类特别大的物体
-        readonly List<Bounds> occluders = new List<Bounds>();
+        // 挡镜头的检测：很多道具没有碰撞体，开局时给它们各加一个看不见的网格碰撞体（Ignore Raycast 层，
+        // 只有这里的镜头检测会用到，不影响游戏），这样按真实形状判断，而不是按包围盒
+        const int BlockerLayer = 2;
+        readonly List<GameObject> blockers = new List<GameObject>();
         void CollectOccluders()
         {
-            occluders.Clear();
-            foreach (var r in FindObjectsByType<Renderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            foreach (var mf in FindObjectsByType<MeshFilter>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
             {
-                if (!r || r is ParticleSystemRenderer || r is TrailRenderer || r is LineRenderer || r.gameObject.layer == 5) continue;
-                if (r.transform.IsChildOf(elephant) || r.transform.IsChildOf(transform)) continue;
-                var b = r.bounds;
-                if (b.size.x > 20 || b.size.z > 20 || b.size.y > 25 || b.size.sqrMagnitude < .01f) continue;
-                if (b.max.y < startPosition.y + .4f) continue;          // 贴地的东西不挡
-                occluders.Add(b);
+                if (!mf || !mf.sharedMesh) continue;
+                var r = mf.GetComponent<MeshRenderer>();
+                if (!r || !r.enabled || r.gameObject.layer == 5) continue;
+                if (mf.transform.IsChildOf(elephant) || mf.transform.IsChildOf(transform)) continue;
+                if (r.bounds.max.y < startPosition.y + .4f) continue;          // 贴地的东西不挡
+                var own = mf.GetComponent<Collider>();
+                if (own && own.enabled && !own.isTrigger) continue;               // 已经有实心碰撞体（触发器不算，检测时会被忽略）
+                if (!mf.sharedMesh.isReadable && !Application.isEditor) continue;
+                var go = new GameObject("Diva Camera Blocker") { layer = BlockerLayer, hideFlags = HideFlags.DontSave };
+                go.transform.SetParent(mf.transform, false);
+                go.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
+                blockers.Add(go);
             }
+            Debug.Log("DIVA_SHOW camera blockers " + blockers.Count);
         }
 
+        static readonly RaycastHit[] hits = new RaycastHit[32];
+
         /// <summary>从 target 看向 desired 的路上最近的遮挡距离（没有就是全长）。</summary>
-        float ClearDistance(Vector3 target, Vector3 desired)
+        /// <param name="ignoreNear">Hits closer than this to the target are ignored (default: inside the elephant's body).</param>
+        float ClearDistance(Vector3 target, Vector3 desired, float ignoreNear = -1)
         {
             var dir = desired - target;
             float dist = dir.magnitude;
             if (dist < .01f) return dist;
-            var ray = new Ray(target, dir / dist);
+            if (ignoreNear < 0) ignoreNear = elephantRadius * .6f;
             float nearest = dist;
-            if (Physics.SphereCast(ray, .3f, out var hit, dist, ~(1 << 5), QueryTriggerInteraction.Ignore) && !hit.transform.IsChildOf(elephant) && hit.distance > elephantRadius * .6f)
-                nearest = hit.distance - .3f;
-            foreach (var b in occluders)
-                if (b.IntersectRay(ray, out float d) && d > elephantRadius * .6f && d < nearest) nearest = d - .3f;
+            int n = Physics.SphereCastNonAlloc(target, .25f, dir / dist, hits, dist, ~(1 << 5), QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var h = hits[i];
+                if (h.distance <= ignoreNear || h.transform.IsChildOf(elephant)) continue;
+                nearest = Mathf.Min(nearest, h.distance - .3f);
+            }
             return nearest;
         }
 
-        /// <summary>镜头和大象之间有东西挡住时：先试着把镜头升高越过去，不行再拉到挡住的东西前面。</summary>
+        /// <summary>
+        /// 镜头和大象之间有东西挡住时：先绕着大象左右转一点（25°、50°、80°）找不被挡的位置，转过去是平滑的；
+        /// 都不行再升高，最后才拉近。
+        /// </summary>
+        float dodgeTarget, dodgeApplied;
+        ShowPhase dodgePhase;
         Vector3 Unblocked(Vector3 target, Vector3 desired)
         {
-            float dist = Vector3.Distance(target, desired), clear = ClearDistance(target, desired);
-            if (clear >= dist - .01f) return desired;
-            foreach (float up in new[] { 1.5f, 3f, 4.5f })
+            if (dodgePhase != Phase) { dodgePhase = Phase; dodgeTarget = dodgeApplied = 0; }
+            var offset = desired - target;
+            float dist = offset.magnitude;
+            if (dist < .01f) return desired;
+            bool Clear(Vector3 p) => ClearDistance(target, p) >= Vector3.Distance(target, p) - .01f;
+            Vector3 At(float angle) => target + Quaternion.AngleAxis(angle, Vector3.up) * offset;
+            // 当前用的角度还没被挡就继续用（避免来回跳），否则按顺序找
+            if (!Clear(At(dodgeTarget)))
             {
-                var raised = desired + Vector3.up * up;
-                if (ClearDistance(target, raised) >= Vector3.Distance(target, raised) - .01f) return raised;
+                float found = float.NaN;
+                foreach (float a in new[] { 0f, 25f, -25f, 50f, -50f, 80f, -80f })
+                    if (Clear(At(a))) { found = a; break; }
+                if (!float.IsNaN(found)) dodgeTarget = found;
+                else
+                {
+                    foreach (float up in new[] { 1.5f, 3f })
+                    {
+                        var raised = desired + Vector3.up * up;
+                        if (Clear(raised)) return raised;
+                    }
+                    return target + offset / dist * Mathf.Max(elephantRadius * .9f, ClearDistance(target, desired));
+                }
             }
-            return target + (desired - target) / dist * Mathf.Max(elephantRadius * 1.3f, clear);
+            else if (dodgeTarget != 0 && Clear(desired)) dodgeTarget = 0;   // 挡住的东西过去了，回到原来的角度
+            // 过场刚开始时直接用避开后的角度，之后才平滑转动
+            dodgeApplied = PhaseTime < .1f ? dodgeTarget : Mathf.MoveTowards(dodgeApplied, dodgeTarget, 140 * DivaClock.DeltaTime);
+            return At(dodgeApplied);
         }
 
         /// <summary>

@@ -213,7 +213,7 @@ namespace Diva.Show
         void Banner(string title, string sub, Color color, float seconds = 1.8f, string sfx = "skill")
         {
             bannerRoot.gameObject.SetActive(true);
-            bannerStart = Time.unscaledTime; bannerSeconds = seconds;
+            bannerStart = DivaClock.Time; bannerSeconds = seconds;
             Debug.Log("DIVA_SHOW_BANNER " + title + (string.IsNullOrEmpty(sub) ? "" : " · " + sub));
             bannerText.text = title; bannerSub.text = sub ?? "";
             DivaUi.Glow(bannerText, DivaUi.WithAlpha(color, .95f), .75f, .45f, .12f);
@@ -225,7 +225,7 @@ namespace Diva.Show
         void UpdateBanners()
         {
             if (!bannerRoot.gameObject.activeSelf) return;
-            float t = Time.unscaledTime - bannerStart;
+            float t = DivaClock.Time - bannerStart;
             if (t > bannerSeconds) { bannerRoot.gameObject.SetActive(false); return; }
             float open = DivaUi.EaseOut(t / .18f), close = 1 - DivaUi.Smooth((t - bannerSeconds + .3f) / .3f);
             bannerPlate.rectTransform.localScale = new Vector3(open * close, 1, 1);

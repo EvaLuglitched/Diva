@@ -114,14 +114,14 @@ namespace Diva.Show
         {
             float rate = Mathf.Abs(hlTime - hlKey) < .7f ? .4f : 1;
             Time.timeScale = rate;
-            hlTime += Time.unscaledDeltaTime * rate;
+            hlTime += DivaClock.DeltaTime * rate;
             while (hlNext < hlHits.Count && hlHits[hlNext].t <= hlTime)
             {
                 var target = hlHits[hlNext].target;
                 if (target) { target.ResetTarget(); target.TryHit(); fx.Flash(target.AimPoint, Accent, 2.4f, .3f); sound.Play("hit", .7f); }
                 hlNext++;
             }
-            hlRec.text = (Mathf.Repeat(Time.unscaledTime, 1) < .6f ? "● " : "   ") + DivaText.T("replay");
+            hlRec.text = (Mathf.Repeat(DivaClock.Time, 1) < .6f ? "● " : "   ") + DivaText.T("replay");
             hlTitle.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(-400, 64, DivaUi.EaseOut(PhaseTime / .4f)), -10);
             if (hlTime >= hlEnd || (skipEdge || ultEdge) && PhaseTime > .6f)
             {
