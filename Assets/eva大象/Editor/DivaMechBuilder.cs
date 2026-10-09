@@ -123,6 +123,7 @@ namespace Diva.EditorTools
             SetUpCandySkin(toggle, smr);
             toggle.Apply();
             EditorUtility.SetDirty(toggle);
+            SetUpSkins(host, toggle, mats);
             AssetDatabase.SaveAssets();
             EditorSceneManager.MarkSceneDirty(scene);
             if (save && !string.IsNullOrEmpty(scene.path)) EditorSceneManager.SaveScene(scene);
@@ -316,9 +317,10 @@ namespace Diva.EditorTools
         }
 
         // ------------------------------------------------------------------ assets
-        static Material MakeMaterial(MatData d)
+        static Material MakeMaterial(MatData d) => MakeMaterial(d, GeneratedDir + "/" + d.name + ".mat");
+
+        static Material MakeMaterial(MatData d, string path)
         {
-            string path = GeneratedDir + "/" + d.name + ".mat";
             var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (!mat)
             {
@@ -378,9 +380,9 @@ namespace Diva.EditorTools
             return Color.Lerp(c, new Color(.97f, .94f, .89f), u * .45f);                      // 边缘磨白
         }
 
-        static Texture2D AtlasTexture(string name, bool linear)
+        static Texture2D AtlasTexture(string name, bool linear, string dir = GeneratedDir)
         {
-            string path = GeneratedDir + "/" + name + ".asset";
+            string path = dir + "/" + name + ".asset";
             var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
             if (tex && (tex.width != AtlasW || tex.height != AtlasH)) { AssetDatabase.DeleteAsset(path); tex = null; }
             if (!tex)
@@ -393,13 +395,13 @@ namespace Diva.EditorTools
             return tex;
         }
 
-        static Material MakeAtlas(List<MatData> mats)
+        static Material MakeAtlas(List<MatData> mats, string suffix = "", string dir = GeneratedDir)
         {
             if (!AssetDatabase.IsValidFolder(GeneratedDir)) AssetDatabase.CreateFolder(Root, "Generated");
             if (mats.Count * SwatchW > AtlasW) throw new InvalidOperationException("Too many materials for the palette atlas.");
-            var baseTex = AtlasTexture("Mech Palette", false);
-            var mgTex = AtlasTexture("Mech Palette MetalGloss", true);
-            var emTex = AtlasTexture("Mech Palette Emission", false);
+            var baseTex = AtlasTexture("Mech Palette" + suffix, false, dir);
+            var mgTex = AtlasTexture("Mech Palette MetalGloss" + suffix, true, dir);
+            var emTex = AtlasTexture("Mech Palette Emission" + suffix, false, dir);
             var basePx = new Color[AtlasW * AtlasH]; var mgPx = new Color[AtlasW * AtlasH]; var emPx = new Color[AtlasW * AtlasH];
             for (int i = 0; i < AtlasW * AtlasH; i++) { basePx[i] = Color.magenta; mgPx[i] = Color.clear; emPx[i] = Color.black; }
             for (int m = 0; m < mats.Count; m++)
@@ -424,7 +426,7 @@ namespace Diva.EditorTools
             emTex.SetPixels(emPx); emTex.Apply(false);
             EditorUtility.SetDirty(baseTex); EditorUtility.SetDirty(mgTex); EditorUtility.SetDirty(emTex);
 
-            string path = GeneratedDir + "/Mech Atlas.mat";
+            string path = dir + "/Mech Atlas" + suffix + ".mat";
             var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (!mat)
             {
@@ -800,6 +802,209 @@ namespace Diva.EditorTools
             EditorUtility.SetDirty(candy);
             toggle.skin = smr; toggle.originalSkin = original; toggle.candyMaterial = candy;
             Undo.RecordObject(smr, "Diva candy skin");
+        }
+
+        // ------------------------------------------------------------------ skins
+        // 四款皮肤：只换颜色。经典糖果就是上面的默认材质；另外三款参考 D.Va 的几套皮肤配色，名字是我们自己起的。
+        // 每个覆盖项：材质名、颜色、粗糙度（-1 不改）、金属度（-1 不改）、发光色（null 不改）。
+        class SkinDef
+        {
+            public string id, en, zh;
+            public Color tint;                        // 大象皮肤颜色（乘在原贴图上）
+            public string primary, secondary, accent; // 菜单卡片上的三个颜色
+            public string[] flame;                    // 火焰：中心、内焰、外焰、尾巴
+            public (string mat, string color, float rough, float metal, string emit)[] mats;
+        }
+
+        static readonly SkinDef[] SkinDefs =
+        {
+            new SkinDef { id = "classic", en = "CLASSIC CANDY", zh = "经典糖果", tint = Color.white,
+                primary = "#EE7CC0", secondary = "#F4EBDD", accent = "#45F0C8",
+                flame = new[] { "#FFFFFF", "#73F2FF", "#D959F2", "#9933CC" }, mats = new (string, string, float, float, string)[0] },
+            // 紫、黑、金，橙色灯光，烟紫色玻璃
+            new SkinDef { id = "amethyst", en = "AMETHYST NIGHT", zh = "紫晶夜色", tint = new Color(.86f, .82f, .95f),
+                primary = "#6E34B8", secondary = "#1F1A26", accent = "#FF9A2E",
+                flame = new[] { "#FFFFFF", "#FFC05A", "#FF7A2E", "#8A3BE0" },
+                mats = new[] {
+                    ("Mech Pink", "#6E34B8", .25f, .35f, (string)null), ("Mech White", "#211C29", .38f, -1f, null),
+                    ("Mech Plum", "#C29A55", .3f, .7f, null), ("Mech Lavender", "#26212F", .4f, -1f, null),
+                    ("Mech Glow Teal", "#FF9A2E", -1f, -1f, "#FF9A2E"), ("Mech Yellow", "#D4AD62", .3f, .7f, null),
+                    ("Mech Glass", "#4A3E66", -1f, -1f, null), ("Mech Gunmetal", "#3A3742", -1f, .85f, null),
+                    ("Mech Cockpit Well", "#1A1424", -1f, -1f, null), ("Mech Glow Core", "#FFE6B8", -1f, -1f, "#FFD58A"),
+                    ("Mech Sticker Pink", "#E6C27A", -1f, .4f, null), ("Mech Cream", "#C9A15E", -1f, .5f, null),
+                    ("Mech Sticker Orange", "#FF9A2E", -1f, -1f, null), ("Mech Seam", "#0E0B12", -1f, -1f, null),
+                    ("Mech Magenta", "#E8C36E", .3f, .5f, null), ("Mech Sticker Mint", "#FF9A2E", -1f, -1f, null),
+                    ("Mech Sticker Ink", "#1A1420", -1f, -1f, null) } },
+            // 瓷白、天蓝、古铜，青色灯光，琥珀色玻璃
+            new SkinDef { id = "porcelain", en = "PORCELAIN SKY", zh = "青瓷晴空", tint = new Color(.98f, .99f, 1.03f),
+                primary = "#EFE7D6", secondary = "#3F86CF", accent = "#46E6F5",
+                flame = new[] { "#FFFFFF", "#7FF0FF", "#3F86CF", "#2D4FA0" },
+                mats = new[] {
+                    ("Mech Pink", "#EFE7D6", .22f, -1f, (string)null), ("Mech White", "#3F86CF", .3f, -1f, null),
+                    ("Mech Plum", "#A27C4A", .35f, .7f, null), ("Mech Lavender", "#2D63B0", .35f, -1f, null),
+                    ("Mech Glow Teal", "#46E6F5", -1f, -1f, "#46E6F5"), ("Mech Yellow", "#C69A52", .3f, .7f, null),
+                    ("Mech Glass", "#D9A441", -1f, -1f, null), ("Mech Gunmetal", "#6E5638", -1f, .8f, null),
+                    ("Mech Cockpit Well", "#2E2416", -1f, -1f, null), ("Mech Glow Core", "#E8FFFF", -1f, -1f, "#C8FAFF"),
+                    ("Mech Sticker Pink", "#8EC8F2", -1f, -1f, null), ("Mech Cream", "#C69A52", -1f, .5f, null),
+                    ("Mech Sticker Orange", "#2D63B0", -1f, -1f, null), ("Mech Seam", "#6A5236", -1f, -1f, null),
+                    ("Mech Magenta", "#2D63B0", -1f, -1f, null), ("Mech Sticker Mint", "#46E6F5", -1f, -1f, null),
+                    ("Mech Sticker Ink", "#183456", -1f, -1f, null) } },
+            // 亮粉、白、镜面银、金，绿色灯光和绿色玻璃
+            new SkinDef { id = "cherry", en = "CHERRY CAMPUS", zh = "樱桃校园", tint = new Color(1.06f, .92f, .98f),
+                primary = "#EC2E8C", secondary = "#F5F0EA", accent = "#3CEB80",
+                flame = new[] { "#FFFFFF", "#8CFFB0", "#EC2E8C", "#9C1C5C" },
+                mats = new[] {
+                    ("Mech Pink", "#EC2E8C", .24f, -1f, (string)null), ("Mech White", "#F5F0EA", .32f, -1f, null),
+                    ("Mech Plum", "#C0C2CC", .18f, .9f, null), ("Mech Lavender", "#F5F0EA", .32f, -1f, null),
+                    ("Mech Glow Teal", "#3CEB80", -1f, -1f, "#3CEB80"), ("Mech Yellow", "#D9B04A", .3f, .7f, null),
+                    ("Mech Glass", "#35C774", -1f, -1f, null), ("Mech Gunmetal", "#B9BCC6", .2f, .9f, null),
+                    ("Mech Cockpit Well", "#12341F", -1f, -1f, null), ("Mech Glow Core", "#E6FFE9", -1f, -1f, "#C2FFD0"),
+                    ("Mech Sticker Pink", "#FF9CCB", -1f, -1f, null), ("Mech Cream", "#D9B04A", -1f, .5f, null),
+                    ("Mech Sticker Orange", "#3CEB80", -1f, -1f, null), ("Mech Seam", "#7A1C48", -1f, -1f, null),
+                    ("Mech Magenta", "#FFFFFF", -1f, -1f, null), ("Mech Sticker Mint", "#3CEB80", -1f, -1f, null),
+                    ("Mech Sticker Ink", "#0E2A18", -1f, -1f, null) } },
+        };
+
+        static Color Hex(string hex) => ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.magenta;
+
+        static string Title(SkinDef def) => System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(def.en.ToLowerInvariant());
+
+        static List<MatData> SkinMats(List<MatData> mats, SkinDef def) => mats.Select(d =>
+        {
+            var o = new MatData { name = d.name, color = d.color, emission = d.emission, rough = d.rough, metal = d.metal, strength = d.strength, alpha = d.alpha };
+            foreach (var m in def.mats)
+            {
+                if (m.mat != d.name) continue;
+                o.color = Hex(m.color);
+                if (m.rough >= 0) o.rough = m.rough;
+                if (m.metal >= 0) o.metal = m.metal;
+                if (m.emit != null) o.emission = Hex(m.emit);
+            }
+            return o;
+        }).ToList();
+
+        static Gradient FlameGradient(SkinDef def)
+        {
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Hex(def.flame[0]), 0), new GradientColorKey(Hex(def.flame[1]), .25f),
+                              new GradientColorKey(Hex(def.flame[2]), .6f), new GradientColorKey(Hex(def.flame[3]), 1) },
+                      new[] { new GradientAlphaKey(.95f, 0), new GradientAlphaKey(.85f, .25f), new GradientAlphaKey(.45f, .6f), new GradientAlphaKey(0, 1) });
+            return g;
+        }
+
+        static void SetUpSkins(GameObject host, DivaMechToggle toggle, List<MatData> mats)
+        {
+            const string dir = GeneratedDir + "/Skins";
+            if (!AssetDatabase.IsValidFolder(dir)) AssetDatabase.CreateFolder(GeneratedDir, "Skins");
+            var skins = new List<DivaMechSkin>();
+            foreach (var def in SkinDefs)
+            {
+                Material atlas, glass, elephant;
+                if (def.id == "classic")
+                {
+                    atlas = AssetDatabase.LoadAssetAtPath<Material>(GeneratedDir + "/Mech Atlas.mat");
+                    glass = AssetDatabase.LoadAssetAtPath<Material>(GeneratedDir + "/Mech Glass.mat");
+                    elephant = toggle.candyMaterial;
+                }
+                else
+                {
+                    var sm = SkinMats(mats, def);
+                    atlas = MakeAtlas(sm, " " + Title(def), dir);
+                    var glassData = sm.FirstOrDefault(d => d.alpha < 1);
+                    glass = glassData != null ? MakeMaterial(glassData, dir + "/Mech Glass " + Title(def) + ".mat") : null;
+                    elephant = null;
+                    if (toggle.originalSkin)
+                    {
+                        string path = dir + "/Elephant " + Title(def) + ".mat";
+                        elephant = AssetDatabase.LoadAssetAtPath<Material>(path);
+                        if (!elephant) { elephant = new Material(toggle.originalSkin); AssetDatabase.CreateAsset(elephant, path); }
+                        else elephant.CopyPropertiesFromMaterial(toggle.originalSkin);
+                        elephant.SetColor("_BaseColor", def.tint);
+                        EditorUtility.SetDirty(elephant);
+                    }
+                }
+                skins.Add(new DivaMechSkin
+                {
+                    id = def.id, nameEn = def.en, nameZh = def.zh, atlas = atlas, glass = glass, elephant = elephant,
+                    primary = Hex(def.primary), secondary = Hex(def.secondary), accent = Hex(def.accent),
+                    flame = FlameGradient(def), flameGlow = new Color(Hex(def.flame[1]).r, Hex(def.flame[1]).g, Hex(def.flame[1]).b, .35f),
+                });
+            }
+            var comp = host.GetComponent<DivaMechSkins>();
+            if (!comp) comp = Undo.AddComponent<DivaMechSkins>(host);
+            Undo.RecordObject(comp, "Diva mech skins");
+            comp.skins = skins.ToArray();
+            comp.toggle = toggle;
+            comp.boosters = host.GetComponent<DivaBoosters>();
+            EditorUtility.SetDirty(comp);
+            AssetDatabase.SaveAssets();
+            Debug.Log("DIVA_MECH_SKINS " + string.Join(", ", skins.Select(x => x.nameEn)));
+        }
+
+        /// <summary>只重新生成皮肤材质并登记到 DivaMechSkins（不重建零件，场景改动很小）。</summary>
+        [MenuItem("Diva/Rebuild D.Va Mech Skins")]
+        public static void RebuildSkinsMenu()
+        {
+            var smr = FindElephant();
+            var host = smr.transform.root.gameObject;
+            var toggle = host.GetComponentInChildren<DivaMechToggle>(true);
+            if (!toggle) throw new InvalidOperationException("Add the D.Va mech first (Diva > Add D.Va Mech to Elephant).");
+            ReadData(out var mats, out _, out _, out _);
+            SetUpSkins(host, toggle, mats);
+            EditorSceneManager.MarkSceneDirty(smr.gameObject.scene);
+        }
+
+        /// <summary>Batch: -executeMethod Diva.EditorTools.DivaMechBuilder.SkinsFromCommandLine -divaScene S [-divaShots dir]</summary>
+        public static void SkinsFromCommandLine()
+        {
+            var args = Environment.GetCommandLineArgs();
+            string Arg(string name) { int i = Array.IndexOf(args, name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : null; }
+            string scene = Arg("-divaScene") ?? "Assets/DigiPhant/Scenes/Diva.unity";
+            EditorSceneManager.OpenScene(scene, OpenSceneMode.Single);
+            RebuildSkinsMenu();
+            EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+            string shots = Arg("-divaShots");
+            if (!string.IsNullOrEmpty(shots)) CaptureSkins(shots);
+            Debug.Log("DIVA_MECH_SKINS_OK " + scene);
+        }
+
+        /// <summary>每款皮肤拍一张正侧面图，存成 skin_<id>.png（编辑模式下临时换皮肤，拍完换回经典）。</summary>
+        public static void CaptureSkins(string dir)
+        {
+            Directory.CreateDirectory(dir);
+            var smr = FindElephant();
+            var root = smr.transform.root;
+            var comp = root.GetComponent<DivaMechSkins>();
+            if (!comp || comp.skins.Length == 0) { Debug.LogWarning("DIVA_MECH_SKINS no skins to capture"); return; }
+            Vector3 fwd = Vector3.ProjectOnPlane(root.forward, Vector3.up).normalized;
+            var head = smr.bones.FirstOrDefault(t => t && t.name == "elephant_Head_bone");
+            var tail = smr.bones.FirstOrDefault(t => t && t.name == "elephant_Tail1_bone");
+            if (head && tail) fwd = Vector3.ProjectOnPlane(head.position - tail.position, Vector3.up).normalized;
+            var right = Vector3.Cross(Vector3.up, fwd).normalized;
+            float size = smr.bounds.size.magnitude;
+            var camGo = new GameObject("DivaMechSkinCamera") { hideFlags = HideFlags.HideAndDontSave };
+            var cam = camGo.AddComponent<Camera>();
+            cam.fieldOfView = 35; cam.nearClipPlane = .05f; cam.farClipPlane = 500; cam.clearFlags = CameraClearFlags.Skybox;
+            var rt = new RenderTexture(1100, 820, 24, RenderTextureFormat.ARGB32);
+            bool forceSkin = smr.forceMatrixRecalculationPerRender;
+            smr.forceMatrixRecalculationPerRender = true;
+            try
+            {
+                for (int i = 0; i < comp.skins.Length; i++)
+                {
+                    comp.Apply(i);
+                    Shoot(cam, rt, smr.bounds.center, (fwd * .55f - right * .95f).normalized, .32f, size * 1.2f, Path.Combine(dir, "skin_" + comp.skins[i].id + ".png"));
+                    Shoot(cam, rt, smr.bounds.center, (-fwd * .75f - right * .6f).normalized, .45f, size * 1.2f, Path.Combine(dir, "skin_" + comp.skins[i].id + "_back.png"));
+                }
+            }
+            finally
+            {
+                comp.Apply(0);
+                smr.forceMatrixRecalculationPerRender = forceSkin;
+                UnityEngine.Object.DestroyImmediate(camGo);
+                rt.Release();
+            }
+            Debug.Log("DIVA_MECH_SKIN_SHOTS " + dir);
         }
 
         static Material EffectMaterial(string name, Texture2D tex, bool additive)

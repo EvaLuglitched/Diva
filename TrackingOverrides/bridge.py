@@ -308,7 +308,7 @@ def main():
                         slot = person['slot']
                         person['gestures'] = gestures.update(slot, bodies[slot], timestamp / 1000., matched_hands.get(slot, []), frame.shape[1] / frame.shape[0])
                         if needs_diva_neutral:
-                            person['gestures'].update(go=0.,steer=0.,aim=0.,shoot=False,drink=False)
+                            person['gestures'].update(go=0.,steer=0.,aim=0.,shoot=False,drink=False,ult=False)
                 sender.sendto(json.dumps(packet, allow_nan=False).encode(), ('127.0.0.1', args.port))
                 h, w = frame.shape[:2]
                 # Draw every detection, even while waiting for the full group or

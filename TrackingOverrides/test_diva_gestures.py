@@ -133,6 +133,22 @@ class GestureTests(unittest.TestCase):
             self.assertTrue(g['shoot'])
             if sign==0: self.assertEqual(g['aim'],0)
             else: self.assertEqual(math.copysign(1,g['aim']),sign)
+    def test_ult_both_hands_above_head_held(self):
+        d=DivaGestureDetector()
+        for i in range(7): g=d.update(1,body(height=1.2,separate=.8),i*.1)
+        self.assertFalse(g['ult'])                       # 0.6 s: not yet
+        for i in range(7,12): g=d.update(1,body(height=1.2,separate=.8),i*.1)
+        self.assertTrue(g['ult']); self.assertEqual(g['go'],0.); self.assertEqual(g['aim'],0.)
+        g=d.update(1,body(height=0),1.2)
+        self.assertFalse(g['ult'])                       # hands down releases it
+    def test_pumping_through_the_top_is_not_ult(self):
+        d=DivaGestureDetector()
+        for i in range(30): g=d.update(1,body(height=.5+math.sin(i*.9)*.6),i*.1); self.assertFalse(g['ult'])
+    def test_one_raised_arm_aims_not_ult(self):
+        d=DivaGestureDetector(); b=body(height=0)
+        b[15]['y']=.3-1.2*.3
+        for i in range(12): g=d.update(1,b,i*.1)
+        self.assertFalse(g['ult']); self.assertNotEqual(g['aim'],0.)
     def test_drink_uses_remembered_mouth_when_hands_hide_the_face(self):
         d=DivaGestureDetector()
         d.update(3,body(),0)
