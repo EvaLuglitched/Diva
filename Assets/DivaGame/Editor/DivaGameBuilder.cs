@@ -570,23 +570,27 @@ public static class DivaGameBuilder
             var anchor = Group(parent, "Cloud " + (i + 1));
             anchor.localPosition = Quaternion.Euler(0, angle, 0) * new Vector3(0, 30 + (h >> 9) % 9, radius);
             anchor.localRotation = Quaternion.Euler(0, (h >> 3) % 360, 0);
-            anchor.localScale = new Vector3(14 + (h >> 11) % 6, 1.6f, 9 + (h >> 15) % 4);
-            if (slots.clouds != null && slots.clouds.Length > 0)
+            // The Fab cloud (not in git) with a Kenney stand-in beside it, shown when the Fab file is missing.
+            Transform fab = null;
+            var prefab = slots.clouds != null && slots.clouds.Length > 0 ? slots.clouds[(int)((h >> 17) % slots.clouds.Length)] : null;
+            if (prefab)
             {
                 // Downloaded clouds keep their own materials; size them by width rather than the stand-in's scale.
-                var prefab = slots.clouds[(int)((h >> 17) % slots.clouds.Length)];
-                anchor.localScale = Vector3.one;
-                if (prefab) FitWidth(prefab, anchor, 14 + (h >> 11) % 7, i);
+                fab = Group(anchor, "Fab");
+                FitWidth(prefab, fab, 14 + (h >> 11) % 7, i);
             }
-            else if (model)
+            var standIn = Group(anchor, "Stand-in");
+            standIn.localScale = new Vector3(14 + (h >> 11) % 6, 1.6f, 9 + (h >> 15) % 4);
+            if (model)
             {
-                var c = (GameObject)PrefabUtility.InstantiatePrefab(model, anchor);
+                var c = (GameObject)PrefabUtility.InstantiatePrefab(model, standIn);
                 foreach (var rr in c.GetComponentsInChildren<Renderer>())
                 {
                     rr.sharedMaterials = rr.sharedMaterials.Select(_ => cloud).ToArray();
                     rr.shadowCastingMode = ShadowCastingMode.Off;
                 }
             }
+            AddFallback(anchor, fab, standIn);
             var motion = anchor.gameObject.AddComponent<DivaFloat>();
             motion.bobHeight = 1.2f + (h >> 19) % 3 * .4f; motion.bobSpeed = .25f + (h >> 21) % 3 * .05f;
             motion.driftRadius = 4 + (h >> 23) % 4; motion.driftSpeed = .04f + (h >> 25) % 3 * .015f;
@@ -627,27 +631,25 @@ public static class DivaGameBuilder
         orbit.height = slots.rocketOrbitHeight;   // with the wide orbit: above the skyline, in the game camera's view
         orbit.startAngle = 70;   // starts ahead of the elephant at the start line, then flies across
         var body = Group(hover, "Rocket body");
-        GameObject model;
-        if (slots.rocket)
-        {
-            model = (GameObject)PrefabUtility.InstantiatePrefab(slots.rocket, body);
-            model.transform.localRotation = Quaternion.FromToRotation(slots.rocketNoseAxis.normalized, Vector3.forward);
-        }
-        else
-        {
-            model = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(TownFolder + "/Rocket.fbx"), body);
-            model.transform.localRotation = Quaternion.FromToRotation(Vector3.up, Vector3.forward);   // kit rocket: nose up
-        }
         // Measure with the body axis-aligned in world space (bounds are world AABBs), then tilt.
         body.rotation = Quaternion.identity;
-        var renderers = model.GetComponentsInChildren<Renderer>();
-        if (renderers.Length > 0)
+        void Fit(GameObject prefab, Vector3 noseAxis, Transform group)
         {
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, group);
+            model.transform.localRotation = Quaternion.FromToRotation(noseAxis.normalized, Vector3.forward);
+            var renderers = model.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return;
             Bounds Measure() { var b = renderers[0].bounds; foreach (var r in renderers) b.Encapsulate(r.bounds); return b; }
             model.transform.localScale *= length / Mathf.Max(.01f, Measure().size.z);
             model.transform.position += body.position - Measure().center;
             foreach (var r in renderers) r.shadowCastingMode = ShadowCastingMode.Off;
         }
+        // The Fab rocket (not in git) with the kit rocket beside it, shown when the Fab file is missing.
+        Transform fab = null;
+        if (slots.rocket) { fab = Group(body, "Fab"); Fit(slots.rocket, slots.rocketNoseAxis, fab); }
+        var standIn = Group(body, "Stand-in");
+        Fit(AssetDatabase.LoadAssetAtPath<GameObject>(TownFolder + "/Rocket.fbx"), Vector3.up, standIn);   // kit rocket: nose up
+        AddFallback(body, fab, standIn);
         body.localRotation = Quaternion.Euler(-slots.rocketPitch, 0, 0);   // nose (+Z) tipped up by the pitch
         float tail = -length / 2;
         Part(body, "Exhaust flame", PrimitiveType.Sphere, flameOuter, new Vector3(0, 0, tail - 2.2f * k), new Vector3(2.2f, 2.2f, 5.5f) * k)
@@ -661,6 +663,14 @@ public static class DivaGameBuilder
         orbit.Place(0);
     }
 
+    static void AddFallback(Transform holder, Transform preferred, Transform standIn)
+    {
+        var fallback = holder.gameObject.AddComponent<DivaModelFallback>();
+        fallback.preferred = preferred;
+        fallback.standIn = standIn;
+        fallback.Apply();
+    }
+
     /// <summary>
     /// Reads the nose angle of the rocket currently in the scene (including any hand rotation of the
     /// model or body) into the slots, so a rebuild keeps it.
@@ -671,9 +681,20 @@ public static class DivaGameBuilder
         var hover = old ? old.transform.Find("Giant rocket") : null;
         if (hover && !hover.GetComponent<DivaOrbit>()) return;
         var body = hover ? hover.Find("Rocket body") : null;
-        var model = body ? body.Cast<Transform>().FirstOrDefault(t => t.GetComponentInChildren<Renderer>() && !t.name.StartsWith("Exhaust")) : null;
+        if (!body) return;
+        // Current layout: the models sit in "Fab" / "Stand-in" groups; older layers had the model straight under the body.
+        var fabGroup = body.Find("Fab");
+        var standInGroup = body.Find("Stand-in");
+        Transform model;
+        bool fab;
+        if (fabGroup && fabGroup.childCount > 0 && fabGroup.GetComponentInChildren<Renderer>(true)) { model = fabGroup.GetChild(0); fab = true; }
+        else if (standInGroup && standInGroup.childCount > 0) { model = standInGroup.GetChild(0); fab = false; }
+        else
+        {
+            model = body.Cast<Transform>().FirstOrDefault(t => t.GetComponentInChildren<Renderer>() && !t.name.StartsWith("Exhaust"));
+            fab = model && slots.rocket && PrefabUtility.GetCorrespondingObjectFromSource(model.gameObject) == slots.rocket;
+        }
         if (!model) return;
-        bool fab = slots.rocket && PrefabUtility.GetCorrespondingObjectFromSource(model.gameObject) == slots.rocket;
         Vector3 noseAxis = fab ? slots.rocketNoseAxis.normalized : Vector3.up;
         Vector3 nose = Quaternion.Inverse(hover.rotation) * (model.rotation * noseAxis);
         float pitch = Mathf.Round(Mathf.Asin(Mathf.Clamp(nose.normalized.y, -1, 1)) * Mathf.Rad2Deg * 10) / 10;
