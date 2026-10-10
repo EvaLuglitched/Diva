@@ -67,7 +67,8 @@ namespace Diva.VR
         void Update()
         {
             if (until > 0 && Time.time >= until) Stop();
-            if (tail) tail.intensity = Mathf.MoveTowards(tail.intensity, Active ? 5f + 1.5f * Mathf.Sin(Time.time * 30) : 0, Time.deltaTime * 20);
+            // 尾灯慢慢亮起来（一下全亮整个画面会跳一下）
+            if (tail) tail.intensity = Mathf.MoveTowards(tail.intensity, Active ? 2.2f + .5f * Mathf.Sin(Time.time * 30) : 0, Time.deltaTime * 4);
         }
 
         // 风的线条：驾驶舱两侧往后飞的细长亮条（驾驶舱坐标里模拟，跟着大象）
@@ -81,9 +82,9 @@ namespace Diva.VR
             var main = streaks.main;
             main.simulationSpace = ParticleSystemSimulationSpace.Local;
             main.startLifetime = .45f; main.startSpeed = 0; main.startSize = new ParticleSystem.MinMaxCurve(.03f, .06f);
-            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, .9f, 1f, .7f), new Color(.6f, 1f, .95f, .5f));
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, .9f, 1f, .35f), new Color(.6f, 1f, .95f, .25f));
             main.maxParticles = 300; main.playOnAwake = false; main.loop = true;
-            var em = streaks.emission; em.rateOverTime = 160;
+            var em = streaks.emission; em.rateOverTime = 110;
             var sh = streaks.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(3.2f, 2.2f, .5f);
             var vel = streaks.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.Local;
             vel.z = new ParticleSystem.MinMaxCurve(-14, -20);
