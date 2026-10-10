@@ -14,7 +14,7 @@ using UnityEngine.XR.Management;
 namespace Diva.VR.EditorTools
 {
     /// <summary>
-    /// 一键打包到 Vision Pro：Metal 渲染、Mixed 沉浸（开场传送门要透出真实房间，之后整个镇子画满不透明，和完全沉浸一样），
+    /// 一键打包到 Vision Pro：Metal 渲染、完全沉浸，
     /// 手部追踪，可以看到自己的真手，生成 Xcode 工程到 Builds/visionOS。
     /// 只在装了 Apple visionOS XR Plugin 的电脑上编译（需要 Pro / 学生授权；Personal 授权的电脑上这个插件会被卸载）。
     /// 装机：在 Xcode 里打开 Builds/visionOS 按运行。主屏幕上的名字要在 Unity 外面改（Unity 进程占着 Info.plist，在里面写会把它清空）：
@@ -49,7 +49,7 @@ namespace Diva.VR.EditorTools
         /// <summary>命令行（模拟器）：… -executeMethod Diva.VR.EditorTools.DivaVRBuild.BuildSimulatorFromCommandLine</summary>
         public static void BuildSimulatorFromCommandLine() => EditorApplication.Exit(Build(true) == BuildResult.Succeeded ? 0 : 1);
 
-        static bool Full => System.Environment.GetCommandLineArgs().Contains("-divaFull");
+        static bool Mixed => System.Environment.GetCommandLineArgs().Contains("-divaMixed");
 
         public static BuildResult Build(bool simulator = false)
         {
@@ -58,7 +58,7 @@ namespace Diva.VR.EditorTools
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { Scene },
-                locationPathName = (simulator ? Output + "-sim" : Output) + (Full ? "-full" : ""),
+                locationPathName = (simulator ? Output + "-sim" : Output) + (Mixed ? "-mixed" : ""),
                 target = BuildTarget.VisionOS,
                 options = BuildOptions.None
             });
@@ -115,18 +115,15 @@ namespace Diva.VR.EditorTools
                 Debug.Log("DIVA_VR visionOS settings registered: " + AssetDatabase.GetAssetPath(vos));
             }
             vos.appMode = VisionOSSettings.AppMode.Metal;
-            // Mixed：画面透明的地方露出真实房间（传送门开场的房间就是靠这个）；镇子和天空是不透明的，开场之后看不到房间
-            vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Mixed;
-            // 排查用：命令行 -divaFull 打完全沉浸的包（没有透视）
-            if (Full) vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Full;
+            // 完全沉浸：一睁眼就在游戏里（Carl 要的）。命令行 -divaMixed 打透视版（画面透明的地方露出真实房间）
+            vos.metalImmersionStyle = Mixed ? VisionOSSettings.ImmersionStyle.Mixed : VisionOSSettings.ImmersionStyle.Full;
             vos.upperLimbVisibility = VisionOSSettings.Visibility.Visible;
             vos.foveatedRendering = true;
             vos.handsTrackingUsageDescription = "Diva uses your hands to pilot the mech elephant: pinch to spray, hands up for the ultimate.";
             vos.worldSensingUsageDescription = "Diva opens a portal in your room and keeps the cockpit steady.";
             EditorUtility.SetDirty(vos);
 
-            // -divaFull 的包用另一个 ID，可以和透视版同时装在头显上对比（主屏幕名字在 Unity 外面改成 "Diva VR Full"）
-            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.VisionOS, Full ? "com.jchen60.divavr.full" : "com.jchen60.divavr");
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.VisionOS, "com.jchen60.divavr");
 
             // Apple visionOS 插件自带的项目检查规则（菜单里才会跑，命令行打包不会）要求：
             //   每个摄像机都要生成深度纹理（合成器每帧要拿深度把画面摆进空间，没有就一帧都不显示）；

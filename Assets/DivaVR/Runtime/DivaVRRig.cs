@@ -126,9 +126,10 @@ namespace Diva.VR
             DivaVRDebug.Apply(cam, transform, eyeHeight);
             if (DivaVRAutopilot.On) gameObject.AddComponent<DivaVRAutopilot>();
             if (DivaVRCapture.Requested) gameObject.AddComponent<DivaVRCapture>();
-            // 每次打开 app 先演一次传送门开场：站在自己的房间里，糖果镇从门里过来
-            if (!DivaVR.ArrivalDone && !DivaVRDebug.On("DIVA_NOPORTAL")) gameObject.AddComponent<DivaVRPortal>();
+            // 每次打开 app 先演一次泡泡开场：在梦境里捏一下出发，泡泡载着人绕镇子飞一圈，落到大象背上
+            if (!DivaVR.ArrivalDone && !DivaVRDebug.On("DIVA_NOPORTAL")) gameObject.AddComponent<DivaVRBubbleTour>();
             gameObject.AddComponent<DivaVRInput>();
+            gameObject.AddComponent<DivaVRCoach>();
         }
 
         /// <summary>
@@ -238,7 +239,7 @@ namespace Diva.VR
             placed = true;
             var rot = Quaternion.Euler(0, yaw, 0);
             transform.SetPositionAndRotation(root.TransformPoint(seat), rot);
-            if (!recentered) Recenter();
+            if (!recentered) Recenter(boardKeepFacing);
             UpdateStats();
             if (DivaVRCapture.Requested && Time.unscaledTime > nextPoseLog && cam)
             {
@@ -287,13 +288,20 @@ namespace Diva.VR
         /// <summary>人站着时眼睛离房间地面多高（米）。</summary>
         public float StandingEyeHeight => cam ? cam.transform.localPosition.y + offset.localPosition.y : 1.6f;
 
+        /// <summary>站着时（开场）把驾驶舱放到 pos、朝向 rot（每帧调用）。</summary>
+        public void Place(Vector3 pos, Quaternion rot) { if (Detached) transform.SetPositionAndRotation(pos, rot); }
+
         /// <summary>上机甲：回到大象背上的座位，按现在的头重新对准（这一帧的 LateUpdate 里就到位）。</summary>
-        public void Board()
+        /// <param name="keepFacing">只对齐位置，不把人现在面朝的方向转成大象的正前方（泡泡落下来时朝向已经对好了，转了反而跳）。</param>
+        public void Board(bool keepFacing = false)
         {
             Detached = false;
-            placed = false;
+            // 朝向从现在的接着平滑转过去（不跳）；位置这一帧就到座位
+            yaw = transform.eulerAngles.y; yawVelocity = 0; placed = true;
             recentered = false;
+            boardKeepFacing = keepFacing;
         }
+        bool boardKeepFacing;
 
         /// <summary>把头对到眼睛的位置：头显里人的头在哪儿都行（站着、坐着），都放到座位上方 eyeHeight 处。</summary>
         /// <param name="keepFacing">只重新对齐位置，不改"正前方"（开跑前人可能正转头看别处）。</param>

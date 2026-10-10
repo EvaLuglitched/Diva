@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 namespace Diva.VR.EditorTools
 {
     /// <summary>
-    /// 驾驶舱用的三个材质和传送门开场的房间挡板存成资源（Assets/DivaVR/Resources），打包时着色器和变体才会一起进包；
+    /// 驾驶舱用的三个材质和泡泡开场的材质存成资源（Assets/DivaVR/Resources），打包时着色器和变体才会一起进包；
     /// 运行时只是复制一份改颜色。
     /// </summary>
     static class DivaVRMaterials
@@ -34,10 +34,13 @@ namespace Diva.VR.EditorTools
             vignette.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             vignette.renderQueue = 4000;
             Save(vignette, "DivaVR Vignette");
-            // 传送门开场的"房间"挡板（自己写的着色器，放进 Resources 才会打包进去）
-            var occluder = Shader.Find("Diva/VR Portal Occluder");
-            if (occluder) Save(new Material(occluder), "DivaVR Portal Occluder");
-            else Debug.LogError("DIVA_VR: shader Diva/VR Portal Occluder not found");
+            // 泡泡开场的梦境球和泡泡（自己写的着色器，放进 Resources 才会打包进去）
+            foreach (var (shaderName, assetName) in new[] { ("Diva/VR Dream Sphere", "DivaVR Dream Sphere"), ("Diva/VR Bubble", "DivaVR Bubble") })
+            {
+                var shader = Shader.Find(shaderName);
+                if (shader) Save(new Material(shader), assetName);
+                else Debug.LogError("DIVA_VR: shader " + shaderName + " not found");
+            }
             AssetDatabase.SaveAssets();
         }
 

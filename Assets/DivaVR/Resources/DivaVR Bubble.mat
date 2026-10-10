@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: DivaVR Portal Occluder
-  m_Shader: {fileID: 4800000, guid: 5044205537de447a6a7968bc3d40ff42, type: 3}
+  m_Name: DivaVR Bubble
+  m_Shader: {fileID: 4800000, guid: c0dc75f5c667c49d1b3df2bb628bb9a0, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -25,9 +25,9 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _PortalRadius: 0
+    - _Alpha: 0.55
+    - _Shift: 0
     m_Colors:
-    - _PortalCenter: {r: 0, g: 0, b: 0, a: 0}
-    - _PortalNormal: {r: 0, g: 0, b: 1, a: 0}
+    - _Tint: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

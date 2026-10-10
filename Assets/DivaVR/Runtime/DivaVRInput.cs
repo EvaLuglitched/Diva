@@ -24,10 +24,10 @@ namespace Diva.VR
         DivaVRSimulator simulator;
         DivaVRHands hands;
         DivaVRAutopilot autopilot;
-        DivaVRPortal portal;
+        DivaVRBubbleTour tour;
         Diva.Show.DivaShowDirector show;
 
-        /// <summary>这一帧人的操作（传送门开场时游戏拿到的是开场改过的，见 DivaVRPortal.Drive）。</summary>
+        /// <summary>这一帧人的操作（开场时游戏拿到的是空的，见 DivaVRBubbleTour.Drive）。</summary>
         public DivaVRFrame Current { get; private set; }
 
         void Start()
@@ -37,7 +37,7 @@ namespace Diva.VR
             simulator = GetComponent<DivaVRSimulator>();
             hands = GetComponent<DivaVRHands>();
             autopilot = GetComponent<DivaVRAutopilot>();
-            portal = GetComponent<DivaVRPortal>();
+            tour = GetComponent<DivaVRBubbleTour>();
             show = FindAnyObjectByType<Diva.Show.DivaShowDirector>();
         }
 
@@ -51,8 +51,8 @@ namespace Diva.VR
             // 捏合的确认音（参考 Meta / Ultraleap 的手势设计：手势被识别要立刻有声音或画面反馈）
             if (frame.shoot && !Current.shoot && show && show.Sound != null) show.Sound.Play("tick", .5f);
             Current = frame;
-            // 传送门开场：人的手势只给开场用（捏开门、摸鼻子、举手上机甲），大象由开场带着走
-            if (portal && portal.Driving) frame = portal.Drive(frame);
+            // 泡泡开场：人的手势只给开场用（捏一下出发），游戏拿不到
+            if (tour && tour.Driving) frame = tour.Drive(frame);
             demo.State.ClearPeople();
             demo.State.Accept(1, frame.go, frame.steer, frame.aim, frame.shoot, frame.drink, 1, Time.realtimeSinceStartup, frame.ult);
         }

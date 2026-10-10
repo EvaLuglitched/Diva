@@ -88,6 +88,11 @@ namespace Diva.Show
                 // 摸鼻子时短促欢快的一声"嘟"
                 Make("toot", .55f, voice(.55f, 330, 520, 60));
             }
+            // 泡泡飞行时的风：带通噪声，音量随周期 2 秒的起伏（和循环长度一样，接缝处连续）
+            {
+                var band = new Resonance(380, .8f); var band2 = new Resonance(900, 1.2f);
+                Make("wind", 2f, t => (band.Step(Noise()) * .9f + band2.Step(Noise()) * .35f) * (.6f + .4f * Mathf.Sin(2 * Mathf.PI * .5f * t)) * .5f, true);
+            }
             Make("rise", 1.3f, t =>
             {
                 float u = t / 1.3f;
@@ -136,13 +141,19 @@ namespace Diva.Show
             return Mathf.Sin(2 * Mathf.PI * notes[i] * u) * (i == notes.Length - 1 ? Mathf.Exp(-u / .2f) : 1) * Mathf.Clamp01(u * 200);
         }
 
-        void Make(string name, float seconds, Func<float, float> f)
+        void Make(string name, float seconds, Func<float, float> f, bool loop = false)
         {
             int n = Mathf.CeilToInt(seconds * Rate);
             var data = new float[n];
             for (int i = 0; i < n; i++) data[i] = Mathf.Clamp(f(i / (float)Rate), -1, 1);
-            // 开头 2 毫秒、结尾 6 毫秒淡入淡出：没有归零就截断的声音会"哒"一下（无缝循环的门嗡鸣除外）
-            if (name != "portal")
+            // 循环的：结尾 40 毫秒和开头交叉淡化，接缝处听不出来
+            if (loop)
+            {
+                int x = Mathf.Min(n / 4, Rate * 40 / 1000);
+                for (int i = 0; i < x; i++) { float k = i / (float)x; data[n - x + i] = data[n - x + i] * (1 - k) + data[i] * k; }
+            }
+            // 开头 2 毫秒、结尾 6 毫秒淡入淡出：没有归零就截断的声音会"哒"一下（无缝循环的除外）
+            if (name != "portal" && !loop)
             {
                 int fadeIn = Mathf.Min(n / 4, Rate / 500), fadeOut = Mathf.Min(n / 4, Rate * 6 / 1000);
                 for (int i = 0; i < fadeIn; i++) data[i] *= i / (float)fadeIn;
