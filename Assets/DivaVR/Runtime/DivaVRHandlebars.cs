@@ -25,6 +25,8 @@ namespace Diva.VR
         public float Steer { get; private set; }
         /// <summary>握住的手有几只（0–2）；每只手往前推了多少（米），给指引牌的反馈条用。</summary>
         public int Held => (heldL ? 1 : 0) + (heldR ? 1 : 0);
+        public bool HeldLeft => heldL;
+        public bool HeldRight => heldR;
         public float PushL => pushL;
         public float PushR => pushR;
 

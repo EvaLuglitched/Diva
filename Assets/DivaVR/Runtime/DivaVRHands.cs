@@ -20,14 +20,17 @@ namespace Diva.VR
         public float pinchDistance = .02f;
         [Tooltip("手离嘴小于这个距离（米）算喝水。")]
         public float mouthDistance = .16f;
-        [Tooltip("双手高过头顶多少米、保持多少秒算举手。")]
-        public float ultAbove = .06f, ultHold = .5f;
+        [Tooltip("大招：两只手腕都举到比眼睛低不超过这么多米（眼睛的高度附近）、在身前，保持多少秒。举过头顶手会出摄像头视野，追踪丢了就识别不到。")]
+        public float ultBelowEye = .12f, ultHold = .4f;
+        [Tooltip("一只手追踪丢了多久以内当作还在。")]
+        public float blipSeconds = .3f;
 
         XRHandSubsystem hands;
         DivaVRHandlebars handlebars;
         Vector3 neutral;
         bool hasNeutral;
         float ultSince = -1;
+        readonly float[] lastUpAt = { -10f, -10f };
         static readonly List<XRHandSubsystem> found = new List<XRHandSubsystem>();
         // Vision Pro 的"看 + 捏"：系统给出捏下去那一刻眼睛看的方向（按控件路径读，不直接依赖 visionOS 插件的类型）
         readonly InputAction[] gazeDirection = new InputAction[2], gazePhase = new InputAction[2];
@@ -103,19 +106,39 @@ namespace Diva.VR
             // 走和转弯：手握住驾驶舱里的把手往前推、转动（DivaVRHandlebars）。以前用头的前倾 / 侧倾，太容易误触
             if (handlebars) { handlebars.Read(hands, space); f.go = handlebars.Go; f.steer = handlebars.Steer; }
             var mouth = head.position - head.up * .09f + head.forward * .04f;
-            int up = 0;
+            var fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+            int up = 0, i = 0;
+            float now = Time.unscaledTime;
             foreach (var hand in new[] { hands.leftHand, hands.rightHand })
             {
-                if (!hand.isTracked) continue;
+                bool onGrip = handlebars && (i == 0 ? handlebars.HeldLeft : handlebars.HeldRight);
+                if (!hand.isTracked)
+                {
+                    // 追踪丢了一下：这只手刚才举着就当还举着
+                    if (now - lastUpAt[i] < blipSeconds) up++;
+                    i++; continue;
+                }
                 bool thumb = hand.GetJoint(XRHandJointID.ThumbTip).TryGetPose(out var thumbPose);
                 bool index = hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var indexPose);
-                if (thumb && index && Vector3.Distance(thumbPose.position, indexPose.position) < pinchDistance) f.shoot = true;
-                if (index && Vector3.Distance(space.TransformPoint(indexPose.position), mouth) < mouthDistance) f.drink = true;
-                if (hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out var wrist) && space.TransformPoint(wrist.position).y > head.position.y + ultAbove) up++;
+                // 捏合 = 喷水；握着把手时手指本来就是弯的，不算（系统的"看 + 捏"另外算）
+                if (!onGrip && thumb && index && Vector3.Distance(thumbPose.position, indexPose.position) < pinchDistance) f.shoot = true;
+                if (index)
+                {
+                    var tip = space.TransformPoint(indexPose.position);
+                    // 手到嘴边：离嘴近、不高过眼睛、在脸前面
+                    if (Vector3.Distance(tip, mouth) < mouthDistance && tip.y < head.position.y + .02f && Vector3.Dot(tip - head.position, fwd) > -.02f) f.drink = true;
+                }
+                if (hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out var wrist))
+                {
+                    var w = space.TransformPoint(wrist.position);
+                    // 举手 = 手腕到眼睛高度附近、在身前（不用举过头顶：那里摄像头看不到手）
+                    if (w.y > head.position.y - ultBelowEye && Vector3.Dot(w - head.position, fwd) > .08f) { up++; lastUpAt[i] = now; }
+                }
+                i++;
             }
-            if (f.drink) f.shoot = false;   // 手在嘴边捏合不算喷水
+            if (f.drink) { f.shoot = false; up = 0; }   // 手在嘴边：不算喷水，也不算举手
             HandsUp = up;
-            if (up == 2) { if (ultSince < 0) ultSince = Time.unscaledTime; }
+            if (up == 2) { if (ultSince < 0) ultSince = now; }
             else ultSince = -1;
             f.ult = ultSince >= 0 && Time.unscaledTime - ultSince >= ultHold;
             if (f.ult || f.drink) f.go = f.steer = 0;

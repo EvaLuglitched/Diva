@@ -20,7 +20,12 @@ namespace Diva.VR
     {
         // 头显上也可以不靠启动参数：往 app 的 Documents 里放一个叫 diva_capture 的文件（xcrun devicectl device copy to …），人自己打开 app 也会截图
         public static bool Requested => DivaVRDebug.On("DIVA_CAPTURE") || Environment.GetCommandLineArgs().Contains("-divaCapture")
-                                        || File.Exists(Path.Combine(Application.persistentDataPath, "diva_capture"));
+                                        || FlagFile();
+        static bool FlagFile()
+        {
+            try { var p = Path.Combine(Application.persistentDataPath, "diva_capture"); return File.Exists(p) && File.ReadAllText(p).Trim() != "0"; }
+            catch { return false; }
+        }
 
         Camera cam;
         RenderTexture rt;

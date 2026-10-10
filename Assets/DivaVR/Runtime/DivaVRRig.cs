@@ -146,12 +146,12 @@ namespace Diva.VR
             if (Application.isEditor) return;
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
             {
-                urp.msaaSampleCount = 4;
-                // 渲染缩放用 1：Vision Pro 的画面由系统给出，URP 先画到缩小的图再放大拷过去时头显上可能没有画面
-                // （visionOS 用的是 Mobile 那套设置，缩放 0.8）。调试：环境变量 DIVA_RS=0.8 试别的值
-                urp.renderScale = DivaVRDebug.Float("DIVA_RS", 1);
-                urp.shadowDistance = Mathf.Min(urp.shadowDistance, 35);
-                urp.mainLightShadowmapResolution = Mathf.Max(urp.mainLightShadowmapResolution, 2048);
+                // 头显要稳 90 fps（每帧 11 毫秒）。之前 MSAA 4、缩放 1、2048 软阴影、阴影 35 米：GPU 每帧 22–28 毫秒，只有 45 fps，
+                // 每一帧都掉，合成器补帧，整个画面在"闪"。现在：MSAA 2、缩放 0.85、1024 软阴影、阴影 25 米，再加注视点渲染（Start 里开）
+                urp.msaaSampleCount = (int)DivaVRDebug.Float("DIVA_MSAA", 2);
+                urp.renderScale = DivaVRDebug.Float("DIVA_RS", .85f);
+                urp.shadowDistance = Mathf.Min(urp.shadowDistance, DivaVRDebug.Float("DIVA_SHADOWDIST", 25));
+                urp.mainLightShadowmapResolution = (int)DivaVRDebug.Float("DIVA_SHADOWRES", 1024);
                 // 阴影：2 级级联够用（双眼要画两遍），点光 / 聚光的阴影关掉（主光的保留）
                 urp.shadowCascadeCount = Mathf.Min(urp.shadowCascadeCount, 2);
                 // 透明通道输出（透视版要）由打包时决定（DivaVRBuild.PrepareUrp）：完全沉浸版关着，这里不再强行打开
@@ -170,6 +170,7 @@ namespace Diva.VR
         void Start()
         {
             startTime = Time.unscaledTime;
+            if (!Application.isEditor) { Foveation(); startHold = true; jumpFade = 1; }
             if (!loco || !loco.travelRoot) { Debug.LogWarning("DIVA_VR: no elephant (DigiPhantLocomotion.travelRoot); the rig stays put."); return; }
             root = loco.travelRoot;
             if (seat == Vector3.zero) seat = MeasureSeat();
@@ -303,13 +304,29 @@ namespace Diva.VR
         /// <summary>上机甲：回到大象背上的座位，按现在的头重新对准（这一帧的 LateUpdate 里就到位）。</summary>
         /// <param name="keepFacing">只对齐位置，不把人现在面朝的方向转成大象的正前方（泡泡落下来时朝向已经对好了，转了反而跳）。</param>
         /// <param name="snap">朝向这一帧直接对准大象（画面被盖住时用）：不盖住时慢慢转过去，眼睛看着世界自己转最容易晕。</param>
+        /// <summary>注视点渲染：视野边缘按低分辨率画（Vision Pro 的可变光栅化），GPU 省三四成。DIVA_FOV=0 关掉。</summary>
+        void Foveation()
+        {
+            var displays = new System.Collections.Generic.List<UnityEngine.XR.XRDisplaySubsystem>();
+            SubsystemManager.GetSubsystems(displays);
+            float level = DivaVRDebug.Float("DIVA_FOV", 1f);
+            foreach (var d in displays)
+            {
+                d.foveatedRenderingLevel = level;
+                d.foveatedRenderingFlags = level > 0 ? UnityEngine.XR.XRDisplaySubsystem.FoveatedRenderingFlags.GazeAllowed : UnityEngine.XR.XRDisplaySubsystem.FoveatedRenderingFlags.None;
+            }
+            Debug.Log($"DIVA_VR foveation {level} on {displays.Count} displays");
+        }
+
+        // 开场前几秒着色器还在编译、帧率不稳：用暗场盖住，稳定了（连续 12 帧正常）或最多 4 秒后淡开
+        bool startHold; int steadyFrames;
         Vector3 lastRoot; bool hasLastRoot;
         float jumpFade;
         Transform fadeSphere; Material fadeMat;
 
         void UpdateJumpFade()
         {
-            if (jumpFade <= 0 && !fadeSphere) return;
+            if (jumpFade <= 0 && !fadeSphere && !startHold) return;
             if (!fadeSphere && cam)
             {
                 var shared = Resources.Load<Material>("DivaVR Vignette");
@@ -327,10 +344,16 @@ namespace Diva.VR
                 r.sharedMaterial = fadeMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
             if (!fadeSphere) return;
+            if (startHold)
+            {
+                steadyFrames = Time.unscaledDeltaTime < .03f ? steadyFrames + 1 : 0;
+                if (steadyFrames >= 12 || Time.unscaledTime - startTime > 4f) { startHold = false; Debug.Log($"DIVA_VR start fade released at {Time.unscaledTime - startTime:F1} s"); }
+                else jumpFade = 1;
+            }
             var c = new Color(.2f, .15f, .33f, DivaUiSmooth(jumpFade));
             fadeMat.color = c; if (fadeMat.HasProperty("_BaseColor")) fadeMat.SetColor("_BaseColor", c);
             fadeSphere.gameObject.SetActive(jumpFade > 0);
-            jumpFade = Mathf.MoveTowards(jumpFade, 0, Time.unscaledDeltaTime / .6f);
+            jumpFade = Mathf.MoveTowards(jumpFade, 0, Time.unscaledDeltaTime / (startHold ? 1 : 1.2f));
         }
 
         static float DivaUiSmooth(float t) { t = Mathf.Clamp01(t); return t * t * (3 - 2 * t); }
