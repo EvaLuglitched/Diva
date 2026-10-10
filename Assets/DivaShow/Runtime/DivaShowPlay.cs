@@ -31,6 +31,7 @@ namespace Diva.Show
 
         void StartRun()
         {
+            if (Diva.VR.DivaVR.Active && sound != null) sound.PlayLoop("race", .45f);
             if (game) game.ResetRun();
             demo.State.FillTank();
             stats = new RunStats { shots0 = laser ? laser.Shots : 0 };
@@ -148,6 +149,8 @@ namespace Diva.Show
         public float Charge => charge;
         public int RunHits => stats.hits;
 
+        int candyCombo; float lastCandyAt = -10;
+
         /// <summary>VR 冲刺（大招后、火箭道具）：推进器喷火、横幅。</summary>
         public void VrDash(bool on)
         {
@@ -169,8 +172,11 @@ namespace Diva.Show
             bonus += points;
             charge = Mathf.Min(100, charge + 4);
             stats.candies++;
+            // 连着吃音越来越高
+            candyCombo = Time.time - lastCandyAt < 3.5f ? candyCombo + 1 : 0; lastCandyAt = Time.time;
+            float pitch = 1 + .06f * Mathf.Min(candyCombo, 8);
             Feed(DivaText.F("feed.candy", points), new Color(1f, .8f, .3f));
-            if (Diva.VR.DivaVR.Active) sound.PlayAt("candy", at, .9f); else sound.Play("candy", .9f);
+            if (Diva.VR.DivaVR.Active) sound.PlayAt("candy", at, .9f, pitch); else sound.Play("candy", .9f, pitch);
         }
 
         void OnTargetHit(DivaTarget target)
@@ -180,7 +186,7 @@ namespace Diva.Show
             stats.hits++;
             if (Phase == ShowPhase.Ult) stats.ultHits++;
             Popup("+" + target.points, target.AimPoint, Color.white);
-            if (Diva.VR.DivaVR.Active) { sound.PlayAt("hit", target.AimPoint, .8f); VrHitMarker(target.AimPoint); } else sound.Play("hit", .8f);
+            if (Diva.VR.DivaVR.Active) { sound.PlayAt("hit", target.AimPoint, .8f, Random.Range(.92f, 1.14f)); VrHitMarker(target.AimPoint); } else sound.Play("hit", .8f);
             fx.Flash(target.AimPoint, Accent, 2.2f, .25f);
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }

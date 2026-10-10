@@ -40,6 +40,21 @@ namespace Diva.Show
                                       Mathf.Sin(2 * Mathf.PI * 3520 * t) * .08f) * Env(t, .004f, .22f) + Noise() * .08f * Env(t, .002f, .04f));
             Make("hit", .12f, t => (Noise() * .25f + Mathf.Sin(2 * Mathf.PI * 2200 * t) * .3f) * Env(t, .002f, .03f));
             Make("combo", .5f, t => Arp(t, new[] { 784f, 988f, 1175f, 1568f }, .07f) * .3f);
+            // 比赛背景乐：4 小节 128 BPM 的芯片音乐循环——方波贝斯、脉冲琶音、噪声踩镲。接到 Make 的 loop：无缝循环
+            {
+                float beat = 60f / 128f, bar = beat * 4, len = bar * 4;
+                float[] bass = { 65.41f, 65.41f, 98f, 98f, 87.31f, 87.31f, 65.41f, 65.41f, 73.42f, 73.42f, 110f, 110f, 98f, 98f, 82.41f, 82.41f };   // C2 G2 F2 C2 D2 A2 G2 E2
+                float[][] arps = { new[] { 523.25f, 659.25f, 783.99f, 1046.5f }, new[] { 523.25f, 698.46f, 880f, 1046.5f }, new[] { 587.33f, 698.46f, 880f, 1174.66f }, new[] { 493.88f, 659.25f, 783.99f, 987.77f } };
+                Make("race", len, t =>
+                {
+                    float tb = t / beat; int step8 = (int)(tb * 2) % 32; float in8 = (tb * 2 - Mathf.Floor(tb * 2)) * beat * .5f;
+                    float b = Square(bass[step8 / 2] * t) * .11f * Env(in8, .004f, .18f) * (step8 % 2 == 0 ? 1 : .6f);
+                    int barI = (int)(t / bar) % 4; int step16 = (int)(tb * 4) % 4; float in16 = (tb * 4 - Mathf.Floor(tb * 4)) * beat * .25f;
+                    float a = Mathf.Sign(Mathf.Sin(2 * Mathf.PI * arps[barI][step16] * t) + .3f) * .045f * Env(in16, .002f, .07f);
+                    float h = Noise() * (step8 % 2 == 1 ? .06f : .025f) * Env(in8, .001f, .03f);
+                    return b + a + h;
+                }, true);
+            }
             // 吃到糖果："叮~"两个音，清脆
             Make("candy", .28f, t => (Mathf.Sin(2 * Mathf.PI * (t < .07f ? 1568 : 2093) * t) * .4f + Mathf.Sin(2 * Mathf.PI * (t < .07f ? 3136 : 4186) * t) * .12f) * Env(t, .003f, .12f));
             Make("ready", .7f, t => Arp(t, new[] { 523f, 659f, 784f, 1047f, 1319f }, .09f) * .28f);
@@ -187,7 +202,7 @@ namespace Diva.Show
         /// <summary>
         /// 3D 音效：从世界里的某一点发出（VR 里命中声从靶子那里来，烟火在头顶）。用 8 个声源轮流播。
         /// </summary>
-        public void PlayAt(string name, Vector3 world, float gain = 1)
+        public void PlayAt(string name, Vector3 world, float gain = 1, float pitch = 1)
         {
             if (!source || !clips.TryGetValue(name, out var clip)) return;
             if (spatial.Count == 0)
@@ -202,17 +217,37 @@ namespace Diva.Show
                 }
             var src = spatial[nextSpatial++ % spatial.Count];
             src.transform.position = world;
+            src.pitch = pitch;
             src.PlayOneShot(clip, volume * gain * 1.4f);
             Played?.Invoke(clip, volume * gain);
         }
 
-        public void Play(string name, float gain = 1)
+        public void Play(string name, float gain = 1, float pitch = 1)
         {
-            if (source && clips.TryGetValue(name, out var clip))
-            {
-                source.PlayOneShot(clip, volume * gain);
-                Played?.Invoke(clip, volume * gain);
-            }
+            if (!source || !clips.TryGetValue(name, out var clip)) return;
+            if (Mathf.Abs(pitch - 1) < .001f) { source.PlayOneShot(clip, volume * gain); Played?.Invoke(clip, volume * gain); return; }
+            // 变调的一次性音：用单独的几个声源轮流（改主声源的音高会把正在播的其他声音一起变调）
+            if (pitched.Count == 0)
+                for (int i = 0; i < 4; i++)
+                {
+                    var go = new GameObject("Diva Show Sound Pitched " + i);
+                    go.transform.SetParent(source.transform, false);
+                    var s = go.AddComponent<AudioSource>(); s.playOnAwake = false; s.spatialBlend = 0; s.ignoreListenerPause = true;
+                    pitched.Add(s);
+                }
+            var src = pitched[nextPitched++ % pitched.Count];
+            src.pitch = pitch;
+            src.PlayOneShot(clip, volume * gain);
+            Played?.Invoke(clip, volume * gain);
+        }
+        readonly System.Collections.Generic.List<AudioSource> pitched = new System.Collections.Generic.List<AudioSource>();
+        int nextPitched;
+
+        /// <summary>循环播放一段合成的曲子（比赛的背景乐），走音乐声道，FadeMusic 停。</summary>
+        public void PlayLoop(string name, float gain = 1)
+        {
+            if (!music || !clips.TryGetValue(name, out var clip)) return;
+            music.clip = clip; music.loop = true; music.volume = volume * gain; music.Play();
         }
     }
 }

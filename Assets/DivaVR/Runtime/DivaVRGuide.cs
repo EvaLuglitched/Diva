@@ -51,6 +51,7 @@ namespace Diva.VR
         class Btn { public string key; public RectTransform rt; public DivaSlant plate; public TextMeshProUGUI label; public Action press; public bool primary; public float pressedAt = -10; public Color baseTop, baseBottom; }
         readonly List<Btn> buttons = new List<Btn>();
 
+        DivaVRGestureDemo demo;
         Step step = Step.Hidden;
         int roundSteps = 3;   // 这一局一共几步（学过了就 2 步：选涂装、出发）
         float stepAt, shownAt, allDoneAt = -1;
@@ -129,6 +130,9 @@ namespace Diva.VR
             fill = DivaUi.Image(bar.transform, "Fill", new Vector2(0, .5f), Vector2.zero, new Vector2(340, 14), new Color(1f, .45f, .8f)).rectTransform;
             fill.pivot = new Vector2(0, .5f); fill.anchoredPosition = Vector2.zero; fill.localScale = new Vector3(0, 1, 1);
             learnRoot.SetActive(false); handsRow.SetActive(false);
+            // 动作演示：牌子上方
+            var glow = Resources.Load<Material>("DivaVR Cockpit Glow"); var body = Resources.Load<Material>("DivaVR Cockpit Body");
+            if (glow && body) demo = DivaVRGestureDemo.Create(transform, new Vector3(-.12f, rig.eyeHeight + .36f, 1.4f), glow, body);
             DivaText.Changed += Refresh;
         }
 
@@ -222,6 +226,7 @@ namespace Diva.VR
                     break;
             }
             Fill();
+            UpdateDemo();
             if (next != Step.Hidden && show.Sound != null) show.Sound.Play("tick", .4f);
             Debug.Log("DIVA_VR guide " + next);
         }
@@ -310,11 +315,20 @@ namespace Diva.VR
             b.press?.Invoke();
         }
 
+        void UpdateDemo()
+        {
+            if (!demo) return;
+            if (step == Step.Learn && !AllDone) demo.Show((DivaVRGestureDemo.Move)(int)Current);
+            else if (step == Step.Ready) demo.Show(DivaVRGestureDemo.Move.HandsUp);
+            else demo.Hide();
+        }
+
         void Done(Move m)
         {
             var r = rows[(int)m];
             if (r.doneAt >= 0) return;
             r.doneAt = Time.unscaledTime; r.progress = 1;
+            UpdateDemo();
             if (show.Sound != null) show.Sound.Play("combo", .5f);
             Debug.Log("DIVA_VR guide learned " + m);
             if (AllDone) { allDoneAt = Time.unscaledTime; learned = true; }

@@ -577,6 +577,6 @@ namespace Diva.Show
         Color Accent => skins && skins.CurrentSkin != null ? skins.CurrentSkin.accent : new Color(.27f, .94f, .78f);
         Color Primary => skins && skins.CurrentSkin != null ? skins.CurrentSkin.primary : new Color(.93f, .49f, .75f);
         Color Secondary => skins && skins.CurrentSkin != null ? skins.CurrentSkin.secondary : new Color(.96f, .92f, .87f);
-        string SkinName => skins ? skins.DisplayName(skins.Current, DivaText.Chinese) : "";
+        public string SkinName => skins ? skins.DisplayName(skins.Current, DivaText.Chinese) : "";
     }
 }
