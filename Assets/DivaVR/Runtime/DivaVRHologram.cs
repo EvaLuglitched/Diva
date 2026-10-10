@@ -14,7 +14,7 @@ namespace Diva.VR
     public class DivaVRHologram : MonoBehaviour
     {
         [Tooltip("全息模型多高（米）：选涂装时 / 比赛中。")]
-        public float selectHeight = .52f, playHeight = .2f;
+        public float selectHeight = .62f, playHeight = .2f;   // 选涂装时 0.62 米高（Carl 觉得再大就挡视线）
 
         DivaShowDirector show;
         DivaMechSkins skins;
@@ -118,7 +118,7 @@ namespace Diva.VR
             bool select = show && (show.Phase == ShowPhase.Select || show.Phase == ShowPhase.Results || show.Phase == ShowPhase.Intro);
             // 选涂装：右前方、大（0.62 米高，换涂装一眼看到；中间留给"下一步"指引牌和涂装名字）；比赛：仪表台最左边（左 52°，让开速度屏）、小一点
             // 选涂装：右前方、在教学牌后面一点（不挡牌子上的按钮），比以前大
-            var target = select ? new Vector3(1.05f, eye - .42f, 1.9f) : new Vector3(Mathf.Sin(-52 * Mathf.Deg2Rad) * .6f, eye - .37f, Mathf.Cos(-52 * Mathf.Deg2Rad) * .6f);
+            var target = select ? new Vector3(.78f, eye - .56f, 1.1f) : new Vector3(Mathf.Sin(-52 * Mathf.Deg2Rad) * .6f, eye - .37f, Mathf.Cos(-52 * Mathf.Deg2Rad) * .6f);
             float size = select ? selectHeight : playHeight;
             float k = snap ? 1 : 1 - Mathf.Exp(-Time.unscaledDeltaTime * 3);
             holo.localPosition = Vector3.Lerp(holo.localPosition, target, k);

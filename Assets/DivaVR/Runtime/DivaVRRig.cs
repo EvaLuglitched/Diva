@@ -117,6 +117,7 @@ namespace Diva.VR
             gameObject.AddComponent<DivaVRDash>();
             gameObject.AddComponent<DivaVRCelebration>();
             gameObject.AddComponent<DivaVRFeedback>();
+            gameObject.AddComponent<DivaVRCulling>();
             gameObject.AddComponent<DivaVRPickups>();
             // 大时刻（倒数、技能横幅）的空中面板：前方 3.2 米、比眼睛高一点
             var moments = new GameObject("Moments").transform;
@@ -154,10 +155,10 @@ namespace Diva.VR
                 // 每一帧都掉，合成器补帧，整个画面在"闪"。现在：MSAA 2、缩放 0.85、1024 软阴影、阴影 25 米，再加注视点渲染（Start 里开）
                 urp.msaaSampleCount = (int)DivaVRDebug.Float("DIVA_MSAA", 2);
                 urp.renderScale = DivaVRDebug.Float("DIVA_RS", .85f);
-                urp.shadowDistance = Mathf.Min(urp.shadowDistance, DivaVRDebug.Float("DIVA_SHADOWDIST", 25));
+                urp.shadowDistance = Mathf.Min(urp.shadowDistance, DivaVRDebug.Float("DIVA_SHADOWDIST", 18));
                 urp.mainLightShadowmapResolution = (int)DivaVRDebug.Float("DIVA_SHADOWRES", 1024);
-                // GPU Resident Drawer：几千个绘制调用改成 GPU 侧批量提交，加 GPU 遮挡剔除；屏幕上小于 1.5% 的小东西（远处的糖果、栏杆柱）不画。DIVA_GRD=0 关
-                if (DivaVRDebug.Get("DIVA_GRD") != "0")
+                // GPU Resident Drawer 实测更慢（渲染线程 +4 毫秒）：默认关，DIVA_GRD=1 再试（要 Forward+）
+                if (DivaVRDebug.Get("DIVA_GRD") == "1")
                 {
                     urp.gpuResidentDrawerMode = UnityEngine.Rendering.GPUResidentDrawerMode.InstancedDrawing;
                     urp.smallMeshScreenPercentage = DivaVRDebug.Float("DIVA_SMALLMESH", 1.5f);

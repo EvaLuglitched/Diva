@@ -138,9 +138,37 @@ namespace Diva.VR.EditorTools
             // 失去焦点（打开系统菜单）时继续运行，不然镜头会锁在头上（插件的检查规则）
             PlayerSettings.runInBackground = true;
             PlayerSettings.VisionOS.targetOSVersionString = "2.0";
+            MarkStatic();
             // 头显上记 GPU 每帧用时（DivaVRPerfLog）
             PlayerSettings.enableFrameTimingStats = true;
             AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
+        /// 把镇子里不动的东西标成 Batching Static（只改这个打包副本里的场景）：Unity 打包时按材质合并网格，
+        /// 渲染线程每帧提交几千个绘制调用（11–14 毫秒，45 fps 的根源）降到几十个。会动的（大象、靶子、漂的云、火箭、粒子）不标。
+        /// </summary>
+        static void MarkStatic()
+        {
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(Scene);
+            string[] dynamicTypes = { "DivaTarget", "DivaFloat", "DivaOrbit", "DivaSkyRotate", "DivaIntro", "DigiPhantLocomotion", "DigiPhantController", "Animator", "Animation", "ParticleSystem", "DivaBoosters", "DivaBubbleCannons", "DivaTrunkBlaster", "Light", "Camera", "Canvas" };
+            int marked = 0, skipped = 0;
+            foreach (var r in Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                bool dynamic = false;
+                for (var t = r.transform; t && !dynamic; t = t.parent)
+                {
+                    if (t.name.Contains("Rocket") || t.name.Contains("Cloud") || t.name.Contains("Elephant") || t.name.Contains("elephant")) dynamic = true;
+                    foreach (var c in t.GetComponents<Component>())
+                        if (c && System.Array.IndexOf(dynamicTypes, c.GetType().Name) >= 0) { dynamic = true; break; }
+                }
+                if (dynamic) { skipped++; continue; }
+                GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.BatchingStatic);
+                marked++;
+            }
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+            Debug.Log($"DIVA_VR static batching: {marked} renderers marked static, {skipped} left dynamic");
         }
 
         static void PrepareUrp(UniversalRenderPipelineAsset urp)
@@ -170,16 +198,7 @@ namespace Diva.VR.EditorTools
             // 阴影：软阴影 + 2048 的阴影图。Mobile 设置是 1024 的硬阴影，头一动阴影边缘的锯齿就爬来爬去（闪）。
             // 软阴影的着色器变体也是打包时决定的，运行时再开没用
             Set("m_SoftShadowsSupported", true);
-            // GPU Resident Drawer 要 Forward+（Forward 不支持）：渲染线程每帧 11–14 毫秒都花在提交几千个绘制调用上，这是 45 fps 的根源
-            var list = so.FindProperty("m_RendererDataList");
-            for (int i = 0; list != null && i < list.arraySize; i++)
-                if (list.GetArrayElementAtIndex(i).objectReferenceValue is UniversalRendererData rd && rd.renderingMode != RenderingMode.ForwardPlus)
-                {
-                    rd.renderingMode = RenderingMode.ForwardPlus; EditorUtility.SetDirty(rd); changed = true;
-                    Debug.Log($"DIVA_VR renderer {rd.name}: Forward+ (for the GPU Resident Drawer)");
-                }
-            SetInt("m_GPUResidentDrawerMode", 1);
-            Set("m_GPUResidentDrawerEnableOcclusionCullingInCameras", true);
+            // 试过 Forward+ + GPU Resident Drawer：渲染线程 12→16 毫秒、GPU 20→26 毫秒，更慢，不用。绘制调用靠打包时的静态合批（MarkStatic）
             SetInt("m_SoftShadowQuality", 2);
             SetInt("m_MainLightShadowmapResolution", 2048);
             if (!changed) return;
