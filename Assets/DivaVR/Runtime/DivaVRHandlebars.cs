@@ -54,12 +54,18 @@ namespace Diva.VR
 
         // 倒数时记下手的位置：握把挪到手上
         void OnPhase(Diva.Show.ShowPhase p) { if (p == Diva.Show.ShowPhase.Countdown) adoptAt = Time.unscaledTime + 1.5f; }
-        float adoptAt = -1;
+        float adoptAt = -1, adoptRadius = .25f;
+        /// <summary>把握把挪到现在手的位置（教学里 4 秒没握到时用，允许更远）。</summary>
+        public void AdoptNow(float radius) { adoptRadius = radius; adoptAt = Time.unscaledTime; }
+
+        Transform visualRoot;
+        void Rebuild() { if (visualRoot) Destroy(visualRoot.gameObject); Build(); }
 
         void Build()
         {
             var root = new GameObject("Handlebars").transform;
             root.SetParent(transform, false);
+            visualRoot = root;
             var body = Load("DivaVR Cockpit Body", "Universal Render Pipeline/Lit", new Color(.12f, .1f, .18f));
             gripMatL = Load("DivaVR Cockpit Glow", "Universal Render Pipeline/Unlit", new Color(1f, .4f, .8f) * .6f);
             gripMatR = new Material(gripMatL);
@@ -120,8 +126,10 @@ namespace Diva.VR
             if (adoptAt > 0 && now >= adoptAt)
             {
                 adoptAt = -1;
-                if (gotL && Vector3.Distance(palmL, restL) < .25f) restL = palmL;
-                if (gotR && Vector3.Distance(palmR, restR) < .25f) restR = palmR;
+                if (gotL && Vector3.Distance(palmL, restL) < adoptRadius) restL = palmL;
+                if (gotR && Vector3.Distance(palmR, restR) < adoptRadius) restR = palmR;
+                adoptRadius = .25f;
+                Rebuild();
                 Debug.Log($"DIVA_VR handlebars rest L {restL:F2} R {restR:F2} (hands {gotL}/{gotR})");
             }
             heldL = Hold(gotL, palmL, restL, heldL);

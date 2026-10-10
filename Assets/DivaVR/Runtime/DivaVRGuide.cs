@@ -366,9 +366,18 @@ namespace Diva.VR
             if (AllDone) { allDoneAt = Time.unscaledTime; learned = true; }
         }
 
+        float noGripSince = -1;
         void Practice(DivaVRFrame f)
         {
             float dt = Time.unscaledDeltaTime;
+            // 学推把手：4 秒还没握到，把握把挪到手的位置（手放在哪儿都行）
+            var bars = GetComponent<DivaVRHandlebars>();
+            if (bars && Current == Move.Lean && rows[(int)Move.Lean].doneAt < 0)
+            {
+                if (bars.Held == 2) noGripSince = -1;
+                else if (noGripSince < 0) noGripSince = Time.unscaledTime;
+                else if (Time.unscaledTime - noGripSince > 4f) { bars.AdoptNow(.45f); noGripSince = Time.unscaledTime + 4f; }
+            }
             // 每个动作做够一小会儿才算（不是一碰就算）；做的时候反馈条跟着动
             void Hold(Move m, bool on, float seconds)
             {
