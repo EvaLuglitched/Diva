@@ -47,7 +47,7 @@ namespace Diva.VR
             title = DivaUi.Text(card, "Title", new Vector2(.5f, 1), new Vector2(0, -70), new Vector2(1200, 90), 64, Color.white);
             sub = DivaUi.Text(card, "Sub", new Vector2(.5f, 1), new Vector2(0, -150), new Vector2(1200, 60), 44, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
             score = DivaUi.Text(card, "Score", new Vector2(.5f, 0), new Vector2(0, 60), new Vector2(1200, 150), 140, Color.white);
-            stamp = DivaUi.Text(card, "Stamp", new Vector2(.5f, 0), new Vector2(380, 150), new Vector2(700, 120), 90, new Color(1f, .9f, .4f));
+            stamp = DivaUi.Text(card, "Stamp", new Vector2(1, 1), new Vector2(-180, -175), new Vector2(560, 110), 80, new Color(1f, .9f, .4f));   // 右上角，不压分数
             DivaUi.Glow(score, new Color(1f, .85f, .3f, .95f));
             DivaUi.Glow(title, new Color(1, .3f, .7f, .8f));
             DivaUi.Glow(stamp, new Color(1f, .5f, .1f, .9f), .7f, .5f, .18f);
