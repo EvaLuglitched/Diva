@@ -27,7 +27,7 @@ namespace Diva.VR
         CourseTask current;
         float tipUntil, tipShownAt, lastShootTip, lastDrinkTip, lastUltTip, runTipAt = -1;
         string tipKey;
-        bool runTipDone;
+        bool runTipDone, runShown;
 
         void Start()
         {
@@ -89,7 +89,8 @@ namespace Diva.VR
 
         void OnPhase(ShowPhase p)
         {
-            if (p == ShowPhase.Play) { runTipDone = false; runTipAt = Time.unscaledTime + 1.2f; }
+            if (p == ShowPhase.Play && !runShown) { runShown = true; Tip("vr.coach.run", 5); runTipDone = false; runTipAt = Time.unscaledTime + 8; }
+            if (p == ShowPhase.Results) runShown = false;
         }
 
         Transform Canvas(string name, Vector2 size, float scale, Transform parent, int order)

@@ -48,6 +48,8 @@ namespace Diva.VR
             var frame = autopilot ? autopilot.Read() : simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
             // 只有"捏"的时候才用看的方向瞄准：选涂装时随便转头看不会切换涂装，捏住再看左 / 右才切
             frame.aim = frame.shoot ? LookAim(frame.look) : 0;
+            // 选涂装：正前方捏一下就是"下一个"（看左边捏还是上一个），不用先想往哪边看
+            if (frame.shoot && show && show.Phase == Diva.Show.ShowPhase.Select && Mathf.Abs(frame.aim) < .5f) frame.aim = 1;
             // 捏合的确认音（参考 Meta / Ultraleap 的手势设计：手势被识别要立刻有声音或画面反馈）
             if (frame.shoot && !Current.shoot && show && show.Sound != null) show.Sound.Play("tick", .5f);
             Current = frame;

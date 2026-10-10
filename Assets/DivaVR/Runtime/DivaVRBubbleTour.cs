@@ -4,28 +4,27 @@ using DigiPhant;
 using Diva.Show;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Diva.VR
 {
     /// <summary>
-    /// 泡泡开场（每次打开 app 演一次，完全沉浸）：
-    /// 1. 一睁眼在一片粉彩梦境里：漂着泡泡和星光。眼前一颗光点："捏一下 出发"。
-    /// 2. 捏 → 光点炸开变成一只大泡泡把你裹住，前方开出一道彩虹门，门里是空中俯瞰的糖果镇。
-    /// 3. 泡泡载着你穿过门，像无人机一样绕镇子飞一圈（9 米高、慢、不颠簸，泡泡本身就是眼前不动的参照物，不晕）；
-    ///    经过每个任务点时它亮起来并浮出名字——这一圈就是在预告赛道。
-    /// 4. 泡泡降到起点，大象抬头看你，短短地"嘟"一声扬一下鼻子，泡泡落在它背上"啵"地破掉：你已经坐在驾驶舱里，进入选涂装。
-    /// 不需要做任何手势（只有开头捏一下；没捏 20 秒后自己出发）。
+    /// 泡泡开场（每次打开 app 演一次，完全沉浸），镜头顺序照 Eva 的开场（先全镇，再一步步推近），做成动画片的分镜：
+    /// 1. 梦境：粉彩、肥皂泡、星光，眼前一颗光点 "捏一下 出发"。
+    /// 2. 捏 → 光点飞出去开出一道门，门里是高空俯瞰的糖果镇；梦境像泡泡一样碎开，人已经悬在小镇上空（全景）。
+    ///    "糖果镇"大标题，任务点一个个亮起来（赛道预告），镜头慢慢推近。
+    /// 3. 泡泡转场 → 中景：大象身后上方，看它站在起跑线。
+    /// 4. 泡泡转场 → 特写：大象正前方偏侧的低角度，它看着你，扬一下鼻子 "嘟" 一声（很短）。
+    /// 5. 泡泡 "啵" 地破掉 → 驾驶舱，进入选涂装。
+    /// 舒适：每个镜头只有很慢的直线推近（不超过 0.6 米/秒，不转），镜头之间用泡泡转场切换（不连续飞，不晕）；
+    /// 人身边一直有一只透明泡泡当参照物。只有开头捏一下，没捏 20 秒后自己出发。
     /// </summary>
-    [DefaultExecutionOrder(1600)]   // 在 Diva Show（1500）之后、驾驶舱（2500）之前：这里每帧摆泡泡（驾驶舱）的位置
+    [DefaultExecutionOrder(1600)]   // 在 Diva Show（1500）之后、驾驶舱（2500）之前：这里每帧摆驾驶舱（人）的位置
     public class DivaVRBubbleTour : MonoBehaviour
     {
-        [Tooltip("飞行高度（米）、最快多快（米/秒）、绕多大一圈（0 = 按任务点算）。")]
-        public float height = 10, cruise = 6.5f, lapRadius = 0;
         [Tooltip("泡泡半径（米）。")]
         public float bubbleRadius = 1.7f;
 
-        enum Stage { Dream, Burst, Fly, Land, Pop, Done }
+        enum Stage { Dream, Burst, Open, Wide, Mid, Hero, Pop, Done }
         Stage stage = Stage.Dream;
         float stageTime;
 
@@ -36,10 +35,10 @@ namespace Diva.VR
         static readonly int PortalCenter = Shader.PropertyToID("_PortalCenter"), PortalNormal = Shader.PropertyToID("_PortalNormal"), PortalRadius = Shader.PropertyToID("_PortalRadius");
         static readonly int BubbleAlpha = Shader.PropertyToID("_Alpha"), BubbleShift = Shader.PropertyToID("_Shift"), Dissolve = Shader.PropertyToID("_Dissolve");
         static readonly Color[] Candy = { new Color(1f, .45f, .8f), new Color(.45f, .95f, .9f), new Color(1f, .85f, .4f), new Color(.7f, .55f, 1f), new Color(.55f, 1f, .6f) };
+        static readonly Color Pastel = new Color(1f, .86f, .95f);
 
         DivaVRRig rig;
         DivaVRInput input;
-        DivaVRSimulator simulator;
         DivaShowDirector show;
         DivaShowSound sound;
         DivaShowFx fx;
@@ -49,27 +48,26 @@ namespace Diva.VR
         Camera cam;
         bool autopilot, aligned, lastPinch;
 
-        Transform world, fxRoot, dream, bubble, bubbleFloor, portal, ring, ringInner, spark, sparkHalo, title;
-        Material dreamMat, bubbleMat, ringMat, innerMat, haloMat, floorMat, titleMat;
-        ParticleSystem dreamBubbles, sparkles, trail;
+        Transform world, fxRoot, dream, bubble, bubbleFloor, portal, ring, ringInner, spark, sparkHalo, title, wipe;
+        Material dreamMat, bubbleMat, ringMat, innerMat, floorMat, wipeMat;
+        ParticleSystem dreamBubbles, sparkles;
         TrailRenderer sparkTrail;
-        AudioSource hum, wind;
+        AudioSource hum;
         float openness, flash, sparkleNext, dissolve;
-        bool portalDone, portalPlaced;
 
-        // 路线：穿门 → 绕一圈 → 收到起点上空 → 降到座位
-        readonly List<Vector3> path = new List<Vector3>();
-        readonly List<float> pathLength = new List<float>();
-        float traveled, speed, yaw, yawVelocity, landT;
-        Vector3 start, forward, center, seatWorld, standPos, flyStart, flyDir;
-        Quaternion startRotation;
+        // 镜头：眼睛从 from 慢慢推到 to，朝向整段不变（看 look）
+        struct Shot { public Vector3 from, to, look; public float seconds; }
+        Shot wide, mid, hero;
+        Vector3 start, forward, centre, portalPos;
+        Quaternion shotRot;
+        float wipeAt = -1;          // 泡泡转场：这个时间点切镜头，前后各 0.3 秒盖住
+        Stage wipeTo;
 
-        // 任务点的光柱和名字
-        class Beacon { public Transform pillar, label; public Material mat; public float shown; public Vector3 at; public string text; }
+        // 任务点的光柱和名字（全景时一个个亮起来）
+        class Beacon { public Transform pillar, label; public Material mat; public float shown; public Vector3 at; }
         readonly List<Beacon> beacons = new List<Beacon>();
-        bool courseShown;
 
-        // 大象：抬头看人、扬一下鼻子
+        // 大象：看人、扬一下鼻子
         Transform root, head;
         Transform[] eyes = new Transform[0], trunk = new Transform[0];
         Vector3 headRest;
@@ -77,7 +75,7 @@ namespace Diva.VR
         Quaternion headTurn = Quaternion.identity;
         Quaternion[] eyeTurn = new Quaternion[0];
         float lookWeight, greetTime = -1;
-        bool greeted;
+        bool greeted, popBurst;
 
         readonly List<GameObject> cockpitParts = new List<GameObject>();
         readonly List<Behaviour> paused = new List<Behaviour>();
@@ -93,7 +91,6 @@ namespace Diva.VR
         {
             rig = GetComponent<DivaVRRig>();
             input = GetComponent<DivaVRInput>();
-            simulator = GetComponent<DivaVRSimulator>();
             show = FindAnyObjectByType<DivaShowDirector>();
             demo = FindAnyObjectByType<DivaDemo>();
             loco = FindAnyObjectByType<DigiPhantLocomotion>();
@@ -109,17 +106,14 @@ namespace Diva.VR
             sound = show.Sound;
             root = loco.travelRoot;
             start = root.position;
-            startRotation = root.rotation;
             forward = Vector3.ProjectOnPlane(root.forward, Vector3.up).normalized;
-            center = start;
-            seatWorld = root.TransformPoint(rig.seat);
+            centre = TownCentre();
 
             world = new GameObject("Diva VR Tour").transform;
             fxRoot = new GameObject("Diva VR Tour FX").transform;
             fx = new DivaShowFx(fxRoot, show.glowMaterial, show.bubbleMaterial);
             MakeTextures();
-            rig.Stand(Vector3.zero, Quaternion.identity);   // 先算出站着的眼睛高度，路线的终点要用
-            BuildPath();
+            PlanShots();
             FindElephantParts();
             BuildDream();
             BuildBubble();
@@ -127,95 +121,114 @@ namespace Diva.VR
             BuildSpark();
             BuildPrompt();
             BuildBeacons();
+            BuildWipe();
+            Prewarm();
 
-            // 开场时驾驶舱、仪表、全息模型都收起来：人在泡泡里
+            // 开场时驾驶舱、仪表、全息模型、指引都收起来：人在泡泡里
             ShowCockpit(false);
-            yaw = Mathf.Atan2(flyDir.x, flyDir.z) * Mathf.Rad2Deg;
-            rig.Stand(standPos, Quaternion.LookRotation(flyDir));
+            shotRot = Quaternion.LookRotation(Flat(wide.look - wide.from, forward));
+            PlaceEye(wide.from, shotRot);
             if (rig.PoseReady) Align();
-            Debug.Log($"DIVA_VR tour start: stand {standPos} lap radius {lapRadius:F1} height {height} path {pathLength[pathLength.Count - 1]:F0} m seat {seatWorld}");
+            Debug.Log($"DIVA_VR tour start: centre {centre} wide {wide.from} mid {mid.from} hero {hero.from}");
             Capture("tour_dream", 2.5f);
         }
 
         void OnDestroy() { if (stage != Stage.Done) Restore(); }
 
-        // ------------------------------------------------------------------ path
-        /// <summary>
-        /// 路线（折线，按弧长走）：起点在镇子边上的空中，先直飞穿门，再绕镇子中心（大象起点）飞 300°，
-        /// 然后往里收到起点上空，最后竖直降到座位。绕圈半径按任务点算：最远的任务点再往外 8 米。
-        /// </summary>
-        void BuildPath()
+        /// <summary>小镇中心：Eva 开场的中心点（她的全景就是绕它转），没有就用任务点和起点的中心。</summary>
+        Vector3 TownCentre()
         {
-            float r = lapRadius;
-            if (r <= 0)
-            {
-                r = 14;
-                if (game != null)
-                    foreach (var t in game.tasks)
-                        if (t != null && t.landmark) r = Mathf.Max(r, Vector3.ProjectOnPlane(t.landmark.position - center, Vector3.up).magnitude + 4);
-                r = Mathf.Clamp(r, 14, 24);
-            }
-            lapRadius = r;
-            // 角度 a 处逆时针（角度减小）的切线是 (cos a, 0, -sin a)；在大象的侧后方 a1 处切线正好等于它的正前方，
-            // 圈就在那里结束，然后一边往里收一边再转 90°，最后从它身后沿着正前方到达它头顶（朝向不用再转）
-            float behind = Mathf.Atan2(-forward.x, -forward.z);
-            float lap = 220 * Mathf.Deg2Rad;
-            float a1 = behind + Mathf.PI / 2, a0 = a1 + lap;
-            Vector3 P(float a, float rr, float h) => center + new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * rr + Vector3.up * h;
-            var pts = new List<Vector3>();
-            int n = 48;
-            // 入口直线：从圈外 6 米直飞到圈上（穿门）
-            var tangent0 = new Vector3(Mathf.Cos(a0), 0, -Mathf.Sin(a0));   // 逆时针（角度减小）方向的切线
-            var p0 = P(a0, r, height);
-            flyDir = tangent0;
-            standPos = p0 - tangent0 * 6;
-            pts.Add(standPos);
-            pts.Add(p0 - tangent0 * 3);
-            for (int i = 0; i <= n; i++)
-            {
-                float a = a0 - lap * i / n;
-                pts.Add(P(a, r, height));
-            }
-            // 往里收：再转 90° 到大象正后方，半径同时缩到 0（起点上空），高度降到座位上方 3 米
-            for (int i = 1; i <= 24; i++)
-            {
-                float k = i / 24f, s = DivaUi.Smooth(k);
-                float a = a1 - Mathf.PI / 2 * s;
-                pts.Add(P(a, r * (1 - s * .96f), Mathf.Lerp(height, StandHeightAbove(seatWorld) + 3f, s)));
-            }
-            // 降到座位：座位正上方，高度按站着的眼睛算（落下去的时候眼睛正好在坐着的高度）
-            var landing = new Vector3(seatWorld.x, StandHeightAbove(seatWorld), seatWorld.z);
-            pts.Add(landing + Vector3.up * 1.5f);
-            pts.Add(landing);
-            // Catmull-Rom 细分成折线
-            path.Clear(); pathLength.Clear();
-            for (int i = 0; i + 1 < pts.Count; i++)
-            {
-                var pa = pts[Mathf.Max(0, i - 1)]; var pb = pts[i]; var pc = pts[i + 1]; var pd = pts[Mathf.Min(pts.Count - 1, i + 2)];
-                for (int k = 0; k < 6; k++)
-                {
-                    float t = k / 6f, t2 = t * t, t3 = t2 * t;
-                    var p = .5f * (2 * pb + (-pa + pc) * t + (2 * pa - 5 * pb + 4 * pc - pd) * t2 + (-pa + 3 * pb - 3 * pc + pd) * t3);
-                    path.Add(p);
-                }
-            }
-            path.Add(pts[pts.Count - 1]);
-            float len = 0;
-            for (int i = 0; i < path.Count; i++) { if (i > 0) len += Vector3.Distance(path[i], path[i - 1]); pathLength.Add(len); }
+            var intro = FindAnyObjectByType<DivaIntro>(FindObjectsInactive.Include);
+            if (intro) return new Vector3(intro.transform.position.x, start.y, intro.transform.position.z);
+            var pts = new List<Vector3> { start };
+            if (game != null) pts.AddRange(game.tasks.Where(t => t != null && t.landmark).Select(t => t.landmark.position));
+            var c = pts.Aggregate(Vector3.zero, (a, b) => a + b) / pts.Count;
+            return new Vector3(c.x, start.y, c.z);
         }
 
-        // 站在泡泡里时驾驶舱（脚下）该在的高度：让眼睛最后落在坐着的高度（seat + eyeHeight）
-        float StandHeightAbove(Vector3 seat) => seat.y + rig.eyeHeight - (cam ? rig.StandingEyeHeight : 1.6f);
-
-        Vector3 PathPoint(float dist, out Vector3 tangent)
+        /// <summary>三个镜头（眼睛的位置）。全景在大象身后高处、越过它看向全镇；中景在它身后上方；特写在它正前方偏 35° 的低处。</summary>
+        void PlanShots()
         {
-            dist = Mathf.Clamp(dist, 0, pathLength[pathLength.Count - 1]);
-            int i = pathLength.FindIndex(l => l >= dist);
-            if (i <= 0) { tangent = (path[1] - path[0]).normalized; return path[0]; }
-            float seg = pathLength[i] - pathLength[i - 1];
-            float k = seg > 1e-5f ? (dist - pathLength[i - 1]) / seg : 0;
-            tangent = (path[i] - path[i - 1]).normalized;
-            return Vector3.Lerp(path[i - 1], path[i], k);
+            var away = Vector3.ProjectOnPlane(start - centre, Vector3.up);
+            var back = away.sqrMagnitude > 4 ? away.normalized : -forward;   // 从镇中心往大象那边再往外
+            var side = Vector3.Cross(Vector3.up, back);
+            var wideFrom = centre + back * 54 + side * 10 + Vector3.up * 30;
+            var wideLook = centre + Vector3.up * 2;
+            wide = new Shot { from = wideFrom, to = wideFrom + (wideLook - wideFrom).normalized * 4.5f, look = wideLook, seconds = 8.5f };
+            // 中景：大象身后上方，从正后方往两边试，挑第一个看大象不被广告牌、树挡住的角度
+            var blockers = FindObjectsByType<Renderer>().Where(r => r.enabled && !r.transform.IsChildOf(root) && !r.transform.IsChildOf(rig.transform) && !(r is ParticleSystemRenderer)
+                                                                    && r.bounds.size.magnitude < 60 && r.bounds.max.y > start.y + .5f).ToArray();
+            var midLook = start + Vector3.up * 2.5f;
+            var midFrom = PickClear(new[] { 18f, -18, 38, -38, 60, -60, 85, -85 }, a => start + Quaternion.AngleAxis(a, Vector3.up) * -forward * 15 + Vector3.up * 7, midLook, blockers);
+            mid = new Shot { from = midFrom, to = midFrom + (midLook - midFrom).normalized * 3, look = midLook, seconds = 5 };
+            // 特写：正前方偏一侧的低处
+            var heroLook = start + forward * 1.4f + Vector3.up * 2.6f;
+            var heroFrom = PickClear(new[] { 35f, -35, 55, -55, 20, -20 }, a => start + Quaternion.AngleAxis(a, Vector3.up) * forward * 7.2f + Vector3.up * 2.1f, heroLook, blockers);
+            hero = new Shot { from = heroFrom, to = heroFrom + Vector3.ProjectOnPlane(heroLook - heroFrom, Vector3.up).normalized * 1.4f, look = heroLook, seconds = 4.2f };
+            portalPos = wide.from + Flat(wide.look - wide.from, forward) * 2.6f - Vector3.up * .05f;
+        }
+
+        /// <summary>按顺序试几个角度，返回第一个从眼睛到 look 没被挡住的位置（都挡住就用第一个）。</summary>
+        static Vector3 PickClear(float[] angles, System.Func<float, Vector3> at, Vector3 look, Renderer[] blockers)
+        {
+            foreach (float a in angles)
+            {
+                var eye = at(a);
+                var side = Vector3.Cross(Vector3.up, look - eye).normalized;
+                bool blocked = false;
+                // 看大象的身子、脚和两边都不被挡；镜头旁边 3.5 米内也不能有东西（画面角上一大块黑影）
+                foreach (var p in new[] { look, look - Vector3.up * 2.2f, look + side * 2.5f, look - side * 2.5f })
+                {
+                    var ray = new Ray(eye, (p - eye).normalized);
+                    float len = Vector3.Distance(eye, p) - 2.5f;   // 大象自己附近的不算
+                    foreach (var r in blockers)
+                        if (r && r.bounds.IntersectRay(ray, out float d) && d < len) { blocked = true; break; }
+                    if (blocked) break;
+                }
+                if (!blocked)
+                    foreach (var r in blockers)
+                        if (r && r.bounds.SqrDistance(eye) < 3.5f * 3.5f) { blocked = true; break; }
+                if (!blocked) return eye;
+            }
+            return at(angles[0]);
+        }
+
+        /// <summary>
+        /// 开场前先把三个镜头各画一次（很小的图、看不见）：镇子里所有着色器现在就准备好，门打开、镜头切换时不卡
+        /// （编辑器里第一次看到全镇卡了 5 秒；头显上着色器第一次用到时也要现编）。
+        /// </summary>
+        void Prewarm()
+        {
+            var go = new GameObject("Diva Tour Prewarm");
+            var c = go.AddComponent<Camera>();
+            c.enabled = false; c.stereoTargetEye = StereoTargetEyeMask.None;
+            c.cullingMask = cam.cullingMask; c.clearFlags = cam.clearFlags; c.backgroundColor = cam.backgroundColor;
+            c.fieldOfView = 100; c.nearClipPlane = .05f; c.farClipPlane = cam.farClipPlane;
+            var data = UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(c);
+            var mainData = UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(cam);
+            data.renderPostProcessing = mainData.renderPostProcessing;
+            var rt = new RenderTexture(256, 144, 24);
+            c.targetTexture = rt;
+            // 第一张带着梦境球（它的着色器也要准备），后面把球藏起来才看得到镇子
+            for (int i = -1; i < 3; i++)
+            {
+                var s = i < 0 ? wide : i == 0 ? wide : i == 1 ? mid : hero;
+                if (dream) dream.gameObject.SetActive(i < 0);
+                c.transform.SetPositionAndRotation(s.from, Quaternion.LookRotation(s.look - s.from));
+                c.Render();
+            }
+            if (dream) dream.gameObject.SetActive(true);
+            c.targetTexture = null;
+            rt.Release();
+            Destroy(rt); Destroy(go);
+        }
+
+        /// <summary>把人（眼睛）放到 eye、朝向 rot：驾驶舱（脚下）在眼睛下方站着的高度。</summary>
+        void PlaceEye(Vector3 eye, Quaternion rot)
+        {
+            float h = rig.StandingEyeHeight;
+            if (!rig.Detached) rig.Stand(eye - Vector3.up * h, rot);
+            else rig.Place(eye - Vector3.up * h, rot);
         }
 
         // ------------------------------------------------------------------ build
@@ -223,6 +236,12 @@ namespace Diva.VR
         void MakeTextures()
         {
             if (softDot) return;
+            softDot = DivaUi.MakeTexture("Diva Tour Dot", 64, (x, y) =>
+            {
+                float r = Mathf.Sqrt(x * x + y * y);
+                float a = Mathf.Exp(-r * r * 9) + .35f * Mathf.Exp(-r * r * 2.2f);
+                return new Color(1, 1, 1, Mathf.Clamp01(a * (1 - Mathf.Clamp01((r - .9f) * 10))));
+            });
             // 肥皂泡：边上一圈彩虹，左上一个高光点，中间透明
             bubbleTex = DivaUi.MakeTexture("Diva Tour Bubble", 128, (x, y) =>
             {
@@ -233,12 +252,6 @@ namespace Diva.VR
                 float spot = Mathf.Exp(-((x + .4f) * (x + .4f) + (y - .4f) * (y - .4f)) / .015f);
                 float a = Mathf.Clamp01(.04f + rim * .9f + spot);
                 return new Color(Mathf.Lerp(c.r, 1, spot), Mathf.Lerp(c.g, 1, spot), Mathf.Lerp(c.b, 1, spot), a);
-            });
-            softDot = DivaUi.MakeTexture("Diva Tour Dot", 64, (x, y) =>
-            {
-                float r = Mathf.Sqrt(x * x + y * y);
-                float a = Mathf.Exp(-r * r * 9) + .35f * Mathf.Exp(-r * r * 2.2f);
-                return new Color(1, 1, 1, Mathf.Clamp01(a * (1 - Mathf.Clamp01((r - .9f) * 10))));
             });
         }
 
@@ -273,15 +286,18 @@ namespace Diva.VR
             if (!shared) { Debug.LogWarning("DIVA_VR tour: Resources/DivaVR Dream Sphere missing"); return; }
             dreamMat = new Material(shared);
             dreamMat.SetFloat(PortalRadius, 0);
+            dreamMat.SetVector(PortalCenter, portalPos);
+            dreamMat.SetVector(PortalNormal, -Flat(wide.look - wide.from, forward));
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             Destroy(go.GetComponent<Collider>());
             go.name = "Dream";
             dream = go.transform;
             dream.SetParent(world, false);
-            dream.localScale = Vector3.one * 12;   // 半径 6 米：离镇子的东西都够远
+            dream.position = wide.from;
+            dream.localScale = Vector3.one * 12;   // 半径 6 米
             var mr = go.GetComponent<MeshRenderer>();
             mr.sharedMaterial = dreamMat; mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
-            // 梦里漂的泡泡和星光
+            // 梦里漂的肥皂泡和星光
             dreamBubbles = Particles("Dream Bubbles", dream, 300, Glow(bubbleTex, new Color(1, 1, 1, .8f)));
             var main = dreamBubbles.main;
             main.loop = true; main.startLifetime = new ParticleSystem.MinMaxCurve(6, 10);
@@ -337,25 +353,6 @@ namespace Diva.VR
             var fr = floor.GetComponent<MeshRenderer>();
             fr.sharedMaterial = floorMat = Glow(softDot, new Color(1f, .7f, .9f, 0));
             fr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            // 飞的时候泡泡后面拖的星光
-            trail = Particles("Bubble Trail", world, 600, null);
-            var main = trail.main;
-            main.loop = true; main.startLifetime = new ParticleSystem.MinMaxCurve(1.2f, 2.5f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(0, .3f); main.startSize = new ParticleSystem.MinMaxCurve(.04f, .12f);
-            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, .6f, .9f), new Color(.6f, 1f, .95f));
-            main.gravityModifier = .02f;
-            var shape = trail.shape; shape.enabled = true; shape.shapeType = ParticleSystemShapeType.Sphere; shape.radius = bubbleRadius * .9f;
-            var em = trail.emission; em.rateOverTime = 0;
-            Twinkle(trail);
-            trail.Emit(1);   // 先画一帧，着色器现在就编译
-            if (sound != null && sound.Clip("wind"))
-            {
-                wind = new GameObject("Wind").AddComponent<AudioSource>();
-                wind.transform.SetParent(world, false);
-                wind.clip = sound.Clip("wind"); wind.loop = true; wind.playOnAwake = false;
-                wind.spatialBlend = 0; wind.volume = 0;
-                wind.Play();
-            }
         }
 
         void BuildPortal()
@@ -364,16 +361,16 @@ namespace Diva.VR
             portal.SetParent(world, false);
             ring = MeshObject("Ring", portal, Torus(1, .034f, 160, 12, u => Color.HSVToRGB(Mathf.Repeat(u * 2, 1), .85f, 1)), ringMat = Glow(Texture2D.whiteTexture, Color.white * 1.3f));
             ringInner = MeshObject("Ring Inner", portal, Torus(1.03f, .009f, 160, 6, u => new Color(1, 1, 1, .4f + .6f * Mathf.Pow(Mathf.Abs(Mathf.Sin(u * Mathf.PI * 12)), 3))), innerMat = Glow(Texture2D.whiteTexture, new Color(1, .95f, 1) * 2.2f));
-            // 先画一帧（小到看不见）：着色器现在就编译，出发时不卡
+            // 先画一帧（小到看不见、放在脚下很远）：着色器现在就编译，出发时不卡
             portal.localScale = Vector3.one * .001f;
-            portal.position = Vector3.down * 50;
+            portal.position = wide.from - Vector3.up * 50;
         }
 
         void BuildSpark()
         {
             spark = new GameObject("Spark").transform;
             spark.SetParent(world, false);
-            sparkHalo = Quad("Halo", spark, haloMat = Glow(softDot, new Color(1f, .5f, .85f, .8f) * 1.6f));
+            sparkHalo = Quad("Halo", spark, Glow(softDot, new Color(1f, .5f, .85f, .8f) * 1.6f));
             sparkHalo.localScale = Vector3.one * .3f;
             var core = Quad("Core", spark, Glow(softDot, Color.white * 3));
             core.localScale = Vector3.one * .09f;
@@ -404,13 +401,12 @@ namespace Diva.VR
             DivaUi.Glow(promptTitle, new Color(1, .3f, .7f, .9f));
             promptSub = DivaUi.Text(rt, "Sub", new Vector2(.5f, .5f), new Vector2(0, -36), new Vector2(1000, 60), 36, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
 
-            // 天上的大标题（穿过门的时候出现）
+            // 全景里的大标题：浮在镇子上空，正对着人
             var tg = new GameObject("Tour Title", typeof(RectTransform), typeof(Canvas)) { layer = 5 };
             title = tg.transform;
             title.SetParent(world, false);
             var trt = (RectTransform)title;
             trt.sizeDelta = new Vector2(2000, 400);
-            trt.localScale = Vector3.one * (14f / 2000f);
             var tc = tg.GetComponent<Canvas>();
             tc.renderMode = RenderMode.WorldSpace; tc.worldCamera = cam; tc.sortingOrder = 55;
             var tt = DivaUi.Text(trt, "Text", new Vector2(.5f, .5f), new Vector2(0, 40), new Vector2(2000, 220), 180, Color.white);
@@ -418,9 +414,12 @@ namespace Diva.VR
             DivaUi.Glow(tt, new Color(1, .4f, .8f, 1), .7f, .4f, .15f);
             var ts = DivaUi.Text(trt, "Sub", new Vector2(.5f, .5f), new Vector2(0, -120), new Vector2(2000, 100), 64, new Color(1f, .9f, 1f), TextAlignmentOptions.Center, false);
             DivaUi.Localize(ts, () => DivaText.T("vr.tour.course"));
-            title.position = center + Vector3.up * (height + 9) - flyDir * 2;
-            foreach (var x in new[] { tt, ts, promptTitle, promptSub }) x.ForceMeshUpdate();   // 字形现在就生成，飞的时候不卡
-            title.gameObject.SetActive(false);
+            // 浮在镇子中心上空，正对全景镜头（往下看镇子时正好在视线里）
+            var dir = Flat(wide.look - wide.from, forward);
+            title.position = centre + Vector3.up * 17 - dir * 6;
+            title.rotation = Quaternion.LookRotation(title.position - wide.from);
+            title.localScale = Vector3.zero;
+            foreach (var x in new[] { tt, ts, promptTitle, promptSub }) x.ForceMeshUpdate();   // 字形现在就生成，演的时候不卡
         }
 
         void BuildBeacons()
@@ -429,13 +428,13 @@ namespace Diva.VR
             foreach (var t in game.tasks)
             {
                 if (t == null || !t.landmark) continue;
-                var b = new Beacon { at = t.landmark.position, text = DivaText.Task(t.label) };
+                var b = new Beacon { at = t.landmark.position };
                 var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 Destroy(pillar.GetComponent<Collider>());
                 pillar.name = "Beacon " + t.label;
                 pillar.transform.SetParent(world, false);
                 pillar.transform.position = b.at + Vector3.up * 6;
-                pillar.transform.localScale = new Vector3(1.2f, 6, 1.2f);
+                pillar.transform.localScale = new Vector3(1.4f, 6, 1.4f);
                 var mr = pillar.GetComponent<MeshRenderer>();
                 b.mat = Glow(softDot, new Color(1f, .6f, .9f, 0));
                 mr.sharedMaterial = b.mat; mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -445,18 +444,41 @@ namespace Diva.VR
                 b.label.SetParent(world, false);
                 var lrt = (RectTransform)b.label;
                 lrt.sizeDelta = new Vector2(1200, 200);
-                lrt.localScale = Vector3.one * (4.5f / 1200f);
                 var lc = lg.GetComponent<Canvas>();
                 lc.renderMode = RenderMode.WorldSpace; lc.worldCamera = cam; lc.sortingOrder = 56;
                 DivaUi.Panel(lrt, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1100, 150), DivaUi.WithAlpha(new Color(.06f, .05f, .12f), .8f), DivaUi.WithAlpha(new Color(.06f, .05f, .12f), .5f), 24).stripeWidth = 8;
                 var text = DivaUi.Text(lrt, "Text", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1100, 140), 96, Color.white);
-                text.text = b.text;
+                text.text = (beacons.Count + 1) + ". " + DivaText.Task(t.label);
                 DivaUi.Glow(text, new Color(1, .35f, .75f, .9f));
                 text.ForceMeshUpdate();
-                b.label.position = b.at + Vector3.up * 12.5f;
+                b.label.position = b.at + Vector3.up * 10f;
                 b.label.localScale = Vector3.zero;
                 beacons.Add(b);
             }
+        }
+
+        // 泡泡转场：贴在眼前的一层粉色，切镜头的那一下全盖住
+        void BuildWipe()
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Destroy(go.GetComponent<Collider>());
+            go.name = "Bubble Wipe";
+            wipe = go.transform;
+            wipe.SetParent(cam.transform, false);
+            wipe.localPosition = new Vector3(0, 0, .11f);
+            wipe.localScale = Vector3.one * .7f;
+            var shared = Resources.Load<Material>("DivaVR Vignette");
+            wipeMat = shared ? new Material(shared) : null;
+            if (wipeMat)
+            {
+                wipeMat.mainTexture = Texture2D.whiteTexture;
+                if (wipeMat.HasProperty("_BaseMap")) wipeMat.SetTexture("_BaseMap", Texture2D.whiteTexture);
+                if (wipeMat.HasProperty("_Cull")) wipeMat.SetFloat("_Cull", 0);
+                Tint(wipeMat, new Color(Pastel.r, Pastel.g, Pastel.b, 0));
+            }
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = wipeMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            if (!wipeMat) go.SetActive(false);
         }
 
         void FindElephantParts()
@@ -482,23 +504,30 @@ namespace Diva.VR
             switch (next)
             {
                 case Stage.Burst:
-                    // 光点飞到门的位置炸开：门开，泡泡成形
                     sparkTrail.Clear(); sparkTrail.emitting = true;
-                    sound?.PlayAt("whoosh", PortalPos(), .9f);
+                    sound?.PlayAt("whoosh", portalPos, .9f);
                     break;
-                case Stage.Fly:
-                    sound?.PlayAt("pop", PortalPos(), .7f);
+                case Stage.Open:
+                    // 门开：门里是高空俯瞰的糖果镇
+                    spark.gameObject.SetActive(false);
+                    portal.SetPositionAndRotation(portalPos, Quaternion.LookRotation(-Flat(wide.look - wide.from, forward)));
+                    sound?.PlayAt("pop", portalPos, .7f);
                     sound?.Play("ready", .5f);
-                    fx.Flash(PortalPos(), new Color(1f, .7f, .95f), 1.8f, .45f);
-                    Burst(PortalPos(), 140, 2.4f, .05f);
+                    fx.Flash(portalPos, new Color(1f, .7f, .95f), 1.8f, .45f);
+                    Burst(portalPos, 140, 2.4f, .05f);
                     flash = 1;
-                    traveled = 0; speed = 0;
-                    var em = trail.emission; em.rateOverTime = 120;
-                    Capture("tour_portal", .6f);
-                    Capture("tour_fly", 9f);
                     break;
-                case Stage.Land:
-                    Capture("tour_land", 2.5f);
+                case Stage.Wide:
+                    sound?.Play("confirm", .5f);
+                    Capture("tour_wide", 4f);
+                    break;
+                case Stage.Mid:
+                    shotRot = Quaternion.LookRotation(Flat(mid.look - mid.from, forward));
+                    Capture("tour_mid", 2f);
+                    break;
+                case Stage.Hero:
+                    shotRot = Quaternion.LookRotation(Flat(hero.look - hero.from, forward));
+                    Capture("tour_hero", 1.6f);
                     break;
                 case Stage.Pop:
                     PopBubble();
@@ -519,101 +548,95 @@ namespace Diva.VR
             {
                 case Stage.Dream:
                     // 捏一下出发（没有手部追踪时 20 秒后自己出发）
+                    PlaceEye(wide.from, shotRot);
                     if (aligned && stageTime > 1f && (pinch || autopilot && stageTime > 2.5f || stageTime > 20)) Go(Stage.Burst);
                     break;
                 case Stage.Burst:
-                    if (stageTime >= .7f) Go(Stage.Fly);
+                    PlaceEye(wide.from, shotRot);
+                    if (stageTime >= .7f) Go(Stage.Open);
                     break;
-                case Stage.Fly:
-                    FlyStep(dt);
+                case Stage.Open:
+                    PlaceEye(wide.from, shotRot);
+                    if (stageTime >= 1.4f) Go(Stage.Wide);
                     break;
-                case Stage.Land:
-                    LandStep(dt);
+                case Stage.Wide:
+                    PlaceShot(wide);
+                    if (stageTime >= wide.seconds - .3f) StartWipe(Stage.Mid);
+                    break;
+                case Stage.Mid:
+                    PlaceShot(mid);
+                    if (stageTime >= mid.seconds - .3f) StartWipe(Stage.Hero);
+                    break;
+                case Stage.Hero:
+                    PlaceShot(hero);
+                    if (!greeted && stageTime > .6f)
+                    {
+                        greeted = true; greetTime = 0;
+                        sound?.PlayAt("toot", head ? head.position + forward * .8f : start, 1.1f);
+                    }
+                    if (stageTime >= hero.seconds - .3f) StartWipe(Stage.Pop);
                     break;
                 case Stage.Pop:
+                    // 泡泡碎片等人坐到座位上（下一帧）再放：在正前方散开，不往脸上飞
+                    if (!popBurst && stageTime > .02f)
+                    {
+                        popBurst = true;
+                        var at = cam.transform.position + Flat(cam.transform.forward, forward) * 1.6f;
+                        fx.Flash(at, new Color(1f, .8f, .95f), 2.2f, .35f);
+                        Burst(at, 220, 3.2f, .06f);
+                        sound?.PlayAt("pop", at, 1f);
+                    }
                     if (stageTime >= 1.1f) Finish();
                     break;
             }
+            // 转场到点：切镜头（这时转场正好全盖住）
+            if (wipeAt > 0 && Time.unscaledTime >= wipeAt && stage != wipeTo) Go(wipeTo);
             if (stage != Stage.Done) Animate(dt);
+        }
+
+        // 镜头里慢慢直线推近（缓入缓出），朝向不变
+        void PlaceShot(Shot s)
+        {
+            float k = DivaUi.Smooth(Mathf.Clamp01(stageTime / s.seconds));
+            PlaceEye(Vector3.Lerp(s.from, s.to, k), shotRot);
+        }
+
+        void StartWipe(Stage next)
+        {
+            if (wipeAt > 0) return;
+            wipeTo = next;
+            wipeAt = Time.unscaledTime + .3f;
+            sound?.Play("whoosh", .35f);
         }
 
         /// <summary>开场时游戏拿不到人的操作（大象在起点等着）。</summary>
         public DivaVRFrame Drive(DivaVRFrame raw) => default;
 
-        Vector3 PortalPos() => standPos + flyDir * 2.4f + Vector3.up * (rig.StandingEyeHeight - .05f);
-
         void Align()
         {
-            rig.Stand(standPos, Quaternion.LookRotation(flyDir));
+            PlaceEye(wide.from, shotRot);
             aligned = true;
             if (stage == Stage.Dream && !spark.gameObject.activeSelf)
             {
                 spark.gameObject.SetActive(true);
                 var h = cam.transform;
-                var flat = Flat(h.forward, flyDir);
+                var flat = Flat(h.forward, shotRot * Vector3.forward);
                 spark.position = h.position + flat * .75f - Vector3.up * .08f;
                 prompt.position = h.position + flat * 1.3f - Vector3.up * .3f;
                 sound?.PlayAt("skill", spark.position, .5f);
             }
         }
 
-        // 沿路线飞：速度按走过 / 剩下的距离平滑加减（起步 1 米/秒²以内，不猛），最快 cruise；到起点上空就开始降落
-        void FlyStep(float dt)
-        {
-            float total = pathLength[pathLength.Count - 1];
-            float remaining = total - traveled;
-            float want = Mathf.Min(cruise, .6f + traveled * .5f, .5f + remaining * .35f);
-            speed = Mathf.MoveTowards(speed, want, dt * 1.6f);
-            traveled += speed * dt;
-            var p = PathPoint(traveled, out var tangent);
-            // 朝向跟着路线的切线；最后 35 米提前慢慢转到大象的正前方（落下去时朝向已经对好，不用再转）
-            float targetYaw = remaining < 35 ? root.eulerAngles.y : Mathf.Atan2(tangent.x, tangent.z) * Mathf.Rad2Deg;
-            yaw = Mathf.SmoothDampAngle(yaw, targetYaw, ref yawVelocity, .9f, remaining < 35 ? 22 : 16, dt);
-            rig.Place(p, Quaternion.Euler(0, yaw, 0));
-            if (!courseShown && traveled > 4) { courseShown = true; title.gameObject.SetActive(true); sound?.Play("confirm", .5f); }
-            // 快到座位上方了：进入降落（最后 1.6 米竖直）
-            if (remaining < 1.7f) { landT = 0; Go(Stage.Land); }
-        }
-
-        // 最后一段竖直落到座位（高度按此刻站着的眼睛算：落定时眼睛正好在坐着的高度，破泡时不跳），大象抬头，短短扬一下鼻子
-        float landFromY;
-        void LandStep(float dt)
-        {
-            float total = pathLength[pathLength.Count - 1];
-            if (landT == 0) landFromY = transform.position.y;
-            landT += dt;
-            float k = DivaUi.Smooth(landT / 3.2f);
-            float dist = Mathf.Lerp(total - 1.7f, total, k);
-            var p = PathPoint(dist, out _);
-            p.y = Mathf.Lerp(landFromY, StandHeightAbove(seatWorld), k);
-            p.x = Mathf.Lerp(p.x, seatWorld.x, k); p.z = Mathf.Lerp(p.z, seatWorld.z, k);
-            float targetYaw = root.eulerAngles.y;
-            yaw = Mathf.SmoothDampAngle(yaw, targetYaw, ref yawVelocity, .6f, 20, dt);
-            rig.Place(p, Quaternion.Euler(0, yaw, 0));
-            speed = Mathf.MoveTowards(speed, 0, dt * 2);
-            if (!greeted && landT > .3f)
-            {
-                greeted = true; greetTime = 0;
-                sound?.PlayAt("toot", head ? head.position + forward * .8f : start, 1.1f);
-            }
-            if (landT >= 3.4f) Go(Stage.Pop);
-        }
-
         void PopBubble()
         {
-            var at = bubble.position;
-            fx.Flash(at, new Color(1f, .8f, .95f), 2.2f, .35f);
-            Burst(at, 220, 3.2f, .06f);
-            fx.Confetti(at + Vector3.up * .5f, Candy, 160);
-            sound?.PlayAt("pop", at, 1f);
             sound?.Play("combo", .5f);
             bubble.gameObject.SetActive(false);
             bubbleFloor.gameObject.SetActive(false);
-            var em = trail.emission; em.rateOverTime = 0;
-            // 坐到座位上：保持现在的朝向（不转），驾驶舱出来
-            rig.Board(true);
-            ShowCockpit(true);
+            // 粉色盖住的这一下换位置：坐到座位上，朝向直接对准大象的正前方（盖着看不见，不用慢慢转），驾驶舱出来
+            wipeAt = -1;
             flash = 1.2f;
+            rig.Board(snap: true);
+            ShowCockpit(true);
             Capture("tour_cockpit", .8f);
             Debug.Log("DIVA_VR tour boarded");
         }
@@ -631,7 +654,8 @@ namespace Diva.VR
         void Restore()
         {
             ShowCockpit(true);
-            if (rig && rig.Detached) rig.Board(true);
+            if (rig && rig.Detached) rig.Board();
+            if (wipe) Destroy(wipe.gameObject);
             if (world) Destroy(world.gameObject);
             if (fxRoot) Destroy(fxRoot.gameObject, 6);
             CancelInvoke();
@@ -644,7 +668,7 @@ namespace Diva.VR
             {
                 foreach (Transform child in rig.transform)
                     if (child.gameObject.activeSelf && (!cam || !cam.transform.IsChildOf(child))) { cockpitParts.Add(child.gameObject); child.gameObject.SetActive(false); }
-                foreach (var b in new Behaviour[] { GetComponent<DivaVRCockpit>(), GetComponent<DivaVRAmbience>() })
+                foreach (var b in new Behaviour[] { GetComponent<DivaVRCockpit>(), GetComponent<DivaVRAmbience>(), GetComponent<DivaVRGuide>(), GetComponent<DivaVRCoach>() })
                     if (b && b.enabled) { paused.Add(b); b.enabled = false; }
                 return;
             }
@@ -661,8 +685,7 @@ namespace Diva.VR
             flash = Mathf.MoveTowards(flash, 0, dt * 2.2f);
             var h = cam.transform;
 
-            // 梦境跟着人；星光偶尔"叮"一下
-            if (dream) dream.position = transform.position + Vector3.up * 1.2f;
+            // 梦里星光偶尔"叮"一下
             if (stage == Stage.Dream && t > sparkleNext)
             {
                 sparkleNext = t + Random.Range(1.2f, 2.6f);
@@ -674,7 +697,7 @@ namespace Diva.VR
             {
                 if (stage == Stage.Dream)
                 {
-                    var flat = Flat(h.forward, flyDir);
+                    var flat = Flat(h.forward, shotRot * Vector3.forward);
                     var want = h.position + flat * .75f - Vector3.up * .08f;
                     if (Vector3.Angle(flat, Flat(spark.position - h.position, flat)) > 30 || Vector3.Distance(spark.position, want) > .6f)
                         spark.position = Vector3.Lerp(spark.position, want, 1 - Mathf.Exp(-dt * 2.5f));
@@ -683,90 +706,79 @@ namespace Diva.VR
                 else if (stage == Stage.Burst)
                 {
                     float k = DivaUi.Smooth(stageTime / .7f);
-                    spark.position = Vector3.Lerp(spark.position, PortalPos(), k) + Vector3.up * Mathf.Sin(k * Mathf.PI) * .3f;
+                    spark.position = Vector3.Lerp(spark.position, portalPos, k) + Vector3.up * Mathf.Sin(k * Mathf.PI) * .3f;
                     sparkHalo.localScale = Vector3.one * Mathf.Lerp(.3f, .8f, k);
                 }
-                else spark.gameObject.SetActive(false);
                 Billboard(spark);
             }
 
-            // 门：出发时弹开；穿过门平面的一瞬间梦境碎成一片片散开，门在身后收起
-            if (stage == Stage.Fly && !portalDone)
+            // 门：弹开，门里是全景；然后梦境碎成一片片散开，门收起
+            if (stage == Stage.Open || stage == Stage.Wide && dissolve < 1.2f)
             {
-                if (!portalPlaced)
-                {
-                    portalPlaced = true;
-                    portal.SetPositionAndRotation(PortalPos(), Quaternion.LookRotation(-flyDir));
-                    if (dreamMat) { dreamMat.SetVector(PortalCenter, PortalPos()); dreamMat.SetVector(PortalNormal, -flyDir); }
-                }
-                float through = Vector3.Dot(transform.position - PortalPos(), flyDir);   // 驾驶舱过门平面多远
-                bool passed = through > -.3f;
-                openness = passed ? Mathf.Max(0, openness - dt * 2.5f) : Mathf.Max(.02f, DivaUi.EaseOutBack(stageTime / .9f));
+                openness = stage == Stage.Open ? Mathf.Max(.02f, DivaUi.EaseOutBack(stageTime / .9f)) : Mathf.Max(0, openness - dt * 3);
                 float r = 1.35f * openness * (1 + .012f * Mathf.Sin(t * 1.6f));
                 portal.localScale = Vector3.one * Mathf.Max(.001f, r);
                 ring.localRotation = Quaternion.Euler(0, 0, t * 14);
                 ringInner.localRotation = Quaternion.Euler(0, 0, -t * 22);
                 Tint(ringMat, Color.white * 1.3f * (1 + flash * 1.5f));
                 Tint(innerMat, new Color(1, .95f, 1) * 2.2f * (1 + flash));
-                if (passed)
+                if (stage == Stage.Wide)
                 {
-                    if (dissolve == 0) { sound?.PlayAt("whoosh", transform.position, .6f); Burst(transform.position + flyDir * 2 + Vector3.up * 1.2f, 160, 3f, .06f); }
+                    if (dissolve == 0) { sound?.PlayAt("whoosh", h.position + Vector3.up, .6f); Burst(portalPos, 160, 3f, .06f); }
                     dissolve = Mathf.Min(1.2f, dissolve + dt * 1.1f);
                     if (dreamMat) { dreamMat.SetFloat(PortalRadius, 0); dreamMat.SetFloat(Dissolve, dissolve); }
                     if (dreamBubbles) { var em = dreamBubbles.emission; em.rateOverTime = 0; }
                     if (sparkles) { var em = sparkles.emission; em.rateOverTime = 0; }
+                    if (dissolve >= 1.2f) { portal.gameObject.SetActive(false); if (dream) dream.gameObject.SetActive(false); }
                 }
                 else if (dreamMat) dreamMat.SetFloat(PortalRadius, r * .985f);
-                if (dissolve >= 1.2f) { portalDone = true; portal.gameObject.SetActive(false); if (dream) dream.gameObject.SetActive(false); }
             }
 
-            // 泡泡：出发时从光点处长出来包住人；飞的时候轻轻呼吸
+            // 泡泡：门开时长出来包住人，之后一直在身边（参照物），破的时候没了
             if (bubble.gameObject.activeSelf)
             {
-                float size = stage == Stage.Dream ? 0 : stage == Stage.Burst ? DivaUi.EaseOutBack(stageTime / .7f) : 1;
+                float size = stage == Stage.Dream || stage == Stage.Burst ? 0 : stage == Stage.Open ? DivaUi.EaseOutBack(stageTime / .8f) : 1;
                 float breathe = 1 + .012f * Mathf.Sin(t * 1.1f);
                 bubble.position = transform.position + Vector3.up * (rig.StandingEyeHeight * .55f);
                 bubble.localScale = Vector3.one * Mathf.Max(.001f, bubbleRadius * 2 * size * breathe);
-                if (bubbleMat) { bubbleMat.SetFloat(BubbleAlpha, Mathf.Lerp(.75f, .45f, Mathf.Clamp01(stageTime / 3)) + flash * .3f); bubbleMat.SetFloat(BubbleShift, t * .02f); }
+                if (bubbleMat) { bubbleMat.SetFloat(BubbleAlpha, .45f + flash * .3f); bubbleMat.SetFloat(BubbleShift, t * .02f); }
                 bubbleFloor.position = transform.position + Vector3.up * .01f;
                 Tint(floorMat, new Color(1f, .7f, .9f, .22f * size));
-                trail.transform.position = bubble.position;
             }
-            if (wind) wind.volume = Mathf.Clamp01(speed / cruise) * .35f * (sound != null ? sound.volume : 1);
-            if (hum) hum.volume = Mathf.MoveTowards(hum.volume, (stage == Stage.Dream || stage == Stage.Burst ? .4f : .12f) * (sound != null ? sound.volume : 1), dt * .3f);
+            if (hum) hum.volume = Mathf.MoveTowards(hum.volume, (stage <= Stage.Open ? .4f : .1f) * (sound != null ? sound.volume : 1), dt * .3f);
 
-            // 任务点：泡泡飞近时光柱亮起来、名字弹出来；降落时都收掉
-            foreach (var b in beacons)
+            // 全景：标题弹出来，任务点一个个亮起来（赛道预告）；之后收掉
+            if (stage == Stage.Wide)
+                title.localScale = Vector3.one * (44f / 2000f) * Mathf.Max(0, DivaUi.EaseOutBack((stageTime - 1.2f) / .7f)) * Mathf.Clamp01((wide.seconds - stageTime) / .4f);
+            else title.localScale = Vector3.zero;
+            for (int i = 0; i < beacons.Count; i++)
             {
-                float d = Vector3.ProjectOnPlane(b.at - transform.position, Vector3.up).magnitude;
-                bool show = stage == Stage.Fly && d < 26;
-                if (show && b.shown == 0) { b.shown = t; sound?.PlayAt("confirm", b.at + Vector3.up * 8, .4f); }
+                var b = beacons[i];
+                if (stage == Stage.Wide && b.shown == 0 && stageTime > 2.2f + i * .9f) { b.shown = t; sound?.Play("confirm", .35f); }
                 float k = b.shown > 0 ? DivaUi.EaseOutBack((t - b.shown) / .6f) : 0;
-                if (stage == Stage.Land || stage == Stage.Pop) k = Mathf.Max(0, 1 - stageTime * 1.5f);
-                Tint(b.mat, new Color(1f, .6f, .9f, .35f * k * (.8f + .2f * Mathf.Sin(t * 3 + b.at.x))));
-                b.label.localScale = Vector3.one * (4.5f / 1200f) * Mathf.Max(0, k);
+                if (stage != Stage.Wide) k = 0;
+                Tint(b.mat, new Color(1f, .6f, .9f, .6f * k * (.8f + .2f * Mathf.Sin(t * 3 + i))));
+                b.label.localScale = Vector3.one * (12f / 1200f) * Mathf.Max(0, k);
                 var to = b.label.position - h.position; to.y = 0;
                 if (to.sqrMagnitude > 1e-4f) b.label.rotation = Quaternion.LookRotation(to);
             }
-            if (title.gameObject.activeSelf)
+
+            // 泡泡转场：0.3 秒盖住，切镜头，0.35 秒散开
+            float cover = 0;
+            if (wipeAt > 0)
             {
-                var to = title.position - h.position; to.y = 0;
-                if (to.sqrMagnitude > 1e-4f) title.rotation = Quaternion.LookRotation(to);
-                float age = stageTime;
-                title.localScale = Vector3.one * (14f / 2000f) * DivaUi.EaseOutBack(Mathf.Clamp01((traveled - 4) / 2.5f));
-                if (stage == Stage.Land) title.gameObject.SetActive(false);
+                float d = Time.unscaledTime - wipeAt;
+                cover = d < 0 ? DivaUi.Smooth(1 + d / .3f) : 1 - DivaUi.Smooth(d / .35f);
+                if (d > .35f) wipeAt = -1;
             }
+            if (stage == Stage.Pop) cover = Mathf.Max(cover, 1 - DivaUi.Smooth((stageTime - .05f) / .6f));
+            Tint(wipeMat, new Color(Pastel.r, Pastel.g, Pastel.b, cover));
             UpdatePrompt(dt);
         }
 
         void UpdatePrompt(float dt)
         {
-            string key = stage switch
-            {
-                Stage.Dream => aligned && stageTime > 1f ? "vr.tour.begin" : null,
-                Stage.Land => "vr.tour.land",
-                _ => null
-            };
+            string key = stage == Stage.Dream && aligned && stageTime > 1f ? "vr.tour.begin" : null;
             if (key != null && key != promptKey)
             {
                 promptKey = key; promptShownAt = Time.unscaledTime;
@@ -774,13 +786,11 @@ namespace Diva.VR
                 promptSub.text = DivaText.T(key + ".b");
             }
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, key != null ? 1 : 0, dt * (key != null ? 3 : 4));
-            // 弹出来的时候蹦一下
             float pop = key != null ? DivaUi.EaseOutBack((Time.unscaledTime - promptShownAt) / .5f) : 1;
             prompt.localScale = Vector3.one * (.9f / 1100f) * Mathf.Max(.01f, pop);
             if (promptGroup.alpha <= 0 && key == null) return;
-            // 在视线正前方 1.3 米、略低一点；偏出 22° 才挪
             var h = cam.transform;
-            var flat = Flat(h.forward, flyDir);
+            var flat = Flat(h.forward, shotRot * Vector3.forward);
             var want = h.position + flat * 1.3f - Vector3.up * .3f;
             var to = Flat(prompt.position - h.position, flat);
             if (Vector3.Angle(flat, to) > 22 || Mathf.Abs((prompt.position - h.position).magnitude - 1.33f) > .5f || promptGroup.alpha < .05f)
@@ -792,15 +802,14 @@ namespace Diva.VR
         {
             if (stage == Stage.Done || !root || !head) return;
             float dt = Time.unscaledDeltaTime;
-            // 降落时大象抬头看人（泡泡在 30 米内就开始找）；坐上去以后不看了
-            float d = Vector3.Distance(transform.position, head.position);
-            float lookTarget = stage == Stage.Fly && d < 30 ? Mathf.InverseLerp(30, 12, d) : stage == Stage.Land ? 1 : 0;
-            lookWeight = Mathf.MoveTowards(lookWeight, lookTarget, dt * .8f);
+            // 中景、特写时大象抬头看人；坐上去以后不看了
+            float lookTarget = stage == Stage.Mid ? .6f : stage == Stage.Hero ? 1 : 0;
+            lookWeight = Mathf.MoveTowards(lookWeight, lookTarget, dt * 1.2f);
             PoseGreet(dt);
             PoseLook(dt);
         }
 
-        // 扬一下鼻子打招呼：头抬 18°、鼻子后四节往上卷，1.6 秒内做完
+        // 扬一下鼻子打招呼：头抬 18°、鼻子后四节往上卷，1.7 秒内做完
         void PoseGreet(float dt)
         {
             if (greetTime < 0 || trunk.Length == 0) return;
@@ -824,7 +833,7 @@ namespace Diva.VR
             var target = cam.transform.position;
             float k = 1 - Mathf.Exp(-dt * 3);
             var now = head.rotation * headRest;
-            var want = LimitedTurn(now, target - head.position, 30, 40);
+            var want = LimitedTurn(now, target - head.position, 35, 30);
             headTurn = Quaternion.Slerp(headTurn, Quaternion.Slerp(Quaternion.identity, want, lookWeight), k);
             head.rotation = headTurn * head.rotation;
             for (int i = 0; i < eyes.Length; i++)

@@ -148,7 +148,7 @@ namespace Diva.Show
             countdownRoot.gameObject.SetActive(Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 1);
             highlightRoot.gameObject.SetActive(Phase == ShowPhase.Highlight);
             resultsRoot.gameObject.SetActive(Phase == ShowPhase.Results);
-            topRoot.gameObject.SetActive(Phase != ShowPhase.Highlight && Phase != ShowPhase.Intro && Phase != ShowPhase.RaceIntro);
+            topRoot.gameObject.SetActive(!DivaVR.Active && Phase != ShowPhase.Highlight && Phase != ShowPhase.Intro && Phase != ShowPhase.RaceIntro);
         }
 
         // ------------------------------------------------------------------ language + setup (top right)
@@ -212,6 +212,10 @@ namespace Diva.Show
             DivaUi.Localize(hint, () => DivaText.T("select.gesture"));
             var keys = DivaUi.Text(selectRoot, "Key Hint", bottom, new Vector2(0, 12), new Vector2(1700, 34), 24, new Color(1, 1, 1, .6f), TextAlignmentOptions.Center, false);
             DivaUi.Localize(keys, () => DivaText.T("select.keys"));
+            // VR：玩家人数、开始按钮、键盘提示和标题都不要（点不到，挤）；驾驶舱里的"下一步"指引牌说该做什么
+            if (DivaVR.Active)
+                foreach (var hide in new[] { "One Player", "Three Players", "Status", "Start", "Gesture Hint", "Key Hint", "Title", "Subtitle" })
+                    selectRoot.Find(hide)?.gameObject.SetActive(false);
         }
 
         void RefreshSelect()

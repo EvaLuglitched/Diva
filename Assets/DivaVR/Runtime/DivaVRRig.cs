@@ -130,6 +130,7 @@ namespace Diva.VR
             if (!DivaVR.ArrivalDone && !DivaVRDebug.On("DIVA_NOPORTAL")) gameObject.AddComponent<DivaVRBubbleTour>();
             gameObject.AddComponent<DivaVRInput>();
             gameObject.AddComponent<DivaVRCoach>();
+            gameObject.AddComponent<DivaVRGuide>();
         }
 
         /// <summary>
@@ -293,11 +294,12 @@ namespace Diva.VR
 
         /// <summary>上机甲：回到大象背上的座位，按现在的头重新对准（这一帧的 LateUpdate 里就到位）。</summary>
         /// <param name="keepFacing">只对齐位置，不把人现在面朝的方向转成大象的正前方（泡泡落下来时朝向已经对好了，转了反而跳）。</param>
-        public void Board(bool keepFacing = false)
+        /// <param name="snap">朝向这一帧直接对准大象（画面被盖住时用）：不盖住时慢慢转过去，眼睛看着世界自己转最容易晕。</param>
+        public void Board(bool keepFacing = false, bool snap = false)
         {
             Detached = false;
-            // 朝向从现在的接着平滑转过去（不跳）；位置这一帧就到座位
-            yaw = transform.eulerAngles.y; yawVelocity = 0; placed = true;
+            // 位置这一帧就到座位；朝向要么直接到位（盖住时），要么从现在的接着平滑转过去
+            yaw = snap && root ? root.eulerAngles.y : transform.eulerAngles.y; yawVelocity = 0; placed = true;
             recentered = false;
             boardKeepFacing = keepFacing;
         }
