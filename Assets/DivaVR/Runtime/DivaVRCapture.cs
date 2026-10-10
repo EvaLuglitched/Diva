@@ -95,7 +95,7 @@ namespace Diva.VR
             SaveXr();
             if (probeAt > 0 && Time.unscaledTime >= probeAt) { probeAt = -1; AlphaProbe(probeName); }
             if (shotAt > 0 && Time.unscaledTime >= shotAt) { shotAt = -1; Shot(shotName); }
-            if (show && show.Phase == ShowPhase.Play && Time.unscaledTime >= next) { next = Time.unscaledTime + 6; Shot("play"); }
+            if (show && (show.Phase == ShowPhase.Play || show.Phase == ShowPhase.Select) && Time.unscaledTime >= next) { next = Time.unscaledTime + 6; Shot(show.Phase.ToString()); }
         }
 
         /// <summary>
@@ -145,6 +145,12 @@ namespace Diva.VR
         }
 
         void Shot(string name)
+        {
+            try { ShotInner(name); }
+            catch (Exception e) { Debug.LogWarning($"DIVA_VR capture {name} failed: {e}"); }
+        }
+
+        void ShotInner(string name)
         {
             if (!DivaVR.Head) return;
             cam.transform.SetPositionAndRotation(DivaVR.Head.position, DivaVR.Head.rotation);

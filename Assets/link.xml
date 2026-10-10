@@ -1,0 +1,9 @@
+<linker>
+  <!-- GameObject.CreatePrimitive 会按类型加碰撞体：代码里没直接引用的碰撞体类会被裁掉（头显上报 "class 'CapsuleCollider' doesn't exist"） -->
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.CapsuleCollider" preserve="all"/>
+    <type fullname="UnityEngine.BoxCollider" preserve="all"/>
+    <type fullname="UnityEngine.SphereCollider" preserve="all"/>
+    <type fullname="UnityEngine.MeshCollider" preserve="all"/>
+  </assembly>
+</linker>
