@@ -68,10 +68,10 @@ drinking, Diva Show's HUD and skills, and the course tasks all respond exactly a
 | --- | --- |
 | W / ↑ | Go forward |
 | A / D, ← / → | Turn left / right |
-| Q / E | Aim the trunk left / right |
+| U / I | Aim the trunk left / right |
 | Space (hold) | Spray water; each burst fires at the best target in the aimed direction |
 | F (or R) | Drink / refill |
-| U | Ultimate (Diva Show) |
+| U | Also Diva Show's ultimate key: once the ultimate is charged, pressing U (aim left) fires it |
 | H | Hide / show the key legend (bottom right during play; EN/中文 follows Diva Show's L key) |
 
 Keys do nothing in locked menus and cutscenes, like gestures. The blaster's own Space shot is turned off while

@@ -977,7 +977,7 @@ public static class DivaGameBuilder
             new CourseTask { label = "Reach the finish arch", landmark = Landmark("04 "), radius = 4, check = TaskCheck.Reach },
         };
 
-        // Keyboard play alongside the gestures (W/A/D, Q/E, Space, F); see Runtime/DivaKeyboardControls.cs.
+        // Keyboard play alongside the gestures (W/A/D, U/I, Space, F); see Runtime/DivaKeyboardControls.cs.
         root.AddComponent<DivaKeyboardControls>();
         var intro = root.AddComponent<DivaIntro>();
         intro.gameCamera = Camera.main;

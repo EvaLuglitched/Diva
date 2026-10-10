@@ -172,7 +172,8 @@ namespace Diva
             var keys = Keyboard.current;
             if (keys == null) return;
             if (keys.escapeKey.wasPressedThisFrame) Skip();
-            if (keys.iKey.wasPressedThisFrame && !showDirectsMatch) Begin();
+            // I replays, except under Diva Show (it owns replays) or keyboard play (I aims the trunk right).
+            if (keys.iKey.wasPressedThisFrame && !showDirectsMatch && !FindAnyObjectByType<DivaKeyboardControls>()) Begin();
         }
 
         void LateUpdate()

@@ -12,7 +12,7 @@ Raise one arm to switch skins, then hold both hands above your head to start; Ev
 (both hands up, Enter or Esc skip to the countdown) and the run starts at GO. One person has every
 control (Try alone > All). Hold both hands above your head again when MEGA BUBBLE is charged.
 Keyboard: arrows switch skins, Enter starts or skips, U fires the ultimate, L switches EN/中文, F1 shows the setup panel.
-Keyboard play works together with the gestures, even without a camera: W (or ↑) go, A/D (or ←/→) turn, Q/E aim,
+Keyboard play works together with the gestures, even without a camera: W (or ↑) go, A/D (or ←/→) turn, U/I aim (U also fires a charged ultimate),
 hold Space to spray, F to drink, H hides the key legend. See Assets/DivaGame/README.md.
 
 ## One person, one role (testing)

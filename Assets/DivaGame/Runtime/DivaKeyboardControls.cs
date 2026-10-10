@@ -51,7 +51,7 @@ namespace Diva
             if (kb == null) { demo.State.Keys = null; return; }
             float go = kb.wKey.isPressed || kb.upArrowKey.isPressed ? 1 : 0;
             float steer = (kb.dKey.isPressed || kb.rightArrowKey.isPressed ? 1 : 0) - (kb.aKey.isPressed || kb.leftArrowKey.isPressed ? 1 : 0);
-            float aim = (kb.eKey.isPressed ? 1 : 0) - (kb.qKey.isPressed ? 1 : 0);
+            float aim = (kb.iKey.isPressed ? 1 : 0) - (kb.uKey.isPressed ? 1 : 0);   // U left, I right
             bool shoot = kb.spaceKey.isPressed;
             bool drink = kb.fKey.isPressed || kb.rKey.isPressed;
             bool any = go > 0 || steer != 0 || aim != 0 || shoot || drink;
@@ -89,8 +89,8 @@ namespace Diva
                 chinese = zh;
                 // Plain letters only: the default fonts may lack arrow glyphs.
                 legend.text = zh
-                    ? "<b>键盘</b>  W 前进 · A/D 转向 · Q/E 瞄准（方向键也可以）\n空格 喷水 · F 喝水 · U 大招 · H 隐藏"
-                    : "<b>KEYS</b>  W go · A/D turn · Q/E aim (arrow keys too)\nSpace spray · F drink · U ultimate · H hide";
+                    ? "<b>键盘</b>  W 前进 · A/D 转向 · U/I 瞄准（方向键也可以）\n空格 喷水 · F 喝水 · 大招充满时 U 也会放大招 · H 隐藏"
+                    : "<b>KEYS</b>  W go · A/D turn · U/I aim (arrow keys too)\nSpace spray · F drink · U also fires a charged ultimate · H hide";
             }
         }
 
