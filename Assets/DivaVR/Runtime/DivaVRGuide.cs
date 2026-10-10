@@ -152,7 +152,7 @@ namespace Diva.VR
                 statFills[i] = fillImg.rectTransform;
             }
             // 确认时砸下来的图章
-            stamp = DivaUi.Text(panel, "Stamp", new Vector2(.5f, .5f), new Vector2(0, 118), new Vector2(1100, 140), 96, new Color(1f, .9f, .4f));
+            stamp = DivaUi.Text(panel, "Stamp", new Vector2(.5f, .5f), new Vector2(0, 40), new Vector2(1100, 160), 110, new Color(1f, .9f, .4f));
             DivaUi.Glow(stamp, new Color(1f, .5f, .1f, .9f), .7f, .5f, .18f);
             stamp.gameObject.SetActive(false);
             skinsRef = FindAnyObjectByType<DivaMechSkins>();
@@ -412,8 +412,13 @@ namespace Diva.VR
                 float[] vals = { .55f + .4f * Mathf.PerlinNoise(k * 1.7f, .3f), .55f + .4f * Mathf.PerlinNoise(k * 1.7f, 1.3f), .55f + .4f * Mathf.PerlinNoise(k * 1.7f, 2.3f) };
                 for (int i = 0; i < 3; i++) statFills[i].localScale = new Vector3(Mathf.Lerp(statFills[i].localScale.x, vals[i], 1 - Mathf.Exp(-dt * 8)), 1, 1);
             }
-            // 图章：大→小砸下来
-            if (stamp.gameObject.activeSelf)
+            // 图章：大→小砸下来；图章在的时候把下面的字收起来（不叠在一起）
+            bool stamping = stamp.gameObject.activeSelf;
+            float textAlpha = stamping ? 0 : 1;
+            title.alpha = Mathf.MoveTowards(title.alpha, textAlpha, dt * 12); lineA.alpha = title.alpha; lineB.alpha = title.alpha; stepLabel.alpha = title.alpha;
+            foreach (var r in rows) if (r.rt.gameObject.activeSelf) { r.text.alpha = stamping ? 0 : (r.doneAt >= 0 ? .55f : 1); }
+            if (statsRow.activeSelf) statsRow.transform.localScale = Vector3.one * (stamping ? 0 : 1);
+            if (stamping)
             {
                 float st = t - stampAt; float sp = DivaUi.EaseOutBack(st / .35f);
                 stamp.rectTransform.localScale = Vector3.one * Mathf.Lerp(2.6f, 1, sp);
