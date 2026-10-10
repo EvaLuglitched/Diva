@@ -17,6 +17,7 @@ namespace Diva.VR
         DivaShowDirector show;
         ParticleSystem streaks;
         ShowPhase lastPhase;
+        Light tail;
 
         void Start()
         {
@@ -26,6 +27,11 @@ namespace Diva.VR
             baseRun = loco.runSpeed;
             DivaShowDirector.PhaseChanged += OnPhase;
             BuildStreaks();
+            // 尾部的暖色点光：冲刺时亮，照亮大象的屁股和地面
+            var lg = new GameObject("Dash Tail Light");
+            lg.transform.SetParent(loco.travelRoot, false);
+            lg.transform.localPosition = new Vector3(0, 1.6f, -2.2f);
+            tail = lg.AddComponent<Light>(); tail.type = LightType.Point; tail.color = new Color(1f, .55f, .3f); tail.range = 9; tail.intensity = 0; tail.shadows = LightShadows.None;
         }
 
         void OnDestroy() { DivaShowDirector.PhaseChanged -= OnPhase; if (loco && baseRun > 0) loco.runSpeed = baseRun; }
@@ -44,6 +50,8 @@ namespace Diva.VR
             if (loco) loco.runSpeed = baseRun * speedScale;
             if (show) { show.VrDash(true); if (show.Sound != null) { show.Sound.Play("whoosh", .8f); show.Sound.Play("rise", .5f); } }
             if (streaks) streaks.Play();
+            var cockpit = GetComponent<DivaVRCockpit>(); if (cockpit) cockpit.Rumble(1);
+            if (show && show.Sound != null) show.Sound.Play("toot", .5f, 1.15f);
             Debug.Log("DIVA_VR dash " + why);
         }
 
@@ -59,6 +67,7 @@ namespace Diva.VR
         void Update()
         {
             if (until > 0 && Time.time >= until) Stop();
+            if (tail) tail.intensity = Mathf.MoveTowards(tail.intensity, Active ? 5f + 1.5f * Mathf.Sin(Time.time * 30) : 0, Time.deltaTime * 20);
         }
 
         // 风的线条：驾驶舱两侧往后飞的细长亮条（驾驶舱坐标里模拟，跟着大象）

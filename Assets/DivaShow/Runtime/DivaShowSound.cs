@@ -61,6 +61,13 @@ namespace Diva.Show
             Make("whoosh", 1.2f, t => Noise() * .35f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 1.2f)) * (.4f + .6f * t / 1.2f));
             // 低音"轰"：开门、标题砸下来——55 赫兹往下滑到 28，带一下噪声冲击
             Make("boom", 1.4f, t => (Mathf.Sin(2 * Mathf.PI * Mathf.Lerp(55, 28, Mathf.Clamp01(t / .5f)) * t) * .85f + Noise() * .5f * Env(t, .001f, .05f)) * Env(t, .004f, .45f));
+            // 任务完成"当当"：四个音往上，带一点闪亮的泛音
+            Make("tada", .7f, t => (Arp(t, new[] { 659.25f, 783.99f, 987.77f, 1318.5f }, .09f) * .32f + Mathf.Sin(2 * Mathf.PI * 2637 * t) * .06f * Env(t, .01f, .3f)));
+            // 欢呼：一团噪声慢慢涨再落，像远处的人群
+            {
+                var crowd = new Resonance(900, .6f); var crowd2 = new Resonance(1800, .5f);
+                Make("cheer", 2.6f, t => (crowd.Step(Noise()) * .7f + crowd2.Step(Noise()) * .3f) * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 2.6f)) * .5f * (1 + .15f * Mathf.Sin(t * 23)));
+            }
             Make("pop", .9f, t => (Mathf.Sin(2 * Mathf.PI * Mathf.Lerp(160, 50, t / .9f) * t) * .7f + Noise() * .45f * Env(t, .002f, .08f)) * Env(t, .003f, .25f));
             Make("fanfare", 2.2f, t =>
             {

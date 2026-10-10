@@ -126,6 +126,8 @@ namespace Diva.Show
             ["feed.candy"] = ("CANDY  +{0}", "糖果  +{0}"),
             ["vr.guide.locked"] = ("LOCKED IN!", "就它了！"),
             ["vr.guide.nice"] = ("NICE!", "漂亮！"),
+            ["vr.feed.task"] = ("DONE!", "完成！"),
+            ["vr.feed.rocket"] = ("ROCKET!", "火箭！"),
             ["vr.stat.speed"] = ("SPEED", "速度"), ["vr.stat.cannon"] = ("CANNON", "水炮"), ["vr.stat.bubble"] = ("BUBBLE", "泡泡"),
             ["vr.finish.title"] = ("PLAY OF THE RACE", "全场最佳"),
             ["vr.finish.sub"] = ("full lap of Candy Town", "糖果镇 完整一圈"),

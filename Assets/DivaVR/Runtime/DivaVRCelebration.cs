@@ -27,7 +27,7 @@ namespace Diva.VR
             card.SetParent(anchor, false);
             card.sizeDelta = new Vector2(1400, 520);
             card.localScale = Vector3.one * (2.4f / 1400f);
-            card.localPosition = new Vector3(0, .1f, 0);
+            card.localPosition = new Vector3(0, .95f, 0);   // 结算面板的上方，不和它叠
             var c = go.GetComponent<Canvas>(); c.renderMode = RenderMode.WorldSpace; c.worldCamera = DivaVR.Head ? DivaVR.Head.GetComponent<Camera>() : Camera.main; c.sortingOrder = 70;
             group = go.GetComponent<CanvasGroup>(); group.alpha = 0; group.blocksRaycasts = false;
             var ink = new Color(.06f, .05f, .12f);
@@ -59,6 +59,7 @@ namespace Diva.VR
             score.text = show.TotalScore.ToString("N0") + " PTS";
         }
 
+        System.Collections.IEnumerator Later(float delay, System.Action act) { float e = Time.unscaledTime + delay; while (Time.unscaledTime < e) yield return null; act(); }
         bool burst;
         void LateUpdate()
         {
@@ -68,12 +69,13 @@ namespace Diva.VR
             if (!burst)
             {
                 burst = true;
-                if (show.Sound != null) { show.Sound.Play("fanfare", .9f); show.Sound.Play("pop", .6f); }
+                if (show.Sound != null) { show.Sound.Play("fanfare", .9f); show.Sound.Play("pop", .6f); show.Sound.Play("cheer", .8f); }
                 if (fx != null)
                 {
                     var head = DivaVR.Head ? DivaVR.Head.position : transform.position;
                     var colours = new[] { new Color(1f, .45f, .8f), new Color(1f, .85f, .3f), new Color(.5f, .95f, .85f), new Color(.75f, .6f, 1f) };
-                    for (int i = 0; i < 6; i++) fx.Firework(head + Quaternion.Euler(0, i * 60, 0) * Vector3.forward * 4 + Vector3.up * 2.5f, colours[i % colours.Length] * 1.5f);
+                    // 烟花分三批，隔 0.4 秒，离人 7 米远（一起炸在眼前就是闪屏）
+                    for (int i = 0; i < 6; i++) { int k = i; var at = head + Quaternion.Euler(0, k * 60 + 30, 0) * Vector3.forward * 7 + Vector3.up * 3.5f; StartCoroutine(Later(k / 2 * .4f, () => fx.Firework(at, colours[k % colours.Length] * 1.3f))); }
                 }
             }
             group.alpha = Mathf.Clamp01(t * 6);

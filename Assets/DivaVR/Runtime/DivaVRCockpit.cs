@@ -59,6 +59,9 @@ namespace Diva.VR
         DivaShowDirector show;
         DivaDemo demo;
         bool blender;
+        Transform cockpitRoot; float rumble;
+        /// <summary>驾驶舱抖一下（大招、冲刺、命中）：只抖驾驶舱的壳，不抖人的视角。</summary>
+        public void Rumble(float amount) => rumble = Mathf.Max(rumble, amount);
         // 仪表台两块侧屏：左边速度，右边水量和连击
         TextMeshProUGUI speedText, comboText;
         RectTransform speedBar, waterBar;
@@ -79,6 +82,7 @@ namespace Diva.VR
             glowB = Unlit(new Color(.3f, .95f, .85f) * 2f);
             var root = new GameObject("Cockpit").transform;
             root.SetParent(transform, false);
+            cockpitRoot = root;
             screen = Unlit(new Color(.05f, .22f, .28f));
             if (blender = BuildFromBlender(root)) { if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); } BuildVignette(); return; }
 
@@ -154,6 +158,12 @@ namespace Diva.VR
         {
             UpdateGlow();
             UpdateScreens();
+            if (cockpitRoot)
+            {
+                rumble = Mathf.MoveTowards(rumble, 0, Time.unscaledDeltaTime * 1.6f);
+                float a = rumble * rumble * .006f, tt = Time.unscaledTime * 27;
+                cockpitRoot.localPosition = new Vector3(Mathf.PerlinNoise(tt, .3f) - .5f, Mathf.PerlinNoise(.7f, tt) - .5f, 0) * a;
+            }
             if (!vignette) return;
             float dt = Mathf.Max(1e-4f, Time.unscaledDeltaTime);
             float yaw = transform.eulerAngles.y;

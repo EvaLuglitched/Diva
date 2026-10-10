@@ -19,7 +19,7 @@ namespace Diva.VR
         DivaShowDirector show;
         DivaMechSkins skins;
         Transform holo, spin, glowRing, glowRing2;
-        float bump;
+        float bump, norm = 1;
         readonly List<(Renderer source, Renderer copy)> parts = new List<(Renderer, Renderer)>();
         float height = 1, eye;
 
@@ -71,6 +71,7 @@ namespace Diva.VR
             height = Mathf.Max(.5f, bounds.size.y);
             model.localScale = Vector3.one;
             spin.localScale = Vector3.one / height;
+            norm = 1f / height;
 
             // 底座的光圈
             if (show && show.glowMaterial)
@@ -124,7 +125,8 @@ namespace Diva.VR
             holo.localScale = Vector3.one * Mathf.Lerp(holo.localScale.x, size, k);
             spin.localRotation = Quaternion.Euler(0, Time.unscaledTime * (select ? 25 : 12), 0);
             bump = Mathf.MoveTowards(bump, 0, Time.unscaledDeltaTime * 2.5f);
-            spin.localScale = Vector3.one * (1 + .18f * Mathf.Sin(bump * Mathf.PI) );
+            // 模型先归一化成 1 米高（norm），再乘弹一下的幅度（之前漏了 norm，大象按真实大小显示，巨大）
+            spin.localScale = Vector3.one * norm * (1 + .18f * Mathf.Sin(bump * Mathf.PI));
             if (glowRing) glowRing.localRotation = Quaternion.Euler(0, Time.unscaledTime * 40, 0);
             if (glowRing2) { glowRing2.localRotation = Quaternion.Euler(0, -Time.unscaledTime * 25, 0); glowRing2.gameObject.SetActive(select); }
             if (glowRing) glowRing.localRotation = Quaternion.identity;

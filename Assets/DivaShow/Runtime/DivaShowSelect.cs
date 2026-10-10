@@ -230,7 +230,7 @@ namespace Diva.Show
         {
             float t = PhaseTime;
             int n = 3 - Mathf.FloorToInt(t);
-            if (n != lastCount && n >= 1) { sound.Play("beep"); lastCount = n; }
+            if (n != lastCount && n >= 1) { sound.Play("beep", 1, 1 + .14f * (3 - n)); lastCount = n; }   // 3、2、1 越来越高
             float k = t - Mathf.Floor(t);
             countdownText.text = n >= 1 ? n.ToString() : "";
             countdownText.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.8f, 1, DivaUi.EaseOutBack(k / .35f));

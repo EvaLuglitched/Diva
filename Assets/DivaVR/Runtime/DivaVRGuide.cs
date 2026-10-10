@@ -107,7 +107,7 @@ namespace Diva.VR
             {
                 var row = new Row();
                 row.rt = DivaUi.Rect(lr, "Row " + i, new Vector2(.5f, .5f), new Vector2(0, -20), new Vector2(1060, 120));
-                row.icon = DivaUi.Image(row.rt, "Icon", new Vector2(0, .5f), new Vector2(40, 0), new Vector2(48, 48), new Color(1, 1, 1, .3f), null);
+                row.icon = DivaUi.Image(row.rt, "Icon", new Vector2(0, .5f), new Vector2(150, 0), new Vector2(48, 48), new Color(1, 1, 1, .3f), null);
                 row.number = DivaUi.Text(row.icon.rectTransform, "Number", new Vector2(.5f, .5f), Vector2.zero, new Vector2(48, 48), 30, new Color(.06f, .05f, .12f), TextAlignmentOptions.Center, false);
                 row.number.text = (i + 1).ToString();
                 row.text = DivaUi.Text(row.rt, "Text", new Vector2(0, .5f), new Vector2(460, 0), new Vector2(780, 120), 40, Color.white, TextAlignmentOptions.Left, false);
@@ -152,7 +152,7 @@ namespace Diva.VR
                 statFills[i] = fillImg.rectTransform;
             }
             // 确认时砸下来的图章
-            stamp = DivaUi.Text(panel, "Stamp", new Vector2(.5f, .5f), new Vector2(0, 10), new Vector2(1100, 160), 110, new Color(1f, .9f, .4f));
+            stamp = DivaUi.Text(panel, "Stamp", new Vector2(.5f, .5f), new Vector2(0, 118), new Vector2(1100, 140), 96, new Color(1f, .9f, .4f));
             DivaUi.Glow(stamp, new Color(1f, .5f, .1f, .9f), .7f, .5f, .18f);
             stamp.gameObject.SetActive(false);
             skinsRef = FindAnyObjectByType<DivaMechSkins>();
