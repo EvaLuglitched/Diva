@@ -456,7 +456,7 @@ namespace Diva.VR
                     float pulse = now ? 1 + .06f * Mathf.Sin(t * 5) : 1;
                     float popDone = done ? DivaUi.EaseOutBack((t - r.doneAt) / .4f) : 1;
                     r.icon.rectTransform.localScale = Vector3.one * pulse * Mathf.Max(.2f, popDone);
-                    r.text.alpha = done ? .55f : now ? 1 : .45f;
+                    r.text.alpha = stamp.gameObject.activeSelf ? 0 : done ? .55f : now ? 1 : .45f;
                     // 实时反馈：前倾多少、往哪边倾、手在不在嘴边、有没有捏
                     float live = i == (int)Move.Lean ? f.go : i == (int)Move.Turn ? f.steer : i == (int)Move.Mouth ? (f.drink ? 1 : 0) : (f.shoot ? 1 : 0);
                     var m = r.meter.rectTransform;
