@@ -46,6 +46,8 @@ namespace Diva.VR
                 mesh.vertices = verts; mesh.normals = norms; mesh.triangles = p.t;
                 mesh.RecalculateBounds();
                 var m = p.material == "glowA" ? glowA : p.material == "glowB" ? glowB : p.material == "screen" ? screen : body;
+                // 顶上那道粗"眉"看着压抑（Carl），不装；换成下面细细的发光环框
+                if (p.name.StartsWith("Brow")) continue;
                 Part(root, p.name, mesh, m);
             }
             Resources.UnloadAsset(json);
@@ -84,7 +86,14 @@ namespace Diva.VR
             root.SetParent(transform, false);
             cockpitRoot = root;
             screen = Unlit(new Color(.05f, .22f, .28f));
-            if (blender = BuildFromBlender(root)) { if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); } BuildVignette(); return; }
+            if (blender = BuildFromBlender(root))
+            {
+                // 细环框：眼睛上方 0.36 米一圈很细的发光弧，左右各 58°，只是暗示座舱的轮廓
+                Part(root, "Halo", Sector(.705f, .72f, -58, 58, eye + .36f, eye + .375f, 24), glowA);
+                Part(root, "Halo Shadow", Sector(.70f, .725f, -58, 58, eye + .345f, eye + .36f, 24), body);
+                if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); }
+                BuildVignette(); return;
+            }
 
             // 没有 Blender 导出的模型时的简易框架
             // 仪表台：半径 0.52–0.70 米、左右各 55°，比眼睛低 0.36–0.52 米

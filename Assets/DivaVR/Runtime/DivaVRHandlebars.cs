@@ -31,7 +31,8 @@ namespace Diva.VR
         public float PushR => pushR;
 
         DivaVRRig rig;
-        Transform bar, gripL, gripR;
+        Transform bar, gripL, gripR, dial, needle;
+        DigiPhant.DigiPhantLocomotion loco;
         Material gripMatL, gripMatR;
         Vector3 restL, restR;   // 驾驶舱坐标里的握把位置
         bool heldL, heldR;
@@ -41,6 +42,7 @@ namespace Diva.VR
         void Start()
         {
             rig = GetComponent<DivaVRRig>();
+            loco = FindAnyObjectByType<DigiPhant.DigiPhantLocomotion>();
             float eye = rig ? rig.eyeHeight : .78f;
             restL = new Vector3(-restSide, eye - restDrop, restForward);
             restR = new Vector3(restSide, eye - restDrop, restForward);
@@ -70,6 +72,20 @@ namespace Diva.VR
             Cylinder("Cross", bar, restR - restL, .012f, body, (restL + restR) * .5f - stemBase);
             gripL = Cylinder("Grip L", bar, new Vector3(-.11f, 0, 0), .02f, gripMatL, restL - stemBase + new Vector3(.055f, 0, 0)).transform;
             gripR = Cylinder("Grip R", bar, new Vector3(.11f, 0, 0), .02f, gripMatR, restR - stemBase - new Vector3(.055f, 0, 0)).transform;
+            // 细节：握把上的滚花环、横杆中间的支架、支架上的速度表盘
+            var dark = Load("DivaVR Cockpit Body", "Universal Render Pipeline/Lit", new Color(.08f, .07f, .12f));
+            foreach (var g in new[] { gripL, gripR })
+                for (int i = 0; i < 4; i++)
+                    Cylinder("Knurl " + i, g, new Vector3(0, .018f, 0), .024f / g.localScale.x * .5f, dark, new Vector3(0, -.6f + i * .4f, 0));
+            var bracket = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var bc = bracket.GetComponent<Collider>(); if (bc) Destroy(bc);
+            bracket.name = "Bracket"; bracket.transform.SetParent(bar, false);
+            bracket.transform.localPosition = (restL + restR) * .5f - stemBase; bracket.transform.localScale = new Vector3(.06f, .03f, .035f);
+            var br = bracket.GetComponent<MeshRenderer>(); br.sharedMaterial = dark; br.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            dial = Cylinder("Dial", bar, new Vector3(0, 0, -.006f), .03f, Load("DivaVR Cockpit Glow", "Universal Render Pipeline/Unlit", new Color(.05f, .22f, .28f)), (restL + restR) * .5f - stemBase + new Vector3(0, .03f, -.01f)).transform;
+            dial.localRotation = Quaternion.Euler(-70, 0, 0);
+            needle = Cylinder("Needle", dial, new Vector3(0, 0, 0), .0f, gripMatL, Vector3.zero).transform;
+            needle.localScale = new Vector3(.06f, .42f, .06f); needle.localPosition = new Vector3(0, -.6f, .2f);
         }
 
         /// <summary>一根从 centre 出发、沿 axis 的圆柱（axis 的长度就是圆柱的长度）。</summary>
@@ -130,6 +146,8 @@ namespace Diva.VR
             visPush = Mathf.Lerp(visPush, Go, 1 - Mathf.Exp(-dt * 10));
             visTwist = Mathf.Lerp(visTwist, Steer, 1 - Mathf.Exp(-dt * 10));
             if (bar) bar.localRotation = Quaternion.Euler(visPush * 22, visTwist * 18, 0);
+            // 表盘指针：跟着速度转（-60° 停 → +60° 全速）
+            if (needle && loco) needle.localRotation = Quaternion.Euler(0, 0, Mathf.Lerp(60, -60, Mathf.Clamp01(Mathf.Abs(loco.CurrentSpeed) / Mathf.Max(.1f, loco.runSpeed))));
             Glow(gripMatL, heldL, now);
             Glow(gripMatR, heldR, now);
         }
