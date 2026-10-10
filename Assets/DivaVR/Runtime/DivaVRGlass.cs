@@ -15,6 +15,9 @@ namespace Diva.VR
 
         void Start()
         {
+            // 排查：DIVA_GLASS=0 玻璃完全不反光、不反射
+            bool off = DivaVRDebug.Get("DIVA_GLASS") == "0";
+            if (off) smoothness = .1f;
             var copies = new Dictionary<Material, Material>();
             int renderers = 0;
             foreach (var r in FindObjectsByType<Renderer>(FindObjectsInactive.Include))
@@ -30,6 +33,7 @@ namespace Diva.VR
                         copy = new Material(m) { name = m.name + " (VR)" };
                         copy.SetFloat("_Smoothness", Mathf.Min(copy.GetFloat("_Smoothness"), smoothness));
                         if (copy.HasProperty("_SpecularHighlights")) { copy.SetFloat("_SpecularHighlights", 0); copy.EnableKeyword("_SPECULARHIGHLIGHTS_OFF"); }
+                        if (off) { copy.SetFloat("_Metallic", 0); if (copy.HasProperty("_EnvironmentReflections")) { copy.SetFloat("_EnvironmentReflections", 0); copy.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF"); } }
                         copies[m] = copy;
                     }
                     mats[i] = copy; changed = true;

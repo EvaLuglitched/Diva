@@ -19,7 +19,7 @@ namespace Diva.VR
     public class DivaVRCapture : MonoBehaviour
     {
         // 头显上也可以不靠启动参数：往 app 的 Documents 里放一个叫 diva_capture 的文件（xcrun devicectl device copy to …），人自己打开 app 也会截图
-        public static bool Requested => Environment.GetEnvironmentVariable("DIVA_CAPTURE") == "1" || Environment.GetCommandLineArgs().Contains("-divaCapture")
+        public static bool Requested => DivaVRDebug.On("DIVA_CAPTURE") || Environment.GetCommandLineArgs().Contains("-divaCapture")
                                         || File.Exists(Path.Combine(Application.persistentDataPath, "diva_capture"));
 
         Camera cam;
@@ -176,7 +176,7 @@ namespace Diva.VR
         // 上面的截图是另一台普通摄像机（单眼、不走 XR）拍的：头显里双眼渲染时有没有画出某样东西（比如 UI），它看不出来。
         // 这里在一帧渲染完的时候把 XR 渲染目标的第 0 层（左眼）原样拷出来存成图。头显上有注视点渲染时，图的边缘会被压缩。
         string xrWant, xrRead; int xrReadFrame;
-        RenderTexture xrRt;
+        RenderTexture xrRt, xrRt2;
         readonly System.Collections.Generic.List<XRDisplaySubsystem> displays = new System.Collections.Generic.List<XRDisplaySubsystem>();
 
         void CopyXr(ScriptableRenderContext ctx, System.Collections.Generic.List<Camera> cams)
@@ -200,6 +200,12 @@ namespace Diva.VR
                 }
                 var cmd = new CommandBuffer { name = "Diva XR copy" };
                 cmd.Blit(pass.renderTarget, xrRt, 0, 0);
+                // 右眼（第二层）也拷一份：看一样东西是不是只在一只眼里有
+                if (desc.volumeDepth > 1)
+                {
+                    if (!xrRt2) { xrRt2 = new RenderTexture(xrRt.descriptor) { name = "Diva XR Copy 2" }; xrRt2.Create(); }
+                    cmd.Blit(pass.renderTarget, xrRt2, 1, 0);
+                }
                 ctx.ExecuteCommandBuffer(cmd);
                 ctx.Submit();
                 cmd.Release();
@@ -219,6 +225,13 @@ namespace Diva.VR
                 tex.ReadPixels(new Rect(0, 0, xrRt.width, xrRt.height), 0, 0); tex.Apply();
                 RenderTexture.active = prev;
                 File.WriteAllBytes(Path.Combine(dir, name + ".jpg"), tex.EncodeToJPG(85));
+                if (xrRt2)
+                {
+                    RenderTexture.active = xrRt2;
+                    tex.ReadPixels(new Rect(0, 0, xrRt2.width, xrRt2.height), 0, 0); tex.Apply();
+                    RenderTexture.active = prev;
+                    File.WriteAllBytes(Path.Combine(dir, name + "2.jpg"), tex.EncodeToJPG(85));
+                }
                 Destroy(tex);
                 Debug.Log("DIVA_VR xr capture " + name);
             }

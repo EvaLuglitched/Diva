@@ -20,7 +20,7 @@ namespace Diva.VR
         static void ResetStatics() => On = Requested();
 
         // iOS / visionOS 的 app 拿不到启动参数，所以也认环境变量：SIMCTL_CHILD_DIVA_AUTOPLAY=1 xcrun simctl launch …
-        static bool Requested() => Environment.GetCommandLineArgs().Contains("-divaAutoplay") || Environment.GetEnvironmentVariable("DIVA_AUTOPLAY") == "1";
+        static bool Requested() => Environment.GetCommandLineArgs().Contains("-divaAutoplay") || DivaVRDebug.On("DIVA_AUTOPLAY");
 
         DivaShowDirector show;
         DigiPhantLocomotion loco;
