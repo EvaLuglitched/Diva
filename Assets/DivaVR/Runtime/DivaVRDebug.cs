@@ -23,7 +23,7 @@ namespace Diva.VR
         /// </summary>
         public static string Get(string name)
         {
-            var v = Get(name);
+            var v = Environment.GetEnvironmentVariable(name);
             if (!string.IsNullOrEmpty(v)) return v;
             if (flags == null)
             {
