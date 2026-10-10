@@ -59,6 +59,8 @@ namespace Diva.Show
             Make("candy", .28f, t => (Mathf.Sin(2 * Mathf.PI * (t < .07f ? 1568 : 2093) * t) * .4f + Mathf.Sin(2 * Mathf.PI * (t < .07f ? 3136 : 4186) * t) * .12f) * Env(t, .003f, .12f));
             Make("ready", .7f, t => Arp(t, new[] { 523f, 659f, 784f, 1047f, 1319f }, .09f) * .28f);
             Make("whoosh", 1.2f, t => Noise() * .35f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 1.2f)) * (.4f + .6f * t / 1.2f));
+            // 低音"轰"：开门、标题砸下来——55 赫兹往下滑到 28，带一下噪声冲击
+            Make("boom", 1.4f, t => (Mathf.Sin(2 * Mathf.PI * Mathf.Lerp(55, 28, Mathf.Clamp01(t / .5f)) * t) * .85f + Noise() * .5f * Env(t, .001f, .05f)) * Env(t, .004f, .45f));
             Make("pop", .9f, t => (Mathf.Sin(2 * Mathf.PI * Mathf.Lerp(160, 50, t / .9f) * t) * .7f + Noise() * .45f * Env(t, .002f, .08f)) * Env(t, .003f, .25f));
             Make("fanfare", 2.2f, t =>
             {

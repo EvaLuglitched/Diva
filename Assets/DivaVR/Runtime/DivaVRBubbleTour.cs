@@ -78,6 +78,7 @@ namespace Diva.VR
         Quaternion[] eyeTurn = new Quaternion[0];
         float lookWeight, greetTime = -1;
         bool greeted, popBurst;
+        int fireworkNext;
 
         readonly List<GameObject> cockpitParts = new List<GameObject>();
         readonly List<Behaviour> paused = new List<Behaviour>();
@@ -155,19 +156,21 @@ namespace Diva.VR
             var away = Vector3.ProjectOnPlane(start - centre, Vector3.up);
             var back = away.sqrMagnitude > 4 ? away.normalized : -forward;   // 从镇中心往大象那边再往外
             var side = Vector3.Cross(Vector3.up, back);
-            var wideFrom = centre + back * 54 + side * 10 + Vector3.up * 30;
+            var wideFrom = centre + back * 60 + side * 12 + Vector3.up * 36;
             var wideLook = centre + Vector3.up * 2;
-            wide = new Shot { from = wideFrom, to = wideFrom + (wideLook - wideFrom).normalized * 4.5f, look = wideLook, seconds = 8.5f };
+            // 无人机从高空往镇子俯冲 14 米（缓入缓出，直线、不转），比之前的 4.5 米有冲劲得多
+            wide = new Shot { from = wideFrom, to = wideFrom + (wideLook - wideFrom).normalized * 14f, look = wideLook, seconds = 7.5f };
             // 中景：大象身后上方，从正后方往两边试，挑第一个看大象不被广告牌、树挡住的角度
             var blockers = FindObjectsByType<Renderer>().Where(r => r.enabled && !r.transform.IsChildOf(root) && !r.transform.IsChildOf(rig.transform) && !(r is ParticleSystemRenderer)
                                                                     && r.bounds.size.magnitude < 60 && r.bounds.max.y > start.y + .5f).ToArray();
             var midLook = start + Vector3.up * 2.5f;
             var midFrom = PickClear(new[] { 18f, -18, 38, -38, 60, -60, 85, -85 }, a => start + Quaternion.AngleAxis(a, Vector3.up) * -forward * 15 + Vector3.up * 7, midLook, blockers);
-            mid = new Shot { from = midFrom, to = midFrom + (midLook - midFrom).normalized * 3, look = midLook, seconds = 5 };
+            // 低空掠过：从后上方朝大象俯冲 11 米
+            mid = new Shot { from = midFrom, to = midFrom + (midLook - midFrom).normalized * 11, look = midLook, seconds = 4.6f };
             // 特写：正前方偏一侧的低处
             var heroLook = start + forward * 1.4f + Vector3.up * 2.6f;
             var heroFrom = PickClear(new[] { 35f, -35, 55, -55, 20, -20 }, a => start + Quaternion.AngleAxis(a, Vector3.up) * forward * 7.2f + Vector3.up * 2.1f, heroLook, blockers);
-            hero = new Shot { from = heroFrom, to = heroFrom + Vector3.ProjectOnPlane(heroLook - heroFrom, Vector3.up).normalized * 1.4f, look = heroLook, seconds = 4.2f };
+            hero = new Shot { from = heroFrom, to = heroFrom + Vector3.ProjectOnPlane(heroLook - heroFrom, Vector3.up).normalized * 2.6f, look = heroLook, seconds = 4.2f };
             portalPos = wide.from + Flat(wide.look - wide.from, forward) * 2.6f - Vector3.up * .05f;
         }
 
@@ -528,9 +531,11 @@ namespace Diva.VR
                     // 门开：只放一些泡泡，不要闪光（头显里一闪很刺眼）
                     Burst(portalPos, 90, 2.0f, .05f);
                     flash = .35f;
+                    sound?.Play("boom", .6f, .8f);
                     break;
                 case Stage.Wide:
-                    sound?.Play("confirm", .5f);
+                    sound?.Play("boom", .9f);
+                    fireworkNext = 0;
                     Capture("tour_wide", 4f);
                     break;
                 case Stage.Mid:
@@ -770,6 +775,15 @@ namespace Diva.VR
             }
             if (hum) hum.volume = Mathf.MoveTowards(hum.volume, (stage <= Stage.Open ? .4f : .1f) * (sound != null ? sound.volume : 1), dt * .3f);
 
+            // 全景：镇子上空三发烟花
+            if (stage == Stage.Wide && fireworkNext < 3 && stageTime > 1.6f + fireworkNext * 1.3f)
+            {
+                var c = new[] { new Color(1f, .45f, .8f), new Color(1f, .85f, .3f), new Color(.5f, .95f, .85f) }[fireworkNext];
+                var at = centre + Vector3.up * (22 + fireworkNext * 3) + Quaternion.AngleAxis(fireworkNext * 110 - 110, Vector3.up) * forward * 18;
+                fx.Firework(at, c * 1.6f);
+                sound?.PlayAt("pop", at, .6f, .7f);
+                fireworkNext++;
+            }
             // 全景：标题弹出来，任务点一个个亮起来（赛道预告）；之后收掉
             if (stage == Stage.Wide)
                 title.localScale = Vector3.one * (44f / 2000f) * Mathf.Max(0, DivaUi.EaseOutBack((stageTime - 1.2f) / .7f)) * Mathf.Clamp01((wide.seconds - stageTime) / .4f);

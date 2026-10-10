@@ -155,6 +155,13 @@ namespace Diva.VR
                 urp.renderScale = DivaVRDebug.Float("DIVA_RS", .85f);
                 urp.shadowDistance = Mathf.Min(urp.shadowDistance, DivaVRDebug.Float("DIVA_SHADOWDIST", 25));
                 urp.mainLightShadowmapResolution = (int)DivaVRDebug.Float("DIVA_SHADOWRES", 1024);
+                // GPU Resident Drawer：几千个绘制调用改成 GPU 侧批量提交，加 GPU 遮挡剔除；屏幕上小于 1.5% 的小东西（远处的糖果、栏杆柱）不画。DIVA_GRD=0 关
+                if (DivaVRDebug.Get("DIVA_GRD") != "0")
+                {
+                    urp.gpuResidentDrawerMode = UnityEngine.Rendering.GPUResidentDrawerMode.InstancedDrawing;
+                    urp.smallMeshScreenPercentage = DivaVRDebug.Float("DIVA_SMALLMESH", 1.5f);
+                    urp.gpuResidentDrawerEnableOcclusionCullingInCameras = DivaVRDebug.Get("DIVA_OCC") != "0";
+                }
                 // 阴影：2 级级联够用（双眼要画两遍），点光 / 聚光的阴影关掉（主光的保留）
                 urp.shadowCascadeCount = Mathf.Min(urp.shadowCascadeCount, 2);
                 // 透明通道输出（透视版要）由打包时决定（DivaVRBuild.PrepareUrp）：完全沉浸版关着，这里不再强行打开
@@ -166,7 +173,7 @@ namespace Diva.VR
                 if (renderer != null && prop?.GetValue(renderer) is System.Collections.Generic.List<UnityEngine.Rendering.Universal.ScriptableRendererFeature> features)
                     foreach (var f in features)
                         if (f && f.GetType().Name.Contains("AmbientOcclusion")) f.SetActive(false);
-                Debug.Log($"DIVA_VR graphics: rp {urp.name} scale {urp.renderScale} msaa {urp.msaaSampleCount} hdr {urp.supportsHDR} alphaOut {urp.allowPostProcessAlphaOutput} shadows {urp.mainLightShadowmapResolution} soft {urp.supportsSoftShadows} dist {urp.shadowDistance} quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}");
+                Debug.Log($"DIVA_VR graphics: rp {urp.name} scale {urp.renderScale} msaa {urp.msaaSampleCount} hdr {urp.supportsHDR} alphaOut {urp.allowPostProcessAlphaOutput} shadows {urp.mainLightShadowmapResolution} soft {urp.supportsSoftShadows} dist {urp.shadowDistance} grd {urp.gpuResidentDrawerMode} occ {urp.gpuResidentDrawerEnableOcclusionCullingInCameras} small {urp.smallMeshScreenPercentage} quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}");
             }
         }
 

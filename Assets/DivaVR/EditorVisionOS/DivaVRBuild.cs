@@ -170,6 +170,16 @@ namespace Diva.VR.EditorTools
             // 阴影：软阴影 + 2048 的阴影图。Mobile 设置是 1024 的硬阴影，头一动阴影边缘的锯齿就爬来爬去（闪）。
             // 软阴影的着色器变体也是打包时决定的，运行时再开没用
             Set("m_SoftShadowsSupported", true);
+            // GPU Resident Drawer 要 Forward+（Forward 不支持）：渲染线程每帧 11–14 毫秒都花在提交几千个绘制调用上，这是 45 fps 的根源
+            var list = so.FindProperty("m_RendererDataList");
+            for (int i = 0; list != null && i < list.arraySize; i++)
+                if (list.GetArrayElementAtIndex(i).objectReferenceValue is UniversalRendererData rd && rd.renderingMode != RenderingMode.ForwardPlus)
+                {
+                    rd.renderingMode = RenderingMode.ForwardPlus; EditorUtility.SetDirty(rd); changed = true;
+                    Debug.Log($"DIVA_VR renderer {rd.name}: Forward+ (for the GPU Resident Drawer)");
+                }
+            SetInt("m_GPUResidentDrawerMode", 1);
+            Set("m_GPUResidentDrawerEnableOcclusionCullingInCameras", true);
             SetInt("m_SoftShadowQuality", 2);
             SetInt("m_MainLightShadowmapResolution", 2048);
             if (!changed) return;

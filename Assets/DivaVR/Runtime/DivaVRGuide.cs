@@ -49,6 +49,7 @@ namespace Diva.VR
 
         class Row { public RectTransform rt; public TextMeshProUGUI text, number; public Image icon, meterBack, meter, meterMid; public float doneAt = -1, progress; }
         readonly Row[] rows = new Row[4];
+        readonly Image[] dotsLearn = new Image[4];
         Sprite tick, circle;
 
         class Btn { public string key; public RectTransform rt; public DivaSlant plate; public TextMeshProUGUI label; public Action press; public bool primary; public float pressedAt = -10; public Color baseTop, baseBottom; }
@@ -105,11 +106,11 @@ namespace Diva.VR
             for (int i = 0; i < rows.Length; i++)
             {
                 var row = new Row();
-                row.rt = DivaUi.Rect(lr, "Row " + i, new Vector2(.5f, 1), new Vector2(0, -36 - i * 70), new Vector2(1060, 64));
+                row.rt = DivaUi.Rect(lr, "Row " + i, new Vector2(.5f, .5f), new Vector2(0, -20), new Vector2(1060, 120));
                 row.icon = DivaUi.Image(row.rt, "Icon", new Vector2(0, .5f), new Vector2(40, 0), new Vector2(48, 48), new Color(1, 1, 1, .3f), null);
                 row.number = DivaUi.Text(row.icon.rectTransform, "Number", new Vector2(.5f, .5f), Vector2.zero, new Vector2(48, 48), 30, new Color(.06f, .05f, .12f), TextAlignmentOptions.Center, false);
                 row.number.text = (i + 1).ToString();
-                row.text = DivaUi.Text(row.rt, "Text", new Vector2(0, .5f), new Vector2(460, 0), new Vector2(780, 60), 36, Color.white, TextAlignmentOptions.Left, false);
+                row.text = DivaUi.Text(row.rt, "Text", new Vector2(0, .5f), new Vector2(460, 0), new Vector2(780, 120), 40, Color.white, TextAlignmentOptions.Left, false);
                 row.meterBack = DivaUi.Image(row.rt, "Meter", new Vector2(1, .5f), new Vector2(-100, 0), new Vector2(180, 16), new Color(1, 1, 1, .15f));
                 row.meter = DivaUi.Image(row.meterBack.rectTransform, "Fill", new Vector2(0, .5f), Vector2.zero, new Vector2(180, 16), new Color(1f, .45f, .8f));
                 row.meter.rectTransform.pivot = new Vector2(0, .5f); row.meter.rectTransform.anchoredPosition = Vector2.zero;
@@ -119,6 +120,10 @@ namespace Diva.VR
                 rows[i] = row;
             }
 
+            // 教学进度点（4 个动作）
+            for (int i = 0; i < 4; i++)
+                dotsLearn[i] = DivaUi.Image(lr, "Dot " + i, new Vector2(.5f, 0), new Vector2(-54 + i * 36, 44), new Vector2(18, 18), new Color(1, 1, 1, .3f), null);
+            foreach (var d in dotsLearn) d.sprite = circle;
             // 第 3 步：两只手的指示灯和按住进度条
             handsRow = new GameObject("Hands", typeof(RectTransform));
             var hr = (RectTransform)handsRow.transform; hr.SetParent(panel, false); hr.anchoredPosition = new Vector2(0, -60); hr.sizeDelta = new Vector2(500, 60);
@@ -134,7 +139,7 @@ namespace Diva.VR
             fill.pivot = new Vector2(0, .5f); fill.anchoredPosition = Vector2.zero; fill.localScale = new Vector3(0, 1, 1);
             // 选涂装页：三条属性（装饰用，按涂装变化）
             statsRow = new GameObject("Stats", typeof(RectTransform));
-            var sr = (RectTransform)statsRow.transform; sr.SetParent(panel, false); sr.anchoredPosition = new Vector2(0, -22); sr.sizeDelta = new Vector2(1000, 60);
+            var sr = (RectTransform)statsRow.transform; sr.SetParent(panel, false); sr.anchoredPosition = new Vector2(0, -70); sr.sizeDelta = new Vector2(1000, 60);
             string[] statKeys = { "vr.stat.speed", "vr.stat.cannon", "vr.stat.bubble" };
             for (int i = 0; i < 3; i++)
             {
@@ -253,6 +258,7 @@ namespace Diva.VR
             Debug.Log("DIVA_VR guide " + next);
         }
 
+        void HideStamp() { if (step != Step.Pick) stamp.gameObject.SetActive(false); }
         void AfterStamp() { stamp.gameObject.SetActive(false); if (step == Step.Pick) Go(learned ? Step.Ready : Step.Learn); }
 
         void Refresh()
@@ -270,8 +276,8 @@ namespace Diva.VR
             statsRow.SetActive(step == Step.Pick);
             // 结算的牌子矮一些：两行字往下挪，不和标题叠在一起
             bool compact = step == Step.Results;
-            lineA.rectTransform.anchoredPosition = new Vector2(0, compact ? 34 : 50);
-            lineB.rectTransform.anchoredPosition = new Vector2(0, compact ? -40 : -2);
+            lineA.rectTransform.anchoredPosition = new Vector2(0, compact ? 34 : 56);
+            lineB.rectTransform.anchoredPosition = new Vector2(0, compact ? -40 : 8);
             lineA.gameObject.SetActive(step != Step.Learn);
             lineB.gameObject.SetActive(step != Step.Learn && step != Step.Results);
             switch (step)
@@ -287,7 +293,7 @@ namespace Diva.VR
                     title.text = DivaText.T("vr.guide.learn");
                     string[] keys = { "lean", "turn", "pinch", "mouth" };
                     for (int i = 0; i < rows.Length; i++)
-                        rows[i].text.text = $"{DivaText.T("vr.guide.learn." + keys[i])}   <color=#8CFFE6><size=28>{DivaText.T("vr.guide.learn." + keys[i] + ".b")}</size></color>";
+                        rows[i].text.text = $"{DivaText.T("vr.guide.learn." + keys[i])}\n<color=#8CFFE6><size=30>{DivaText.T("vr.guide.learn." + keys[i] + ".b")}</size></color>";
                     break;
                 case Step.Ready:
                     stepLabel.text = DivaText.F("vr.guide.step", total, total);
@@ -343,8 +349,8 @@ namespace Diva.VR
         void UpdateDemo()
         {
             if (!demo) return;
-            if (step == Step.Learn && !AllDone) demo.Show((DivaVRGestureDemo.Move)(int)Current);
-            else if (step == Step.Ready) demo.Show(DivaVRGestureDemo.Move.HandsUp);
+            if (step == Step.Learn && !AllDone) { demo.Show((DivaVRGestureDemo.Move)(int)Current); demo.transform.localScale = Vector3.one * 1.7f; demo.transform.localPosition = new Vector3(-.12f, rig.eyeHeight + .4f, 1.4f); }
+            else if (step == Step.Ready) { demo.Show(DivaVRGestureDemo.Move.HandsUp); demo.transform.localScale = Vector3.one * 1.3f; demo.transform.localPosition = new Vector3(-.12f, rig.eyeHeight + .38f, 1.4f); }
             else demo.Hide();
         }
 
@@ -353,6 +359,7 @@ namespace Diva.VR
             var r = rows[(int)m];
             if (r.doneAt >= 0) return;
             r.doneAt = Time.unscaledTime; r.progress = 1;
+            stampAt = Time.unscaledTime; stamp.text = DivaText.T("vr.guide.nice"); stamp.gameObject.SetActive(true); CancelInvoke(nameof(HideStamp)); Invoke(nameof(HideStamp), .8f);
             UpdateDemo();
             if (show.Sound != null) show.Sound.Play("combo", .5f);
             Debug.Log("DIVA_VR guide learned " + m);
@@ -427,10 +434,17 @@ namespace Diva.VR
             {
                 var f = input ? input.Current : default;
                 var current = Current;
+                for (int i = 0; i < dotsLearn.Length; i++)
+                    dotsLearn[i].color = rows[i].doneAt >= 0 ? new Color(.5f, 1f, .7f) : (Move)i == current ? new Color(1f, .5f, .85f) : new Color(1, 1, 1, .3f);
                 for (int i = 0; i < rows.Length; i++)
                 {
                     var r = rows[i];
                     bool done = r.doneAt >= 0, now = !done && (Move)i == current;
+                    // 一次只看一个动作：当前的居中放大，做完的一瞬间留着看打勾
+                    bool visible = now || (done && t - r.doneAt < 1f);
+                    r.rt.gameObject.SetActive(visible);
+                    if (!visible) continue;
+                    r.rt.localScale = Vector3.one * 1.15f;
                     r.icon.sprite = done ? tick : circle;
                     r.number.gameObject.SetActive(!done);
                     r.icon.color = Color.Lerp(r.icon.color, done ? new Color(.5f, 1f, .7f) : now ? new Color(1f, .5f, .85f) : new Color(1, 1, 1, .3f), 1 - Mathf.Exp(-dt * 10));

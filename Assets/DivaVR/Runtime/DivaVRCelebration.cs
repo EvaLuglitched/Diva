@@ -35,8 +35,8 @@ namespace Diva.VR
             plate.stripe = new Color(1f, .45f, .8f); plate.stripeWidth = 26;
             DivaUi.Panel(card, "Band", new Vector2(.5f, 1), new Vector2(0, -70), new Vector2(1200, 90), new Color(1f, .35f, .72f), new Color(.85f, .2f, .6f), 40);
             title = DivaUi.Text(card, "Title", new Vector2(.5f, 1), new Vector2(0, -70), new Vector2(1200, 90), 64, Color.white);
-            sub = DivaUi.Text(card, "Sub", new Vector2(.5f, .5f), new Vector2(0, 20), new Vector2(1200, 80), 54, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
-            score = DivaUi.Text(card, "Score", new Vector2(.5f, 0), new Vector2(0, 90), new Vector2(1200, 150), 140, Color.white);
+            sub = DivaUi.Text(card, "Sub", new Vector2(.5f, 1), new Vector2(0, -150), new Vector2(1200, 60), 44, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
+            score = DivaUi.Text(card, "Score", new Vector2(.5f, 0), new Vector2(0, 60), new Vector2(1200, 150), 140, Color.white);
             DivaUi.Glow(score, new Color(1f, .85f, .3f, .95f));
             DivaUi.Glow(title, new Color(1, .3f, .7f, .8f));
             if (show.glowMaterial) fx = new DivaShowFx(new GameObject("Celebration FX").transform, show.glowMaterial, show.bubbleMaterial);
