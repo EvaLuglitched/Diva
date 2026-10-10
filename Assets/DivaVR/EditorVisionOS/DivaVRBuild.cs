@@ -97,7 +97,7 @@ namespace Diva.VR.EditorTools
             general.InitManagerOnStart = true;
             XRPackageMetadataStore.AssignLoader(general.Manager, "UnityEngine.XR.VisionOS.VisionOSLoader", group);
 
-            var vos = VisionOSSettings.currentSettings;
+            var vos = VisionOSSettings.GetOrCreateSettings();   // 新拉下来的工程里还没有这份设置
             vos.appMode = VisionOSSettings.AppMode.Metal;
             // Mixed：画面透明的地方露出真实房间（传送门开场的房间就是靠这个）；镇子和天空是不透明的，开场之后看不到房间
             vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Mixed;
@@ -122,6 +122,8 @@ namespace Diva.VR.EditorTools
                 if (QualitySettings.GetRenderPipelineAssetAt(i) is UniversalRenderPipelineAsset q) PrepareUrp(q);
             if (GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset d) PrepareUrp(d);
             PlayerSettings.SplashScreen.show = false;
+            // 失去焦点（打开系统菜单）时继续运行，不然镜头会锁在头上（插件的检查规则）
+            PlayerSettings.runInBackground = true;
             PlayerSettings.VisionOS.targetOSVersionString = "2.0";
             AssetDatabase.SaveAssets();
         }
