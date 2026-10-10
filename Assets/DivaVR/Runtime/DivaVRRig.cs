@@ -115,10 +115,11 @@ namespace Diva.VR
             dash.localRotation = Quaternion.LookRotation(new Vector3(0, -.3f, .6f), Vector3.up);
             DivaVR.DashAnchor = dash;
             if (!DivaVR.Simulated) HeadsetGraphics();
+            DivaVRDebug.Apply(cam, transform, eyeHeight);
             if (DivaVRAutopilot.On) gameObject.AddComponent<DivaVRAutopilot>();
             if (DivaVRCapture.Requested) gameObject.AddComponent<DivaVRCapture>();
             // 每次打开 app 先演一次传送门开场：站在自己的房间里，糖果镇从门里过来
-            if (!DivaVR.ArrivalDone) gameObject.AddComponent<DivaVRPortal>();
+            if (!DivaVR.ArrivalDone && !DivaVRDebug.On("DIVA_NOPORTAL")) gameObject.AddComponent<DivaVRPortal>();
             gameObject.AddComponent<DivaVRInput>();
         }
 
@@ -132,6 +133,9 @@ namespace Diva.VR
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
             {
                 urp.msaaSampleCount = 4;
+                // 渲染缩放用 1：Vision Pro 的画面由系统给出，URP 先画到缩小的图再放大拷过去时头显上可能没有画面
+                // （visionOS 用的是 Mobile 那套设置，缩放 0.8）。调试：环境变量 DIVA_RS=0.8 试别的值
+                urp.renderScale = DivaVRDebug.Float("DIVA_RS", 1);
                 urp.shadowDistance = Mathf.Min(urp.shadowDistance, 35);
                 // 阴影：2 级级联够用（双眼要画两遍），点光 / 聚光的阴影关掉（主光的保留）
                 urp.shadowCascadeCount = Mathf.Min(urp.shadowCascadeCount, 2);
@@ -146,6 +150,7 @@ namespace Diva.VR
                 if (renderer != null && prop?.GetValue(renderer) is System.Collections.Generic.List<UnityEngine.Rendering.Universal.ScriptableRendererFeature> features)
                     foreach (var f in features)
                         if (f && f.GetType().Name.Contains("AmbientOcclusion")) f.SetActive(false);
+                Debug.Log($"DIVA_VR graphics: rp {urp.name} scale {urp.renderScale} msaa {urp.msaaSampleCount} hdr {urp.supportsHDR} alphaOut {urp.allowPostProcessAlphaOutput} quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}");
             }
         }
 

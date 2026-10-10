@@ -150,7 +150,7 @@ namespace Diva.VR
             ShowCockpit(false);
             Shader.SetGlobalVector(RoomPreview, DivaVR.Simulated ? new Vector4(.15f, .16f, .2f, 0) : Vector4.zero);
             // 透视要透明通道：头显上开场时这台摄像机先不用 HDR（Unity 文档：Metal 透视要关 HDR），上了大象再打开
-            if (!DivaVR.Simulated && !Application.isEditor) { hdrWas = cam.allowHDR; cam.allowHDR = false; hdrChanged = true; }
+            if (!DivaVR.Simulated && !Application.isEditor && !DivaVRDebug.On("DIVA_HDR")) { hdrWas = cam.allowHDR; cam.allowHDR = false; hdrChanged = true; }
             // 第一帧就站进房间（头显还没给位置时先按 1.6 米高摆，给了以后再对准一次）
             rig.Stand(room.position, room.rotation);
             if (rig.PoseReady) Align();
