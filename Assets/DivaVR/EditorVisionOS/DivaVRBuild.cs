@@ -151,7 +151,8 @@ namespace Diva.VR.EditorTools
         static void MarkStatic()
         {
             var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(Scene);
-            string[] dynamicTypes = { "DivaTarget", "DivaFloat", "DivaOrbit", "DivaSkyRotate", "DivaIntro", "DigiPhantLocomotion", "DigiPhantController", "Animator", "Animation", "ParticleSystem", "DivaBoosters", "DivaBubbleCannons", "DivaTrunkBlaster", "Light", "Camera", "Canvas" };
+            // DivaSkyRotate 挂在整个 Diva Game Layer 根上但只转天空的材质，不算；Light / Camera 也不算（只看会动的）
+            string[] dynamicTypes = { "DivaTarget", "DivaFloat", "DivaOrbit", "DivaIntro", "DigiPhantLocomotion", "DigiPhantController", "Animator", "Animation", "ParticleSystem", "DivaBoosters", "DivaBubbleCannons", "DivaTrunkBlaster", "Canvas" };
             int marked = 0, skipped = 0;
             foreach (var r in Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
