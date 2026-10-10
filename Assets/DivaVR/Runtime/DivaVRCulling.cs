@@ -10,8 +10,8 @@ namespace Diva.VR
     /// </summary>
     public class DivaVRCulling : MonoBehaviour
     {
-        public const int SmallLayer = 30;
-        public float smallSize = 2.2f, cullDistance = 45f;
+        public const int SmallLayer = 30, MediumLayer = 29;
+        public float smallSize = 2.2f, cullDistance = 45f, mediumSize = 9f, mediumDistance = 75f;
 
         void Start()
         {
@@ -20,19 +20,21 @@ namespace Diva.VR
             if (!cam) return;
             var dist = new float[32];
             dist[SmallLayer] = DivaVRDebug.Float("DIVA_SMALLCULL", cullDistance);
+            dist[MediumLayer] = DivaVRDebug.Float("DIVA_MEDCULL", mediumDistance);
             cam.layerCullDistances = dist;
             cam.layerCullSpherical = true;
-            int n = 0;
+            int n = 0, m = 0;
             foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
             {
-                if (r.gameObject.layer != 0 || r.bounds.size.magnitude > smallSize) continue;
+                if (r.gameObject.layer != 0) continue;
+                float size = r.bounds.size.magnitude;
+                if (size > mediumSize) continue;
                 if (loco && loco.travelRoot && r.transform.IsChildOf(loco.travelRoot)) continue;
                 if (DivaVR.Rig && r.transform.IsChildOf(DivaVR.Rig)) continue;
-                r.gameObject.layer = SmallLayer;
-                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                n++;
+                if (size <= smallSize) { r.gameObject.layer = SmallLayer; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; n++; }
+                else { r.gameObject.layer = MediumLayer; m++; }   // 中等的（小屋、伞、招牌、栏杆段）75 米外不画
             }
-            Debug.Log($"DIVA_VR culling: {n} small renderers culled beyond {dist[SmallLayer]} m, no shadows");
+            Debug.Log($"DIVA_VR culling: {n} small renderers culled beyond {dist[SmallLayer]} m (no shadows), {m} medium beyond {dist[MediumLayer]} m");
         }
     }
 }

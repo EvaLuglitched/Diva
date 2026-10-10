@@ -164,12 +164,23 @@ namespace Diva.VR.EditorTools
                         if (c && System.Array.IndexOf(dynamicTypes, c.GetType().Name) >= 0) { dynamic = true; break; }
                 }
                 if (dynamic) { skipped++; continue; }
-                GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.BatchingStatic);
+                GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic);
                 marked++;
             }
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
             UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
             Debug.Log($"DIVA_VR static batching: {marked} renderers marked static, {skipped} left dynamic");
+            // 遮挡剔除：被前排房子挡住的房子不画（GPU 的瓶颈是三角形数：每帧 200 多万，小镇没有 LOD）
+            try
+            {
+                var t0 = System.DateTime.Now;
+                StaticOcclusionCulling.smallestOccluder = 3f;
+                StaticOcclusionCulling.smallestHole = .5f;
+                StaticOcclusionCulling.Compute();
+                UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+                Debug.Log($"DIVA_VR occlusion culling baked in {(System.DateTime.Now - t0).TotalSeconds:F0} s, {StaticOcclusionCulling.umbraDataSize / 1024} KB");
+            }
+            catch (System.Exception e) { Debug.LogWarning("DIVA_VR occlusion bake failed: " + e.Message); }
         }
 
         static void PrepareUrp(UniversalRenderPipelineAsset urp)
