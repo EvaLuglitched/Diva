@@ -58,6 +58,25 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 | Purple-blue procedural sky, trilight ambient, linear fog, warm soft-shadow sun (colour 1/.9/.78, intensity 1.5) | Lighting settings, Key Light |
 | Post-processing on the main camera; far clip ≥ 400 | Main Camera |
 
+## Keyboard play (`Runtime/DivaKeyboardControls.cs`)
+
+The keyboard works at the same time as the gestures, with or without a camera (no calibration needed). The keys act as one
+more player merged into DivaDemo's control state (`DivaControlState.Keys`), so movement, the water jet and laser,
+drinking, Diva Show's HUD and skills, and the course tasks all respond exactly as they do to gestures.
+
+| Key | Action |
+| --- | --- |
+| W / ↑ | Go forward |
+| A / D, ← / → | Turn left / right |
+| Q / E | Aim the trunk left / right |
+| Space (hold) | Spray water; each burst fires at the best target in the aimed direction |
+| F (or R) | Drink / refill |
+| U | Ultimate (Diva Show) |
+| H | Hide / show the key legend (bottom right during play; EN/中文 follows Diva Show's L key) |
+
+Keys do nothing in locked menus and cutscenes, like gestures. The blaster's own Space shot is turned off while
+this component runs, so Space does not fire twice.
+
 ## Race intro (`Runtime/DivaIntro.cs`)
 
 Plays when entering Play (about 20 s), kart-racer style:
@@ -111,8 +130,7 @@ by you, not analysed or imitated by an AI tool.
 - This project's render pipeline uses the **GPU Resident Drawer**. After large asset changes the
   editor can keep showing deleted objects or magenta materials; reopen the scene or restart Unity.
 - **Diva > Game > Render Preview Shots** saves stills to `Recordings/preview/` (git-ignored).
-- Press Play: HUD at the top right (score, time, four tasks); **Space** fires the trunk laser at the
-  nearest standing target ahead.
+- Press Play: HUD at the top right (score, time, four tasks); hold **Space** to spray (see Keyboard play).
 
 ## Files
 

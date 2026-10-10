@@ -28,6 +28,11 @@ namespace DigiPhant
         /// <summary>Menus and cutscenes: gestures are still read (Ult, MenuAim) but do not drive the elephant.</summary>
         public bool Locked;
         public float Water { get; private set; } = 1;
+        /// <summary>
+        /// Keyboard play (set each frame by Diva.DivaKeyboardControls; null when no key is held). It is merged with the
+        /// gestures and works without a camera or calibration. go 0..1, steer/aim -1..1; ult/menu are not read from it.
+        /// </summary>
+        public DivaGestureFrame Keys;
         public int Bursts { get; private set; }
         bool wasShooting;
         float nextBurst;
@@ -50,7 +55,29 @@ namespace DigiPhant
         public void Step(float now, float dt, int count, int soloRole, bool ready)
         {
             Forward = Turn = Aim = MenuAim = 0; Shoot = Drink = Ult = false; Bursts = 0;
-            if (!ready) { wasShooting = false; return; }
+            var keys = Keys;
+            if (!ready && keys == null) { wasShooting = false; return; }
+            if (ready) StepGestures(now, dt, count, soloRole);
+            if (Locked) { wasShooting = false; return; }
+            if (keys != null)
+            {
+                Forward = Math.Max(Forward, Math.Clamp(keys.go, 0, 1));
+                if (keys.steer != 0) Turn = Math.Clamp(keys.steer, -1, 1);
+                if (keys.aim != 0) Aim = Math.Clamp(keys.aim, -1, 1);
+                if (keys.drink && !Drink) Water = Math.Min(1, Water + Math.Max(0, RefillPerSecond) * Math.Clamp(dt, 0, .1f));
+                Drink |= keys.drink;
+                Shoot = (Shoot || keys.shoot) && !Drink && Water >= Math.Max(.0001f, WaterPerBurst);
+            }
+            if (Shoot && (!wasShooting || now >= nextBurst))
+            {
+                Bursts = 1; nextBurst = now + (!wasShooting ? Math.Max(.04f, HoldDelay) : Math.Max(.04f, BurstInterval));
+                Water = Math.Max(0, Water - Math.Max(.0001f, WaterPerBurst));
+            }
+            wasShooting = Shoot;
+        }
+
+        void StepGestures(float now, float dt, int count, int soloRole)
+        {
             bool all = count == 1 && soloRole == 0;
             var p1 = count == 1 ? (soloRole == 1 || all ? Read(1, now) : null) : Read(1, now);
             var p2 = count == 1 ? (soloRole == 2 || all ? Read(1, now) : null) : Read(2, now);
@@ -63,7 +90,7 @@ namespace DigiPhant
                 Ult |= p.ult;
                 if (MenuAim == 0) MenuAim = Math.Clamp(p.aim, -1, 1);
             }
-            if (Locked) { wasShooting = false; return; }
+            if (Locked) return;
             if (p1 != null) Forward = Math.Clamp(p1.go, 0, 1);
             if (p2 != null) Turn = Math.Clamp(p2.steer, -1, 1);
             if (p3 != null)
@@ -77,12 +104,6 @@ namespace DigiPhant
             // and drinking (hands at the mouth) must not steer.
             if (all && (Shoot || Drink || Ult)) Forward = 0;
             if (all && (Drink || Ult)) Turn = 0;
-            if (Shoot && (!wasShooting || now >= nextBurst))
-            {
-                Bursts = 1; nextBurst = now + (!wasShooting ? Math.Max(.04f, HoldDelay) : Math.Max(.04f, BurstInterval));
-                Water = Math.Max(0, Water - Math.Max(.0001f, WaterPerBurst));
-            }
-            wasShooting = Shoot;
         }
         public void FillTank() { Water = 1; }
     }
