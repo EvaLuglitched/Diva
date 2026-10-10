@@ -56,6 +56,7 @@ namespace Diva.VR
         readonly List<Btn> buttons = new List<Btn>();
 
         DivaVRGestureDemo demo;
+        Btn hovered;
         Step step = Step.Hidden;
         int roundSteps = 3;   // 这一局一共几步（学过了就 2 步：选涂装、出发）
         float stepAt, shownAt, allDoneAt = -1;
@@ -219,7 +220,7 @@ namespace Diva.VR
                 var r = b.rt.rect;
                 float dx = Mathf.Max(0, Mathf.Abs(local.x - r.center.x) - r.width * .5f), dy = Mathf.Max(0, Mathf.Abs(local.y - r.center.y) - r.height * .5f);
                 float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                if (dist < 30 && dist < bestDist) { best = b; bestDist = dist; }
+                if (dist < 70 && dist < bestDist) { best = b; bestDist = dist; }
             }
             return best;
         }
@@ -327,10 +328,13 @@ namespace Diva.VR
             bool pinch = f.shoot && !lastShoot;
             lastShoot = f.shoot;
             if (step == Step.Hidden) return;
-            if (pinch && DivaVR.Head)
+            // 头朝向哪个按钮哪个就高亮；捏一下按下它（眼睛看的方向有的话优先）
+            var headT = DivaVR.Head;
+            hovered = headT ? HitButton(headT.position, headT.forward) : null;
+            if (pinch && headT)
             {
-                var head = DivaVR.Head;
-                var b = HitButton(head.position, f.look.sqrMagnitude > .01f ? f.look : head.forward);
+                var head = headT;
+                var b = (f.look.sqrMagnitude > .01f ? HitButton(head.position, f.look) : null) ?? hovered;
                 if (b != null) Press(b);
                 else if (step == Step.Pick) show.VrStepSkin(1);   // 捏一下 = 下一个涂装（不用先找按钮）
                 else if (step == Step.Learn) Done(Move.Pinch);
@@ -441,7 +445,9 @@ namespace Diva.VR
                 float breathe = b.primary ? 1 + .025f * Mathf.Sin(t * 3) : 1;
                 b.rt.localScale = Vector3.one * press * breathe;
                 float lit = since < .3f ? 1 - since / .3f : 0;
-                b.plate.Set(Color.Lerp(b.baseTop, Color.white, lit * .5f), Color.Lerp(b.baseBottom, Color.white, lit * .3f));
+                bool hov = b == hovered;
+                b.rt.localScale *= hov ? 1.08f : 1f;
+                b.plate.Set(Color.Lerp(b.baseTop, Color.white, Mathf.Max(lit * .5f, hov ? .28f : 0)), Color.Lerp(b.baseBottom, Color.white, Mathf.Max(lit * .3f, hov ? .18f : 0)));
             }
 
             if (step == Step.Learn)

@@ -77,7 +77,7 @@ namespace Diva.VR
         Quaternion headTurn = Quaternion.identity;
         Quaternion[] eyeTurn = new Quaternion[0];
         float lookWeight, greetTime = -1;
-        bool greeted, popBurst;
+        bool greeted, popBurst, menuPlaced;
         int fireworkNext;
 
         readonly List<GameObject> cockpitParts = new List<GameObject>();
@@ -87,7 +87,8 @@ namespace Diva.VR
         Transform prompt;
         CanvasGroup promptGroup;
         TextMeshProUGUI promptTitle, promptSub, menuHint, menuStart, menuLang;
-        RectTransform btnStart, btnLang;
+        RectTransform btnStart, btnLang, menuHovered;
+        DivaSlant plateStart, plateLang;
         string promptKey, menuLangText;
         float promptShownAt;
 
@@ -127,6 +128,11 @@ namespace Diva.VR
             BuildBeacons();
             BuildWipe();
             Prewarm();
+            // 开头直接是小镇全景 + 菜单：梦境球、门、光点都不要（Carl：像一团云挡着）
+            if (dream) dream.gameObject.SetActive(false);
+            if (portal) portal.gameObject.SetActive(false);
+            if (spark) spark.gameObject.SetActive(false);
+            dissolve = 1.2f;
 
             // 开场时驾驶舱、仪表、全息模型、指引都收起来：人在泡泡里
             ShowCockpit(false);
@@ -409,10 +415,10 @@ namespace Diva.VR
             DivaUi.Glow(promptTitle, new Color(1, .3f, .7f, .9f));
             promptSub = DivaUi.Text(rt, "Sub", new Vector2(.5f, 1), new Vector2(0, -185), new Vector2(1000, 60), 40, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
             btnStart = DivaUi.Rect(rt, "Start", new Vector2(.5f, 0), new Vector2(-150, 120), new Vector2(520, 120));
-            DivaUi.Panel(btnStart, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(520, 120), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 20);
+            plateStart = DivaUi.Panel(btnStart, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(520, 120), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 20);
             menuStart = DivaUi.Text(btnStart, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(500, 100), 60, Color.white);
             btnLang = DivaUi.Rect(rt, "Lang", new Vector2(.5f, 0), new Vector2(270, 120), new Vector2(260, 120));
-            DivaUi.Panel(btnLang, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(260, 120), new Color(.26f, .22f, .4f), new Color(.17f, .14f, .28f), 20);
+            plateLang = DivaUi.Panel(btnLang, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(260, 120), new Color(.26f, .22f, .4f), new Color(.17f, .14f, .28f), 20);
             menuLang = DivaUi.Text(btnLang, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(240, 100), 44, Color.white);
             menuHint = DivaUi.Text(rt, "Hint", new Vector2(.5f, 0), new Vector2(0, 38), new Vector2(1000, 44), 28, new Color(1, 1, 1, .7f), TextAlignmentOptions.Center, false);
 
@@ -566,8 +572,10 @@ namespace Diva.VR
                 case Stage.Dream:
                     // 捏一下出发（没有手部追踪时 20 秒后自己出发）
                     PlaceEye(wide.from, shotRot);
+                    menuHovered = cam ? MenuHitDir(cam.transform.forward) : null;
                     if (aligned && stageTime > 1f && pinch && MenuHit(raw) == btnLang) { DivaText.Toggle(); sound?.Play("tick", .5f); pinch = false; }
-                    if (aligned && stageTime > 1f && (pinch || autopilot && stageTime > 2.5f || stageTime > 30)) Go(Stage.Burst);
+                    // 开始：捏一下（看着"开始"或者随便哪里）直接无人机俯冲——没有梦境球和门了（Carl：开头那团"云"挡视线）
+                    if (aligned && stageTime > 1f && (pinch || autopilot && stageTime > 2.5f || stageTime > 30)) { sound?.Play("confirm", .6f); Go(Stage.Wide); }
                     break;
                 case Stage.Burst:
                     PlaceEye(wide.from, shotRot);
@@ -633,14 +641,13 @@ namespace Diva.VR
         {
             PlaceEye(wide.from, shotRot);
             aligned = true;
-            if (stage == Stage.Dream && !spark.gameObject.activeSelf)
+            if (stage == Stage.Dream && !menuPlaced)
             {
-                spark.gameObject.SetActive(true);
+                menuPlaced = true;
                 var h = cam.transform;
                 var flat = Flat(h.forward, shotRot * Vector3.forward);
-                spark.position = h.position + flat * .75f - Vector3.up * .08f;
                 prompt.position = h.position + flat * 1.4f - Vector3.up * .12f;
-                sound?.PlayAt("skill", spark.position, .5f);
+                sound?.Play("ready", .5f);
             }
         }
 
@@ -765,7 +772,7 @@ namespace Diva.VR
             // 泡泡：门开时长出来包住人，之后一直在身边（参照物），破的时候没了
             if (bubble.gameObject.activeSelf)
             {
-                float size = stage == Stage.Dream || stage == Stage.Burst ? 0 : stage == Stage.Open ? DivaUi.EaseOutBack(stageTime / .8f) : 1;
+                float size = stage == Stage.Dream || stage == Stage.Burst ? 0 : stage == Stage.Open ? DivaUi.EaseOutBack(stageTime / .8f) : stage == Stage.Wide ? DivaUi.EaseOutBack(stageTime / .8f) : 1;
                 float breathe = 1 + .012f * Mathf.Sin(t * 1.1f);
                 bubble.position = transform.position + Vector3.up * (rig.StandingEyeHeight * .55f);
                 bubble.localScale = Vector3.one * Mathf.Max(.001f, bubbleRadius * 2 * size * breathe);
@@ -817,16 +824,22 @@ namespace Diva.VR
         /// <summary>捏的时候眼睛看的方向打到菜单的哪个按钮（打不到就 null）。</summary>
         RectTransform MenuHit(DivaVRFrame raw)
         {
+            // 眼睛看的方向有就先用它，打不到再用头的朝向
+            var byLook = raw.look.sqrMagnitude > .01f ? MenuHitDir(raw.look) : null;
+            return byLook ?? (cam ? MenuHitDir(cam.transform.forward) : null);
+        }
+
+        RectTransform MenuHitDir(Vector3 dir)
+        {
             if (!prompt || promptGroup.alpha < .5f || !cam) return null;
             var origin = cam.transform.position;
-            var dir = raw.look.sqrMagnitude > .01f ? raw.look : cam.transform.forward;
             var plane = new Plane(prompt.forward, prompt.position);
             if (!plane.Raycast(new Ray(origin, dir.normalized), out float d)) return null;
             var p = new Ray(origin, dir.normalized).GetPoint(d);
             foreach (var b in new[] { btnStart, btnLang })
             {
                 var local = (Vector2)b.InverseTransformPoint(p); var r = b.rect;
-                if (Mathf.Abs(local.x - r.center.x) < r.width * .5f + 30 && Mathf.Abs(local.y - r.center.y) < r.height * .5f + 30) return b;
+                if (Mathf.Abs(local.x - r.center.x) < r.width * .5f + 70 && Mathf.Abs(local.y - r.center.y) < r.height * .5f + 70) return b;
             }
             return null;
         }
@@ -844,6 +857,9 @@ namespace Diva.VR
                 menuHint.text = DivaText.T("vr.menu.hint");
             }
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, key != null ? 1 : 0, dt * (key != null ? 3 : 4));
+            // 头朝向的按钮高亮
+            if (plateStart) { bool hs = menuHovered == btnStart; plateStart.Set(Color.Lerp(new Color(1f, .38f, .74f), Color.white, hs ? .3f : 0), Color.Lerp(new Color(.82f, .22f, .6f), Color.white, hs ? .2f : 0)); btnStart.localScale = Vector3.one * (hs ? 1.08f : 1); }
+            if (plateLang) { bool hl = menuHovered == btnLang; plateLang.Set(Color.Lerp(new Color(.26f, .22f, .4f), Color.white, hl ? .3f : 0), Color.Lerp(new Color(.17f, .14f, .28f), Color.white, hl ? .2f : 0)); btnLang.localScale = Vector3.one * (hl ? 1.08f : 1); }
             float pop = key != null ? DivaUi.EaseOutBack((Time.unscaledTime - promptShownAt) / .5f) : 1;
             prompt.localScale = Vector3.one * (.9f / 1100f) * Mathf.Max(.01f, pop);
             if (promptGroup.alpha <= 0 && key == null) return;

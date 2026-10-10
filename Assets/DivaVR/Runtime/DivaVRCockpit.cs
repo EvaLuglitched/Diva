@@ -91,6 +91,15 @@ namespace Diva.VR
                 // 细环框：眼睛上方 0.36 米一圈很细的发光弧，左右各 58°，只是暗示座舱的轮廓
                 Part(root, "Halo", Sector(.705f, .72f, -58, 58, eye + .36f, eye + .375f, 24), glowA);
                 Part(root, "Halo Shadow", Sector(.70f, .725f, -58, 58, eye + .345f, eye + .36f, 24), body);
+                // 顶盖骨架：两根肋从仪表台两侧的柱顶弯过头顶到身后，中间两道横梁发光，身后一圈靠背和一道发光饰条——抬头有东西看，又不挡视线
+                Vector3 RibPoint(int sign, float t) => new Vector3(sign * Mathf.Lerp(.42f, .30f, t), eye + .40f + .55f * Mathf.Sin(Mathf.PI * t * .92f), Mathf.Lerp(.60f, -.50f, t));
+                foreach (int sign in new[] { -1, 1 })
+                    for (int i = 0; i < 10; i++) Tube(root, "Rib", RibPoint(sign, i / 10f), RibPoint(sign, (i + 1) / 10f), .013f, body);
+                Tube(root, "Beam Glow", RibPoint(-1, .45f), RibPoint(1, .45f), .008f, glowB);
+                Tube(root, "Beam", RibPoint(-1, .75f), RibPoint(1, .75f), .012f, body);
+                Tube(root, "Beam Glow 2", RibPoint(-1, .76f), RibPoint(1, .76f), .006f, glowA);
+                Part(root, "Seat Back", Sector(.60f, .68f, 135, 225, eye - .52f, eye - .12f, 12), body);
+                Part(root, "Seat Trim", Sector(.595f, .605f, 135, 225, eye - .13f, eye - .11f, 12), glowB);
                 if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); }
                 BuildVignette(); return;
             }
@@ -278,6 +287,18 @@ namespace Diva.VR
                     best = .9f;
             }
             return best;
+        }
+
+        /// <summary>两点之间一根圆管。</summary>
+        static void Tube(Transform parent, string name, Vector3 a, Vector3 b, float radius, Material m)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var c = go.GetComponent<Collider>(); if (c) Destroy(c);
+            go.name = name; go.transform.SetParent(parent, false);
+            go.transform.localPosition = (a + b) * .5f;
+            go.transform.localRotation = Quaternion.FromToRotation(Vector3.up, (b - a).normalized);
+            go.transform.localScale = new Vector3(radius * 2, (b - a).magnitude * .5f, radius * 2);
+            var r = go.GetComponent<MeshRenderer>(); r.sharedMaterial = m; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
         }
 
         static void Part(Transform parent, string name, Mesh mesh, Material material)

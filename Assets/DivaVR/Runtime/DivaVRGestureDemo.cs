@@ -63,7 +63,7 @@ namespace Diva.VR
         {
             move = m; shown = true; t0 = Time.unscaledTime;
             stage.gameObject.SetActive(true);
-            bool bars = m == Move.Push || m == Move.Twist;
+            bool bars = false;   // 把手演示不用了（操控改回前倾 / 侧倾）
             bar.gameObject.SetActive(bars); gripL.gameObject.SetActive(bars); gripR.gameObject.SetActive(bars);
             target.gameObject.SetActive(m == Move.Pinch);
             thumb.gameObject.SetActive(m == Move.Pinch); index.gameObject.SetActive(m == Move.Pinch);
@@ -81,21 +81,16 @@ namespace Diva.VR
             switch (move)
             {
                 case Move.Push:
-                    // 两手握把一起往前推
-                    handL.localPosition = new Vector3(-.065f, -.02f, .02f + .05f * ease);
-                    handR.localPosition = new Vector3(.065f, -.02f, .02f + .05f * ease);
-                    bar.localPosition = new Vector3(0, -.02f, .02f + .05f * ease);
-                    gripL.localPosition = handL.localPosition; gripR.localPosition = handR.localPosition;
-                    arrow.localPosition = new Vector3(0, .03f, .06f + .04f * ease); arrow.localRotation = Quaternion.identity;
+                    // 头（身体）往前倾，手跟着
+                    head.localPosition = new Vector3(0, .11f, -.08f + .07f * ease);
+                    handL.localPosition = new Vector3(-.06f, 0, .02f * ease); handR.localPosition = new Vector3(.06f, 0, .02f * ease);
+                    arrow.localPosition = new Vector3(0, .13f, .02f + .05f * ease); arrow.localRotation = Quaternion.identity;
                     break;
                 case Move.Twist:
-                    // 左前右后，再反过来
-                    float tw = Mathf.Sin(c * Mathf.PI * 2) * .035f;
-                    handL.localPosition = new Vector3(-.065f, -.02f, .02f + tw);
-                    handR.localPosition = new Vector3(.065f, -.02f, .02f - tw);
-                    gripL.localPosition = handL.localPosition; gripR.localPosition = handR.localPosition;
-                    bar.localPosition = new Vector3(0, -.02f, .02f);
-                    bar.localRotation = Quaternion.Euler(0, Mathf.Atan2(-2 * tw, .13f) * Mathf.Rad2Deg, 90);
+                    // 身体左右倾
+                    float sw = Mathf.Sin(c * Mathf.PI * 2) * .06f;
+                    head.localPosition = new Vector3(sw, .11f, -.08f);
+                    handL.localPosition = new Vector3(-.06f + sw * .5f, 0, 0); handR.localPosition = new Vector3(.06f + sw * .5f, 0, 0);
                     break;
                 case Move.Pinch:
                     // 看着靶子（头朝向靶子），拇指食指捏合，靶子闪
@@ -120,6 +115,7 @@ namespace Diva.VR
                     break;
             }
             if (move != Move.Pinch) { head.localRotation = Quaternion.identity; arrow.localScale = new Vector3(.006f, .006f, .05f); }
+            if (move != Move.Push && move != Move.Twist) head.localPosition = new Vector3(0, .11f, -.08f);
         }
     }
 }

@@ -101,9 +101,14 @@ namespace Diva.VR
             }
             if (!hasNeutral) SetNeutral(head.localPosition);
 
+            // 身体：头相对坐好时的位置，换到驾驶舱的前 / 右方向（试过把手，Carl 还是要这个）
+            var lean = space.localRotation * (head.localPosition - neutral);
+            f.go = Mathf.Clamp01((lean.z - leanStart) / Mathf.Max(.01f, leanFull - leanStart));
+            float side = Mathf.Abs(lean.x);
+            f.steer = Mathf.Sign(lean.x) * Mathf.Clamp01((side - sideStart) / Mathf.Max(.01f, sideFull - sideStart));
+
             if (GazePinch(space, out var gaze)) { f.shoot = true; f.look = gaze; }
             if (hands == null || !hands.running) return f;
-            // 走和转弯：手握住驾驶舱里的把手往前推、转动（DivaVRHandlebars）。以前用头的前倾 / 侧倾，太容易误触
             if (handlebars) { handlebars.Read(hands, space); f.go = handlebars.Go; f.steer = handlebars.Steer; }
             var mouth = head.position - head.up * .09f + head.forward * .04f;
             var fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
