@@ -174,6 +174,11 @@ namespace Diva.VR
         {
             startTime = Time.unscaledTime;
             if (!Application.isEditor) { Foveation(); startHold = true; jumpFade = 1; }
+            // 景深（空气透视）：35 米以外慢慢融进天边的颜色，远处的房子退后去，近处的东西才显得近。
+            // 真正的景深模糊在 VR 里不能用：眼睛对不了焦
+            RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogStartDistance = DivaVRDebug.Float("DIVA_FOGSTART", 35);
+            RenderSettings.fogEndDistance = DivaVRDebug.Float("DIVA_FOGEND", 230);
             if (!loco || !loco.travelRoot) { Debug.LogWarning("DIVA_VR: no elephant (DigiPhantLocomotion.travelRoot); the rig stays put."); return; }
             root = loco.travelRoot;
             if (seat == Vector3.zero) seat = MeasureSeat();

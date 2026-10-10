@@ -56,7 +56,7 @@ namespace Diva.Show
         FilmGrain grain;
         ChromaticAberration aberration;
         Vignette vig;
-        Light rim, key;
+        Light rim, key, fill;
         ReflectionProbe probe;
         float savedAmbient = -1, savedKey = -1;
         Color savedKeyColor = Color.white;
@@ -104,6 +104,7 @@ namespace Diva.Show
             if (volume) Destroy(volume.gameObject);
             if (profile) Destroy(profile);
             if (rim) Destroy(rim.gameObject);
+            if (fill) Destroy(fill.gameObject);
             if (probe) Destroy(probe.gameObject);
             foreach (var (r, mask) in heroRenderers) if (r) r.renderingLayerMask = mask;
             heroRenderers.Clear();
@@ -138,8 +139,9 @@ namespace Diva.Show
                 bloom.intensity.Override(bloomIntensity * VrBloom);
             }
             var colour = profile.Add<ColorAdjustments>(true);
-            colour.contrast.Override(contrast);
-            colour.saturation.Override(saturation);
+            // VR：对比和饱和度再高一点（头显的画面本来偏灰）
+            colour.contrast.Override(Diva.VR.DivaVR.Active ? Mathf.Max(contrast, 30) : contrast);
+            colour.saturation.Override(Diva.VR.DivaVR.Active ? Mathf.Max(saturation, 18) : saturation);
             // 暗部偏冷紫、亮部偏暖：画面更有层次，糖果色不会发灰
             var smh = profile.Add<ShadowsMidtonesHighlights>(true);
             bool vrLook = Diva.VR.DivaVR.Active;
@@ -210,7 +212,7 @@ namespace Diva.Show
             FindKey();
             // VR（参考守望先锋的打光）：环境光更低、暖色主光更强，冷暖对比让房子和大象的体积感更清楚
             bool vr = Diva.VR.DivaVR.Active;
-            float amb = vr ? Mathf.Min(ambientScale, .62f) : ambientScale, keyK = vr ? Mathf.Max(keyScale, 1.3f) : keyScale;
+            float amb = vr ? Mathf.Min(ambientScale, .56f) : ambientScale, keyK = vr ? Mathf.Max(keyScale, 1.38f) : keyScale;
             savedAmbient = RenderSettings.ambientIntensity;
             savedSky = RenderSettings.ambientSkyColor; savedEquator = RenderSettings.ambientEquatorColor; savedGround = RenderSettings.ambientGroundColor;
             RenderSettings.ambientIntensity = savedAmbient * amb;
@@ -222,6 +224,17 @@ namespace Diva.Show
                 savedKey = key.intensity; key.intensity = savedKey * keyK;
                 savedKeyColor = key.color; savedShadow = key.shadowStrength;
                 if (vr) { key.color = key.color * new Color(1f, .95f, .88f); key.shadowStrength = Mathf.Max(key.shadowStrength, .92f); }
+            }
+            // VR：主光对面低角度一盏冷色补光（不投影）——背光面不再死黑，暖主光 / 冷补光的对比让体积更立体（守望先锋的打法）
+            if (vr && key && !fill)
+            {
+                var go = new GameObject("Diva Fill Light");
+                go.transform.SetParent(transform, false);
+                fill = go.AddComponent<Light>();
+                fill.type = LightType.Directional; fill.shadows = LightShadows.None;
+                fill.color = new Color(.62f, .72f, 1f); fill.intensity = .38f;
+                var f = key.transform.forward; f.y = 0; f = f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward;
+                fill.transform.rotation = Quaternion.LookRotation((-f + Vector3.down * .45f).normalized, Vector3.up);
             }
         }
 
