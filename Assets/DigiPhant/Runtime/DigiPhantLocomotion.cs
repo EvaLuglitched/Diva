@@ -68,6 +68,7 @@ namespace DigiPhant
         AnimationMixerPlayable mixer;
         AnimationClipPlayable[] playables;
         AnimationClip[] clips;
+        float[] weightVelocity;
         readonly string[] actions = { "Idle", "Walk", "Run", "Backward", "Turn left", "Turn right", "Walk left", "Walk right", "Run left", "Run right" };
         readonly Dictionary<Transform, Pose> restPose = new Dictionary<Transform, Pose>();
         Vector3 startPosition, cameraOffset, cameraStart, motionPosition;
@@ -192,10 +193,13 @@ namespace DigiPhant
                 : Mathf.Max(.15f, Mathf.Abs(turn) * turnDegreesPerSecond / 18.75f);
             cycle += dt * animationRate / Mathf.Max(.01f, clips[action].length);
             cycle = Mathf.Repeat(cycle, 1);
-            float weightBlend = 1 - Mathf.Exp(-dt / Mathf.Max(.01f, animationBlendSeconds));
+            // Critically damped blend: the new pose eases in from zero speed (a plain exponential blend moves fastest on its
+            // first frame, which reads as a jolt when the elephant starts or stops walking right in front of a VR player).
+            if (weightVelocity == null || weightVelocity.Length != clips.Length) weightVelocity = new float[clips.Length];
+            float blendTime = Mathf.Max(.01f, animationBlendSeconds) * .6f;
             for (int i = 0; i < clips.Length; i++)
             {
-                mixer.SetInputWeight(i, Mathf.Lerp(mixer.GetInputWeight(i), i == action ? 1 : 0, weightBlend));
+                mixer.SetInputWeight(i, Mathf.Clamp01(Mathf.SmoothDamp(mixer.GetInputWeight(i), i == action ? 1 : 0, ref weightVelocity[i], blendTime, Mathf.Infinity, dt)));
                 playables[i].SetTime(cycle * clips[i].length);
             }
             graph.Evaluate(0);

@@ -66,20 +66,27 @@ namespace Diva.Show
                 return (pad * (.85f + .15f * Mathf.Sin(2 * Mathf.PI * .25f * t)) + shimmer) * .55f;
             });
             {
-                // 锯齿波过两个共振峰（像铜管），音高先往上滑再带颤音，最后往下落；加一点气声
-                var formantA = new Resonance(820, 5); var formantB = new Resonance(1900, 7); var breath = new Resonance(2600, 2);
-                double phase = 0;
-                Make("trumpet", 1.6f, t =>
+                // 锯齿波过两个共振峰（像铜管），音高先往上滑再带颤音，最后往下落；一点点气声，再过一个低通（不刺耳）
+                Func<float, float, float, float, Func<float, float>> voice = (seconds, low, high, fall) =>
                 {
-                    float pitch = 230 + 190 * Mathf.SmoothStep(0, 1, t / .22f) - 70 * Mathf.SmoothStep(0, 1, (t - 1.05f) / .45f)
-                                  + Mathf.Sin(2 * Mathf.PI * 5.5f * t) * 10 * Mathf.Clamp01((t - .3f) * 3);
-                    phase += pitch / Rate;
-                    float saw = (float)(phase - Math.Floor(phase)) * 2 - 1;
-                    float brass = formantA.Step(saw) * 1.1f + formantB.Step(saw) * .7f + saw * .08f;
-                    float air = breath.Step(Noise()) * .35f;
-                    float env = Mathf.Clamp01(t / .06f) * Mathf.Clamp01((1.6f - t) / .35f);
-                    return (float)Math.Tanh((brass + air) * 1.8f) * .5f * env;
-                });
+                    var formantA = new Resonance(700, 4); var formantB = new Resonance(1500, 6); var breath = new Resonance(1800, 1.5f);
+                    double phase = 0; float lp = 0;
+                    return t =>
+                    {
+                        float pitch = low + (high - low) * Mathf.SmoothStep(0, 1, t / (seconds * .14f)) - fall * Mathf.SmoothStep(0, 1, (t - seconds * .66f) / (seconds * .28f))
+                                      + Mathf.Sin(2 * Mathf.PI * 5.5f * t) * 9 * Mathf.Clamp01((t - .3f) * 3);
+                        phase += pitch / Rate;
+                        float saw = (float)(phase - Math.Floor(phase)) * 2 - 1;
+                        float brass = formantA.Step(saw) * 1.2f + formantB.Step(saw) * .45f + saw * .05f;
+                        float air = breath.Step(Noise()) * .1f;
+                        float x = (float)Math.Tanh((brass + air) * 1.3f);
+                        lp += (x - lp) * .35f;   // 一阶低通，约 3 kHz
+                        return lp * .62f * Mathf.Clamp01(t / .06f) * Mathf.Clamp01((seconds - t) / (seconds * .22f));
+                    };
+                };
+                Make("trumpet", 1.6f, voice(1.6f, 230, 420, 70));
+                // 摸鼻子时短促欢快的一声"嘟"
+                Make("toot", .55f, voice(.55f, 330, 520, 60));
             }
             Make("rise", 1.3f, t =>
             {
@@ -134,6 +141,13 @@ namespace Diva.Show
             int n = Mathf.CeilToInt(seconds * Rate);
             var data = new float[n];
             for (int i = 0; i < n; i++) data[i] = Mathf.Clamp(f(i / (float)Rate), -1, 1);
+            // 开头 2 毫秒、结尾 6 毫秒淡入淡出：没有归零就截断的声音会"哒"一下（无缝循环的门嗡鸣除外）
+            if (name != "portal")
+            {
+                int fadeIn = Mathf.Min(n / 4, Rate / 500), fadeOut = Mathf.Min(n / 4, Rate * 6 / 1000);
+                for (int i = 0; i < fadeIn; i++) data[i] *= i / (float)fadeIn;
+                for (int i = 0; i < fadeOut; i++) data[n - 1 - i] *= i / (float)fadeOut;
+            }
             var clip = AudioClip.Create("Diva Show " + name, n, 1, Rate, false);
             clip.SetData(data, 0);
             clips[name] = clip;

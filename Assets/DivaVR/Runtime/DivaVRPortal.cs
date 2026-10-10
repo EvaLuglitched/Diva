@@ -58,7 +58,7 @@ namespace Diva.VR
         DigiPhantLocomotion loco;
         DivaDemo demo;
         Camera cam;
-        bool autopilot, aligned, lastPinch, switched, hdrWas, hdrChanged, handTouch;
+        bool autopilot, aligned, lastPinch, switched, hdrWas, hdrChanged, handTouch, closedBurst;
 
         Transform fxRoot, world, room, portal, ring, ringInner, membrane, pool, spark, sparkHalo, column, overlay;
         Material occluder, ringMat, innerMat, membraneMat, poolMat, sparkMat, haloMat, columnMat, overlayMat;
@@ -79,7 +79,10 @@ namespace Diva.VR
         Quaternion[] eyeTurn = new Quaternion[0];
         Vector3[] savedPos = new Vector3[0];
         Quaternion[] savedRot = new Quaternion[0];
-        float lookWeight, reachWeight, trumpetTime = -1;
+        float lookWeight, reachWeight, trumpetTime = -1, greetTime = -1;
+        // 走过来：按计划的距离走（平滑起步、慢慢停稳，正好停在起点），动画速度跟着实际速度
+        float walked, walkVelocity, blendWas = -1;
+        AudioSource sparkHum;
         AnimationClip trumpetClip;
         Animator animator;
 
@@ -316,6 +319,14 @@ namespace Diva.VR
             sparkTrail.widthCurve = new AnimationCurve(new Keyframe(0, .06f), new Keyframe(1, 0));
             sparkTrail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             sparkTrail.emitting = false;
+            // 光点轻轻的"嗡"声（门嗡鸣升高一个八度、很小声），跟着光点走，飞出去时声音也一起飞走
+            if (sound != null && sound.Clip("portal"))
+            {
+                sparkHum = spark.gameObject.AddComponent<AudioSource>();
+                sparkHum.clip = sound.Clip("portal"); sparkHum.loop = true; sparkHum.playOnAwake = false; sparkHum.pitch = 2;
+                sparkHum.spatialBlend = 1; sparkHum.minDistance = .6f; sparkHum.maxDistance = 8; sparkHum.dopplerLevel = 0;
+                sparkHum.volume = .16f * sound.volume;
+            }
             spark.gameObject.SetActive(false);
         }
 
@@ -392,15 +403,18 @@ namespace Diva.VR
                     Burst(center, 140, 2.2f, .05f);
                     rimSparks.Emit(160);
                     var em = rimSparks.emission; em.rateOverTime = 70;
-                    sound?.PlayAt("pop", center, 1.2f);
-                    sound?.Play("ready", .8f);
+                    sound?.PlayAt("pop", center, .7f);
+                    sound?.Play("ready", .5f);
                     if (hum) hum.Play();
                     flash = 1;
                     Capture("portal_open", 1.6f);
                     Probe("portal_open", 1.2f);
                     break;
                 case Stage.Arriving:
-                    loco.inputSmoothing = 9;   // 停得准：起点就是选涂装时大象的位置
+                    walked = 0; walkVelocity = 0;
+                    // 走路时象头比站着低 27 厘米：站和走之间的动画混得慢一点，停下时像是慢慢抬起头来看你（不是一下抬起来）
+                    blendWas = loco.animationBlendSeconds;
+                    loco.animationBlendSeconds = .9f;
                     break;
                 case Stage.Offer:
                     Capture("portal_arrived", 1.2f);
@@ -413,8 +427,10 @@ namespace Diva.VR
                     BeginBoarding();
                     break;
                 case Stage.Inside:
-                    // 门升到驾驶舱正前方：从镇子这边回头看，门里是你自己的房间
+                    // 门升到驾驶舱正前方：从镇子这边回头看，门里是你自己的房间；大象扬起鼻子长鸣，跟你的房间告别
+                    // （扬鼻的动作很大，人站在门前时会扫到脸前，所以放在人坐上背以后，离象头 3 米多）
                     liftFrom = center;
+                    Invoke(nameof(BigTrumpet), .25f);
                     Capture("portal_cockpit", 1.4f);
                     Probe("portal_cockpit", 1.8f);
                     break;
@@ -460,7 +476,7 @@ namespace Diva.VR
                     if (stageTime >= 1.1f) Go(Stage.Arriving);
                     break;
                 case Stage.Arriving:
-                    Walk();
+                    Walk(dt);
                     break;
                 case Stage.Offer:
                     if (stageTime > .8f && (handTouch || (simulator || !rig.Hands) && pinch || autopilot && stageTime > 2.2f || stageTime > 9)) Greet();
@@ -477,10 +493,12 @@ namespace Diva.VR
                     break;
                 case Stage.Inside:
                     LiftPortal();
-                    if (stageTime >= 2.4f) Go(Stage.Closing);
+                    if (stageTime >= 2.6f) Go(Stage.Closing);
                     break;
                 case Stage.Closing:
-                    if (stageTime >= .85f) { ClosingBurst(); Finish(); return; }
+                    // 收拢、炸开，再停一下让声音落下来，选涂装的开场音乐单独响
+                    if (stageTime >= .85f && !closedBurst) { closedBurst = true; ClosingBurst(); }
+                    if (stageTime >= 1.5f) { Finish(); return; }
                     break;
             }
             Animate(dt);
@@ -500,6 +518,7 @@ namespace Diva.VR
             if (stage == Stage.Waiting && !spark.gameObject.activeSelf)
             {
                 spark.gameObject.SetActive(true);
+                if (sparkHum) sparkHum.Play();
                 var h = cam.transform;
                 var flat = Flat(h.forward, room.forward);
                 spark.position = h.position + flat * .72f - Vector3.up * .1f;
@@ -508,21 +527,25 @@ namespace Diva.VR
             }
         }
 
-        // 大象沿着原来的朝向走到起点：离得远时稳稳地走，最后两米慢下来，差几厘米时对齐
-        void Walk()
+        // 大象沿着原来的朝向走到起点：按计划的距离走——平滑起步（1.6 秒加到巡航速度），最后像弹簧一样慢慢停稳，
+        // 正好停在起点（不会最后一下"蹦"过去）。位置由这里定（LateUpdate 里覆盖），走路动画的快慢跟着实际速度。
+        const float Cruise = 1.5f;
+        void Walk(float dt)
         {
             if (stageTime < .9f) return;
             demo.inputLocked = false;
-            float remaining = Vector3.Dot(start - root.position, forward);
-            if (remaining <= .04f)
+            float maxSpeed = Mathf.Max(.02f, Cruise * DivaUi.Smooth((stageTime - .9f) / 1.6f));
+            walked = Mathf.SmoothDamp(walked, walkFrom, ref walkVelocity, .8f, maxSpeed, dt);
+            if (walkFrom - walked < .001f)
             {
+                walked = walkFrom; walkVelocity = 0;
                 loco.StopMotion();
-                root.SetPositionAndRotation(new Vector3(start.x, root.position.y, start.z), startRotation);
+                root.SetPositionAndRotation(new Vector3(start.x, root.position.y, start.z), startRotation);   // 正好在起点（选涂装时不再挪）
                 demo.inputLocked = true;
                 Go(Stage.Offer);
                 return;
             }
-            walkGo = Mathf.Clamp(remaining * .32f, .09f, .6f);
+            walkGo = Mathf.Clamp(walkVelocity / Mathf.Max(.1f, loco.walkSpeed) * loco.runThreshold, 0, .6f);
         }
 
         // 手指尖碰到鼻子了吗：在 LateUpdate 里、鼻子已经卷过来以后量（人看到的就是这个位置）
@@ -539,23 +562,29 @@ namespace Diva.VR
         {
             if (touchPoint == Vector3.zero && trunk.Length > 0) touchPoint = trunk[trunk.Length - 1].position;
             Go(Stage.Greet);
-            trumpetTime = 0;
+            greetTime = 0;
             Burst(touchPoint, 70, 1.3f, .035f);
             fx.Flash(touchPoint, new Color(1f, .85f, .95f), .5f, .3f);
             sound?.Play("confirm", .8f);
             var tip = trunk.Length > 0 ? trunk[trunk.Length - 1].position : center;
-            Invoke(nameof(Trumpet), .2f);
+            Invoke(nameof(Toot), .22f);
             fx.Confetti(center + forward * .6f + Vector3.up * .3f, Candy, 180);
             glowBoost = 1;
             Capture("portal_greet", .9f);
             Debug.Log($"DIVA_VR arrival touch at {touchPoint} trunk tip {tip}");
         }
 
-        void Trumpet()
+        void Toot()
         {
             if (sound == null) return;
-            var at = head ? head.position + forward * 1.2f : center;
-            sound.PlayAt("trumpet", at, 1.3f);
+            sound.PlayAt("toot", head ? head.position + forward * .8f : center, 1.1f);
+        }
+
+        // 上机甲以后：扬鼻长鸣（原来的 trumpet 动画 + 象鸣声），声音从象鼻那里来
+        void BigTrumpet()
+        {
+            trumpetTime = 0;
+            if (sound != null) sound.PlayAt("trumpet", head ? head.position + forward * 1.4f + Vector3.up : center, 1.2f);
         }
 
         void BeginBoarding()
@@ -638,8 +667,7 @@ namespace Diva.VR
         {
             fx.Flash(center, new Color(1f, .8f, .95f), 1.2f, .35f);
             fx.Firework(center + Vector3.up * .4f, new Color(1f, .5f, .85f));
-            sound?.PlayAt("pop", center, 1f);
-            sound?.Play("combo", .6f);
+            sound?.PlayAt("pop", center, .6f);
         }
 
         void Finish()
@@ -656,11 +684,11 @@ namespace Diva.VR
         void Restore()
         {
             foreach (var r in hidden) if (r) r.enabled = true;
+            if (loco && blendWas > 0) { loco.animationBlendSeconds = blendWas; blendWas = -1; }
             hidden.Clear();
             ShowCockpit(true);
             if (rig && rig.Detached) rig.Board();
             if (hdrChanged && cam) { cam.allowHDR = hdrWas; hdrChanged = false; }
-            if (loco) loco.inputSmoothing = rig ? rig.inputSmoothing : loco.inputSmoothing;
             if (overlay) Destroy(overlay.gameObject);
             if (world) Destroy(world.gameObject);
             if (fxRoot) Destroy(fxRoot.gameObject, 6);
@@ -749,7 +777,8 @@ namespace Diva.VR
             {
                 float k = stageTime;
                 Tint(columnMat, new Color(1f, .75f, .95f, Mathf.Clamp01(k / .4f) * .9f) * 1.6f);
-                float fade = k < .65f ? Mathf.Pow(Mathf.Clamp01(k / .65f), 1.6f) : k < .8f ? 1 : 1 - DivaUi.Smooth((k - .8f) / .8f);
+                // 0.55 秒全白，0.65 秒换座位，0.8 秒以后才散开：换座位前后几帧都是全白
+                float fade = k < .55f ? Mathf.Pow(Mathf.Clamp01(k / .55f), 1.6f) : k < .8f ? 1 : 1 - DivaUi.Smooth((k - .8f) / .8f);
                 Tint(overlayMat, new Color(1, .96f, 1, fade));
             }
             else if (overlay && stage != Stage.Done) { Destroy(overlay.gameObject); overlay = null; }
@@ -801,19 +830,47 @@ namespace Diva.VR
 
         void LateUpdate()
         {
-            if (stage == Stage.Done || !root) return;
+            if (!root) return;
             float dt = Time.unscaledDeltaTime;
-            // 走过来的路上和到了以后，头和眼睛看着人；坐上去以后不看了
-            float lookTarget = stage == Stage.Arriving ? Mathf.InverseLerp(9, 5, Vector3.Distance(root.position, start) + 2) :
-                               stage == Stage.Offer ? 1 : stage == Stage.Greet || stage == Stage.Board ? (trumpetTime >= 0 ? .25f : 1) :
+            // 演完以后，长鸣还没结束就让它做完（选涂装已经开始了也没关系，只动骨骼）
+            if (stage == Stage.Done) { PoseTrumpet(dt); return; }
+            if (stage == Stage.Arriving || stage == Stage.Opening || stage == Stage.Flying || stage == Stage.Waiting)
+            {
+                var p = start - forward * (walkFrom - walked);
+                root.position = new Vector3(p.x, root.position.y, p.z);
+            }
+            // 走过来的路上和到了以后，头和眼睛看着人；扬头打招呼时少看一点；坐上去以后不看了
+            float lookTarget = stage == Stage.Arriving ? Mathf.InverseLerp(9, 5, walkFrom - walked + 2) :
+                               stage == Stage.Offer ? 1 : stage == Stage.Greet || stage == Stage.Board ? (greetTime >= 0 ? .35f : 1) :
                                stage == Stage.Boarding && !switched ? 1 : 0;
             lookWeight = Mathf.MoveTowards(lookWeight, lookTarget, dt * .8f);
-            reachWeight = Mathf.MoveTowards(reachWeight, stage == Stage.Offer && stageTime > .5f ? 1 : 0, dt * (stage == Stage.Offer ? .9f : 2.2f));
+            reachWeight = Mathf.MoveTowards(reachWeight, stage == Stage.Offer && stageTime > .5f ? 1 : 0, dt * (stage == Stage.Offer ? .7f : 2.5f));
             PoseTrumpet(dt);
             PoseReach();
+            PoseGreet(dt);
             PoseLook(dt);
             KeepClear(dt);
             CheckTouch();
+        }
+
+        // 摸到鼻子：鼻子先收回去，再扬头、把鼻子往回卷成钩，轻轻弹两下，然后放下。
+        // 整个过程鼻子离人越来越远（在编辑器里把头和鼻子的角度都试过：站在门前 2.4 米时，把鼻子高高举起来一定会扫到脸前 1.2 米以内）
+        void PoseGreet(float dt)
+        {
+            if (greetTime < 0 || !head || trunk.Length == 0) return;
+            greetTime += dt;
+            float t = greetTime;
+            float up = DivaUi.Smooth((t - .1f) / .6f) * (1 - DivaUi.Smooth((t - 2.1f) / .9f));
+            float curl = DivaUi.Smooth((t - .15f) / .55f) * (1 - DivaUi.Smooth((t - 2.0f) / .9f));
+            float bounce = t > .7f ? Mathf.Sin((t - .7f) * 11) * Mathf.Exp(-(t - .7f) * 3) : 0;
+            var axis = root.right;
+            for (int i = 0; i < trunk.Length; i++)
+            {
+                float angle = (i < 3 ? 0 : 28 * curl) + bounce * 5 * (i / (float)trunk.Length);
+                trunk[i].rotation = Quaternion.AngleAxis(angle, axis) * trunk[i].rotation;
+            }
+            head.rotation = Quaternion.AngleAxis(-(20 * up + bounce * 2), axis) * head.rotation;   // 绕 -right 转是抬头
+            if (t > 3.1f) greetTime = -1;
         }
 
         // 扬鼻长鸣：在步态动画上叠 trumpet 片段，开头和结尾和原来的姿势混一下
@@ -821,16 +878,17 @@ namespace Diva.VR
         {
             if (trumpetTime < 0 || !trumpetClip || !animator || bones.Length == 0) return;
             trumpetTime += dt;
-            float length = trumpetClip.length;
+            const float rate = .85f;
+            float length = trumpetClip.length / rate;
             if (trumpetTime >= length) { trumpetTime = -1; return; }
-            float w = Mathf.Min(DivaUi.Smooth(trumpetTime / .3f), DivaUi.Smooth((length - trumpetTime) / .45f));
+            float w = Mathf.Min(DivaUi.Smooth(trumpetTime / .4f), DivaUi.Smooth((length - trumpetTime) / .7f));
             for (int i = 0; i < bones.Length; i++) { savedPos[i] = bones[i].localPosition; savedRot[i] = bones[i].localRotation; }
             var a = animator.transform;
             Vector3 lp = a.localPosition; Quaternion lr = a.localRotation;
             Vector3 mp = Vector3.zero; Quaternion mr = Quaternion.identity;
             var motion = loco.animationMotionRoot;
             if (motion) { mp = motion.localPosition; mr = motion.localRotation; }
-            trumpetClip.SampleAnimation(animator.gameObject, Mathf.Min(trumpetTime * .9f, length - .02f));
+            trumpetClip.SampleAnimation(animator.gameObject, Mathf.Min(trumpetTime * rate, trumpetClip.length - .02f));
             a.localPosition = lp; a.localRotation = lr;
             if (motion) motion.SetLocalPositionAndRotation(mp, mr);
             for (int i = 0; i < bones.Length; i++)
@@ -848,7 +906,7 @@ namespace Diva.VR
             var right = root.right;
             for (int i = 0; i < trunk.Length; i++)
             {
-                float angle = -19f * reachWeight * (1 + .1f * Mathf.Sin(t * 1.7f + i * .6f));
+                float angle = -20f * DivaUi.Smooth(reachWeight) * (1 + .04f * Mathf.Sin(t * 1.7f + i * .6f));
                 trunk[i].rotation = Quaternion.AngleAxis(angle, right) * trunk[i].rotation;
             }
         }
@@ -874,10 +932,10 @@ namespace Diva.VR
         }
 
         // 个人空间：鼻子（连同鼻尖上的水炮）离人的头不到 0.85 米时，大象把头抬起来让开（人走近时也一样）
-        float clearLift;
+        float clearLift, clearVelocity;
         void KeepClear(float dt)
         {
-            if (!head || trunk.Length < 2 || switched) { clearLift = Mathf.MoveTowards(clearLift, 0, dt * 30); return; }
+            if (!head || trunk.Length < 2 || switched) { clearLift = Mathf.SmoothDamp(clearLift, 0, ref clearVelocity, .35f, 40, dt); return; }
             var eye = cam.transform.position;
             float Near()
             {
@@ -897,7 +955,8 @@ namespace Diva.VR
                 head.rotation = Quaternion.AngleAxis(6, axis) * head.rotation;
             }
             head.rotation = rest;
-            clearLift = Mathf.MoveTowards(clearLift, Mathf.Max(want, clearLift * .98f), dt * (want > clearLift ? 90 : 25));
+            // 平滑地抬（不是一下甩上去）；让开以后慢慢放回来
+            clearLift = Mathf.SmoothDamp(clearLift, Mathf.Max(want, clearLift - dt * 8), ref clearVelocity, want > clearLift ? .18f : .5f, 70, dt);
             head.rotation = Quaternion.AngleAxis(clearLift, axis) * head.rotation;
         }
 
