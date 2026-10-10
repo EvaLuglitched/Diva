@@ -4,7 +4,9 @@ using System.Linq;
 using Diva.Show;
 using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.XR;
 
 namespace Diva.VR
 {
@@ -56,6 +58,7 @@ namespace Diva.VR
 
         void OnEnable()
         {
+            RenderPipelineManager.endContextRendering += CopyXr;
             batches = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Batches Count");
             setPass = ProfilerRecorder.StartNew(ProfilerCategory.Render, "SetPass Calls Count");
             drawCalls = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Draw Calls Count");
@@ -63,7 +66,7 @@ namespace Diva.VR
             casters = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Shadow Casters Count");
         }
 
-        void OnDisable() { batches.Dispose(); setPass.Dispose(); drawCalls.Dispose(); tris.Dispose(); casters.Dispose(); }
+        void OnDisable() { batches.Dispose(); setPass.Dispose(); drawCalls.Dispose(); tris.Dispose(); casters.Dispose(); RenderPipelineManager.endContextRendering -= CopyXr; }
 
         void Update()
         {
@@ -89,6 +92,7 @@ namespace Diva.VR
 
         void LateUpdate()
         {
+            SaveXr();
             if (probeAt > 0 && Time.unscaledTime >= probeAt) { probeAt = -1; AlphaProbe(probeName); }
             if (shotAt > 0 && Time.unscaledTime >= shotAt) { shotAt = -1; Shot(shotName); }
             if (show && show.Phase == ShowPhase.Play && Time.unscaledTime >= next) { next = Time.unscaledTime + 6; Shot("play"); }
@@ -156,6 +160,60 @@ namespace Diva.VR
             var file = Path.Combine(dir, $"{session}_{++index:000}_{name.ToLowerInvariant()}.jpg");
             try { File.WriteAllBytes(file, read.EncodeToJPG(85)); Debug.Log("DIVA_VR capture " + file); }
             catch (Exception e) { Debug.LogWarning("DIVA_VR capture failed: " + e.Message); }
+            // 同时拷一份 XR 真正画出来的左眼
+            xrWant = $"{session}_{index:000}_{name.ToLowerInvariant()}_xr";
+        }
+
+        // ------------------------------------------------------------------ XR 画面
+        // 上面的截图是另一台普通摄像机（单眼、不走 XR）拍的：头显里双眼渲染时有没有画出某样东西（比如 UI），它看不出来。
+        // 这里在一帧渲染完的时候把 XR 渲染目标的第 0 层（左眼）原样拷出来存成图。头显上有注视点渲染时，图的边缘会被压缩。
+        string xrWant, xrRead; int xrReadFrame;
+        RenderTexture xrRt;
+        readonly System.Collections.Generic.List<XRDisplaySubsystem> displays = new System.Collections.Generic.List<XRDisplaySubsystem>();
+
+        void CopyXr(ScriptableRenderContext ctx, System.Collections.Generic.List<Camera> cams)
+        {
+            if (xrWant == null) return;
+            string name = xrWant; xrWant = null;
+            displays.Clear(); SubsystemManager.GetSubsystems(displays);
+            var d = displays.FirstOrDefault(x => x.running);
+            if (d == null || d.GetRenderPassCount() == 0) { Debug.Log("DIVA_VR xr capture: no XR render pass"); return; }
+            d.GetRenderPass(0, out var pass);
+            var desc = pass.renderTargetDesc;
+            Debug.Log($"DIVA_VR xr pass {desc.width}x{desc.height} {desc.graphicsFormat} {desc.dimension} slices {desc.volumeDepth} msaa {desc.msaaSamples} params {pass.GetRenderParameterCount()} cams {string.Join(",", cams.Select(c => c.name))}");
+            try
+            {
+                if (!xrRt || xrRt.width != desc.width || xrRt.height != desc.height || xrRt.graphicsFormat != desc.graphicsFormat)
+                {
+                    if (xrRt) { xrRt.Release(); Destroy(xrRt); }
+                    xrRt = new RenderTexture(desc.width, desc.height, 0, desc.graphicsFormat) { name = "Diva XR Copy", dimension = TextureDimension.Tex2D };
+                    xrRt.Create();
+                }
+                var cmd = new CommandBuffer { name = "Diva XR copy" };
+                cmd.CopyTexture(pass.renderTarget, 0, 0, xrRt, 0, 0);
+                ctx.ExecuteCommandBuffer(cmd);
+                ctx.Submit();
+                cmd.Release();
+                xrRead = name; xrReadFrame = Time.frameCount;
+            }
+            catch (Exception e) { Debug.LogWarning("DIVA_VR xr capture failed: " + e.Message); }
+        }
+
+        void SaveXr()
+        {
+            if (xrRead == null || Time.frameCount <= xrReadFrame || !xrRt) return;
+            string name = xrRead; xrRead = null;
+            try
+            {
+                var tex = new Texture2D(xrRt.width, xrRt.height, TextureFormat.RGBA32, false);
+                var prev = RenderTexture.active; RenderTexture.active = xrRt;
+                tex.ReadPixels(new Rect(0, 0, xrRt.width, xrRt.height), 0, 0); tex.Apply();
+                RenderTexture.active = prev;
+                File.WriteAllBytes(Path.Combine(dir, name + ".jpg"), tex.EncodeToJPG(85));
+                Destroy(tex);
+                Debug.Log("DIVA_VR xr capture " + name);
+            }
+            catch (Exception e) { Debug.LogWarning("DIVA_VR xr capture save failed: " + e.Message); }
         }
     }
 }

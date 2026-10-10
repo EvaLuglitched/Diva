@@ -7,6 +7,7 @@ namespace Diva.VR
     /// <summary>
     /// 头显上排查画面问题用的开关（环境变量；从电脑启动时传：xcrun devicectl device process launch --environment-variables '{"DIVA_CUBE":"1"}' …）。
     /// DIVA_CUBE=1 眼前放一个亮色方块；DIVA_POST=0 关后期处理；DIVA_HDR=1 开场不关 HDR；DIVA_NOPORTAL=1 跳过传送门开场；DIVA_RS=0.8 渲染缩放；
+    /// DIVA_SHADOWS=0 关阴影；DIVA_MSAA=2 两倍多重采样；
     /// DIVA_FOV=0 关注视点渲染；DIVA_NRP=0 关原生渲染通道；DIVA_MSAA=1 关多重采样；DIVA_CLEAR=1 背景纯洋红（看画面有没有送到头显）。
     /// </summary>
     public static class DivaVRDebug
@@ -46,6 +47,8 @@ namespace Diva.VR
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
             {
                 if (Environment.GetEnvironmentVariable("DIVA_MSAA") == "1") { urp.msaaSampleCount = 1; Debug.Log("DIVA_VR debug: MSAA off"); }
+                if (Environment.GetEnvironmentVariable("DIVA_MSAA") == "2") { urp.msaaSampleCount = 2; Debug.Log("DIVA_VR debug: MSAA 2x"); }
+                if (Environment.GetEnvironmentVariable("DIVA_SHADOWS") == "0") { urp.shadowDistance = 0; Debug.Log("DIVA_VR debug: shadows off"); }
                 if (Environment.GetEnvironmentVariable("DIVA_NRP") == "0")
                 {
                     var list = typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset).GetField("m_RendererDataList",

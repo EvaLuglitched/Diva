@@ -14,7 +14,7 @@ namespace Diva.VR
     /// </summary>
     public class DivaVRPerfLog : MonoBehaviour
     {
-        StreamWriter log;
+        StreamWriter log, console;
         DivaShowDirector show;
         DivaVRBubbleTour tour;
         System.Reflection.FieldInfo stageField;
@@ -32,6 +32,10 @@ namespace Diva.VR
                 // 只留最近 6 个
                 foreach (var old in Directory.GetFiles(dir, "perf-*.log").OrderByDescending(f => f).Skip(5)) File.Delete(old);
                 log = new StreamWriter(Path.Combine(dir, $"perf-{DateTime.Now:MMdd-HHmmss}.log")) { AutoFlush = true };
+                // 头显上看不到控制台：游戏自己的日志（DIVA_ 开头）和所有警告、错误也存一份，出问题时取回来看
+                foreach (var old in Directory.GetFiles(dir, "console-*.log").OrderByDescending(f => f).Skip(5)) File.Delete(old);
+                console = new StreamWriter(Path.Combine(dir, $"console-{DateTime.Now:MMdd-HHmmss}.log")) { AutoFlush = true };
+                Application.logMessageReceived += OnLog;
             }
             catch (Exception e) { Debug.LogWarning("DIVA_VR perf log off: " + e.Message); enabled = false; return; }
             show = FindAnyObjectByType<DivaShowDirector>();
@@ -69,10 +73,23 @@ namespace Diva.VR
             sum = worst = gpuSum = 0; frames = slow = verySlow = gpuFrames = 0;
         }
 
+        int consoleLines;
+        void OnLog(string message, string stack, LogType type)
+        {
+            if (console == null || consoleLines > 4000) return;
+            bool ours = message.StartsWith("DIVA");
+            if (!ours && type == LogType.Log) return;
+            consoleLines++;
+            console.WriteLine($"{Time.unscaledTime:F1} [{type}] {message}");
+            if (type == LogType.Exception || type == LogType.Error) console.WriteLine(stack);
+        }
+
         void OnDestroy()
         {
+            Application.logMessageReceived -= OnLog;
             batches.Dispose(); tris.Dispose(); casters.Dispose();
             log?.Dispose(); log = null;
+            console?.Dispose(); console = null;
         }
     }
 }
