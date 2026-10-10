@@ -20,6 +20,9 @@ namespace Diva.VR
         DivaMechSkins skins;
         Transform holo, spin, glowRing, glowRing2;
         float bump, norm = 1;
+        bool hero;
+        /// <summary>英雄时刻（冲线）：机甲全息在正前方升起、放大、快转，像奖杯。</summary>
+        public void HeroMoment(bool on) { hero = on; }
         readonly List<(Renderer source, Renderer copy)> parts = new List<(Renderer, Renderer)>();
         float height = 1, eye;
 
@@ -120,10 +123,11 @@ namespace Diva.VR
             // 选涂装：右前方、在教学牌后面一点（不挡牌子上的按钮），比以前大
             var target = select ? new Vector3(.78f, eye - .56f, 1.1f) : new Vector3(Mathf.Sin(-52 * Mathf.Deg2Rad) * .6f, eye - .37f, Mathf.Cos(-52 * Mathf.Deg2Rad) * .6f);
             float size = select ? selectHeight : playHeight;
+            if (hero) { target = new Vector3(0, eye - .3f, 2.4f); size = 1.0f; }
             float k = snap ? 1 : 1 - Mathf.Exp(-Time.unscaledDeltaTime * 3);
             holo.localPosition = Vector3.Lerp(holo.localPosition, target, k);
             holo.localScale = Vector3.one * Mathf.Lerp(holo.localScale.x, size, k);
-            spin.localRotation = Quaternion.Euler(0, Time.unscaledTime * (select ? 25 : 12), 0);
+            spin.localRotation = Quaternion.Euler(0, Time.unscaledTime * (hero ? 70 : select ? 25 : 12), 0);
             bump = Mathf.MoveTowards(bump, 0, Time.unscaledDeltaTime * 2.5f);
             // 模型先归一化成 1 米高（norm），再乘弹一下的幅度（之前漏了 norm，大象按真实大小显示，巨大）
             spin.localScale = Vector3.one * norm * (1 + .18f * Mathf.Sin(bump * Mathf.PI));
