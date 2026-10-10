@@ -112,25 +112,40 @@ namespace Diva.VR.EditorTools
             // -divaFull 的包用另一个 ID，可以和透视版同时装在头显上对比（主屏幕名字在 Unity 外面改成 "Diva VR Full"）
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.VisionOS, Full ? "com.jchen60.divavr.full" : "com.jchen60.divavr");
 
-            // 传送门开场要露出真实房间：开着后期处理（泛光、调色）时，画面的透明通道要一路保留到最后。
-            // URP 打包时会把"保留透明度"的着色器变体裁掉，除非有一个 URP 资源打开了 Alpha Processing；
-            // 运行时再打开已经晚了（模拟器上测过：后期处理后整屏不透明），所以打包前在这里打开。
+            // Apple visionOS 插件自带的项目检查规则（菜单里才会跑，命令行打包不会）要求：
+            //   每个摄像机都要生成深度纹理（合成器每帧要拿深度把画面摆进空间，没有就一帧都不显示）；
+            //   开 HDR 就必须同时开 Allow HDR Display Output 和 DisplayP3 色域，否则 URP 把 HDR 输出的着色器裁掉——
+            //     头显上只用 LDR（透视也要求关 HDR），泛光照常；
+            //   开屏画面在 visionOS 上还不支持；最低系统版本 2.0。
+            // 这些只改打包这份工程的资源；电脑版（PC 画质）不受影响。
             for (int i = 0; i < QualitySettings.names.Length; i++)
-                if (QualitySettings.GetRenderPipelineAssetAt(i) is UniversalRenderPipelineAsset q) AllowAlphaOutput(q);
-            if (GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset d) AllowAlphaOutput(d);
+                if (QualitySettings.GetRenderPipelineAssetAt(i) is UniversalRenderPipelineAsset q) PrepareUrp(q);
+            if (GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset d) PrepareUrp(d);
+            PlayerSettings.SplashScreen.show = false;
+            PlayerSettings.VisionOS.targetOSVersionString = "2.0";
             AssetDatabase.SaveAssets();
         }
 
-        static void AllowAlphaOutput(UniversalRenderPipelineAsset urp)
+        static void PrepareUrp(UniversalRenderPipelineAsset urp)
         {
             var so = new SerializedObject(urp);
-            var p = so.FindProperty("m_AllowPostProcessAlphaOutput");
-            if (p == null) { Debug.LogWarning("DIVA_VR: URP asset has no m_AllowPostProcessAlphaOutput; passthrough may be opaque"); return; }
-            if (p.boolValue) return;
-            p.boolValue = true;
+            bool changed = false;
+            void Set(string name, bool value)
+            {
+                var p = so.FindProperty(name);
+                if (p == null) { Debug.LogWarning($"DIVA_VR: URP asset has no {name}"); return; }
+                if (p.boolValue == value) return;
+                p.boolValue = value; changed = true;
+            }
+            // 传送门开场要露出真实房间：开着后期处理时画面的透明通道要一路保留到最后。URP 打包时会把"保留透明度"的
+            // 着色器变体裁掉，除非有一个 URP 资源打开了 Alpha Processing；运行时再打开已经晚了，所以打包前在这里打开
+            Set("m_AllowPostProcessAlphaOutput", true);
+            Set("m_RequireDepthTexture", true);
+            Set("m_SupportsHDR", false);
+            if (!changed) return;
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(urp);
-            Debug.Log("DIVA_VR alpha processing on: " + urp.name);
+            Debug.Log($"DIVA_VR URP for visionOS: {urp.name} depth texture on, HDR off, alpha processing on");
         }
     }
 }
