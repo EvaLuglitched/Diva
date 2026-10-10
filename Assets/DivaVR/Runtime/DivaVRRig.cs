@@ -95,6 +95,14 @@ namespace Diva.VR
             if (DivaVR.Simulated) gameObject.AddComponent<DivaVRSimulator>();
             else
             {
+                // Apple visionOS 插件要求场景里有一个 ARSession（它的检查规则里是错误级别）：ARKit 的世界追踪由它启动，
+                // 合成器每一帧都要拿到"设备锚点"才会把画面显示出来；手部追踪也靠这个会话。场景里没有就在这里建一个
+                if (!FindAnyObjectByType<UnityEngine.XR.ARFoundation.ARSession>(FindObjectsInactive.Include))
+                {
+                    var ar = new GameObject("AR Session").AddComponent<UnityEngine.XR.ARFoundation.ARSession>();
+                    ar.attemptUpdate = false;
+                    Debug.Log("DIVA_VR AR session created");
+                }
                 if (cam) { headPose = cam.gameObject.AddComponent<DivaVRHeadPose>(); headPose.head = cam.transform; }
                 hands = gameObject.AddComponent<DivaVRHands>();
             }
