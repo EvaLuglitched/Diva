@@ -57,6 +57,7 @@ namespace Diva.Show
         ChromaticAberration aberration;
         Vignette vig;
         Light rim, key, fill;
+        Quaternion savedKeyRot; bool keyRotSaved;
         ReflectionProbe probe;
         float savedAmbient = -1, savedKey = -1;
         Color savedKeyColor = Color.white;
@@ -114,7 +115,7 @@ namespace Diva.Show
                 RenderSettings.ambientSkyColor = savedSky; RenderSettings.ambientEquatorColor = savedEquator; RenderSettings.ambientGroundColor = savedGround;
                 savedAmbient = -1;
             }
-            if (key && savedKey >= 0) { key.intensity = savedKey; key.color = savedKeyColor; key.shadowStrength = savedShadow; savedKey = -1; }
+            if (key && savedKey >= 0) { key.intensity = savedKey; key.color = savedKeyColor; key.shadowStrength = savedShadow; savedKey = -1; if (keyRotSaved) { key.transform.rotation = savedKeyRot; keyRotSaved = false; } }
             if (cameraData) { cameraData.antialiasing = previousAa; cameraData.antialiasingQuality = previousAaQuality; }
             if (targetCamera) targetCamera.clearFlags = previousClear;
         }
@@ -223,7 +224,13 @@ namespace Diva.Show
             {
                 savedKey = key.intensity; key.intensity = savedKey * keyK;
                 savedKeyColor = key.color; savedShadow = key.shadowStrength;
-                if (vr) { key.color = key.color * new Color(1f, .95f, .88f); key.shadowStrength = Mathf.Max(key.shadowStrength, .92f); }
+                if (vr)
+                {
+                    key.color = key.color * new Color(1f, .95f, .88f); key.shadowStrength = Mathf.Max(key.shadowStrength, .92f);
+                    // 太阳压低（32°）：影子拉长、房子的侧面有明暗，画面才有层次（3A 的"黄金时刻"打光）
+                    savedKeyRot = key.transform.rotation; keyRotSaved = true;
+                    var e = key.transform.eulerAngles; key.transform.rotation = Quaternion.Euler(Diva.VR.DivaVRDebug.Float("DIVA_SUN", 32), e.y, 0);
+                }
             }
             // VR：主光对面低角度一盏冷色补光（不投影）——背光面不再死黑，暖主光 / 冷补光的对比让体积更立体（守望先锋的打法）
             if (vr && key && !fill)
