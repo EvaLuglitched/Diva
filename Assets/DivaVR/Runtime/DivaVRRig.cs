@@ -113,6 +113,7 @@ namespace Diva.VR
             var show = FindAnyObjectByType<Diva.Show.DivaShowDirector>();
             if (show && show.glowMaterial) gameObject.AddComponent<DivaVRAmbience>().glow = show.glowMaterial;
             gameObject.AddComponent<DivaVRGlass>();
+            gameObject.AddComponent<DivaVRUiShaders>();
             // 大时刻（倒数、技能横幅）的空中面板：前方 3.2 米、比眼睛高一点
             var moments = new GameObject("Moments").transform;
             moments.SetParent(transform, false);

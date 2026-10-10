@@ -156,7 +156,9 @@ namespace Diva.Show
             sound = new DivaShowSound(gameObject) { volume = volume };
             fx = new DivaShowFx(transform, glowMaterial, bubbleMaterial);
             replay = new DivaReplay(elephant, elephantSkin ? elephantSkin.bones : new Transform[0], waterGun ? waterGun.transform : null);
-            DivaUi.MakeFont(latinFont, sdfShader);
+            // VR：TMP 自带的 SDF 着色器在 visionOS 的立体渲染里不画，换成 Diva/VR Text（见 DivaVRUiShaders）
+            var vrText = DivaVR.Active ? Resources.Load<Material>("DivaVR Text") : null;
+            DivaUi.MakeFont(latinFont, vrText && vrText.shader ? vrText.shader : sdfShader);
             if (!FindAnyObjectByType<EventSystem>())
             {
                 var es = new GameObject("Diva Show Events", typeof(EventSystem), typeof(InputSystemUIInputModule));

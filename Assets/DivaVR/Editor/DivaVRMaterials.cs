@@ -35,7 +35,7 @@ namespace Diva.VR.EditorTools
             vignette.renderQueue = 4000;
             Save(vignette, "DivaVR Vignette");
             // 泡泡开场的梦境球和泡泡（自己写的着色器，放进 Resources 才会打包进去）
-            foreach (var (shaderName, assetName) in new[] { ("Diva/VR Dream Sphere", "DivaVR Dream Sphere"), ("Diva/VR Bubble", "DivaVR Bubble") })
+            foreach (var (shaderName, assetName) in new[] { ("Diva/VR Dream Sphere", "DivaVR Dream Sphere"), ("Diva/VR Bubble", "DivaVR Bubble"), ("Diva/VR Text", "DivaVR Text"), ("Diva/VR UI", "DivaVR UI") })
             {
                 var shader = Shader.Find(shaderName);
                 if (shader) Save(new Material(shader), assetName);
