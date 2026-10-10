@@ -40,6 +40,8 @@ namespace Diva.Show
                                       Mathf.Sin(2 * Mathf.PI * 3520 * t) * .08f) * Env(t, .004f, .22f) + Noise() * .08f * Env(t, .002f, .04f));
             Make("hit", .12f, t => (Noise() * .25f + Mathf.Sin(2 * Mathf.PI * 2200 * t) * .3f) * Env(t, .002f, .03f));
             Make("combo", .5f, t => Arp(t, new[] { 784f, 988f, 1175f, 1568f }, .07f) * .3f);
+            // 吃到糖果："叮~"两个音，清脆
+            Make("candy", .28f, t => (Mathf.Sin(2 * Mathf.PI * (t < .07f ? 1568 : 2093) * t) * .4f + Mathf.Sin(2 * Mathf.PI * (t < .07f ? 3136 : 4186) * t) * .12f) * Env(t, .003f, .12f));
             Make("ready", .7f, t => Arp(t, new[] { 523f, 659f, 784f, 1047f, 1319f }, .09f) * .28f);
             Make("whoosh", 1.2f, t => Noise() * .35f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 1.2f)) * (.4f + .6f * t / 1.2f));
             Make("pop", .9f, t => (Mathf.Sin(2 * Mathf.PI * Mathf.Lerp(160, 50, t / .9f) * t) * .7f + Noise() * .45f * Env(t, .002f, .08f)) * Env(t, .003f, .25f));

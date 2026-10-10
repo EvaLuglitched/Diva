@@ -26,6 +26,7 @@ namespace Diva.VR
         DivaVRAutopilot autopilot;
         DivaVRBubbleTour tour;
         DivaVRGuide guide;
+        DivaVRDash dash;
         Diva.Show.DivaShowDirector show;
 
         /// <summary>这一帧人的操作（开场时游戏拿到的是空的，见 DivaVRBubbleTour.Drive）。</summary>
@@ -40,6 +41,7 @@ namespace Diva.VR
             autopilot = GetComponent<DivaVRAutopilot>();
             tour = GetComponent<DivaVRBubbleTour>();
             guide = GetComponent<DivaVRGuide>();
+            dash = GetComponent<DivaVRDash>();
             show = FindAnyObjectByType<Diva.Show.DivaShowDirector>();
         }
 
@@ -48,6 +50,10 @@ namespace Diva.VR
             if (!demo) return;
             var head = DivaVR.Head;
             var frame = autopilot ? autopilot.Read() : simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
+            // 冲刺中：自动全速往前，把手只管转弯
+            if (dash && dash.Active && show && show.Phase == Diva.Show.ShowPhase.Play) frame.go = 1;
+            // 辅助瞄准：捏的时候，看的方向 12° 以内、35 米以内最近的靶子就当作看准了它（眼睛的方向有一两度误差，远处的靶子很难正好看中）
+            if (frame.shoot && head) frame.look = AimAssist(frame.look.sqrMagnitude > .01f ? frame.look : head.forward, head.position);
             // 只有"捏"的时候才用看的方向瞄准：选涂装时随便转头看不会切换涂装，捏住再看左 / 右才切
             frame.aim = frame.shoot ? LookAim(frame.look) : 0;
             // 捏合的确认音（参考 Meta / Ultraleap 的手势设计：手势被识别要立刻有声音或画面反馈）
@@ -60,6 +66,20 @@ namespace Diva.VR
                 frame = new DivaVRFrame { ult = frame.ult && guide.AllowStart };
             demo.State.ClearPeople();
             demo.State.Accept(1, frame.go, frame.steer, frame.aim, frame.shoot, frame.drink, 1, Time.realtimeSinceStartup, frame.ult);
+        }
+
+        static Vector3 AimAssist(Vector3 look, Vector3 from)
+        {
+            Diva.DivaTarget best = null; float bestAngle = 12f;
+            foreach (var t in Diva.DivaTarget.All)
+            {
+                if (!t || !t.IsUp) continue;
+                var to = t.AimPoint - from;
+                if (to.magnitude > 35) continue;
+                float a = Vector3.Angle(look, to);
+                if (a < bestAngle) { bestAngle = a; best = t; }
+            }
+            return best ? (best.AimPoint - from).normalized : look;
         }
 
         /// <summary>头相对大象正前方转了多少度，按象鼻能转的角度换算成 -1..1。</summary>

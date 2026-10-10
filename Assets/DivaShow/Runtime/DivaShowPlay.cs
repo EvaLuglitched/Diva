@@ -12,7 +12,7 @@ namespace Diva.Show
         class RunStats
         {
             public float distance, topSpeed, turned, bubbleTime, sprayTime;
-            public int hits, shots0, bestCombo, ults, ultHits;
+            public int hits, shots0, bestCombo, ults, ultHits, candies;
             public readonly int[] roleHits = new int[4];
         }
 
@@ -147,6 +147,31 @@ namespace Diva.Show
         public int Combo => DivaClock.Time - lastHitTime <= ComboWindow ? combo : 0;
         public float Charge => charge;
         public int RunHits => stats.hits;
+
+        /// <summary>VR 冲刺（大招后、火箭道具）：推进器喷火、横幅。</summary>
+        public void VrDash(bool on)
+        {
+            if (boosters) boosters.SetBoost(on ? 1 : -1);
+            if (on)
+            {
+                boosting = true; rushCooldown = Time.time + 8;
+                Banner(DivaText.T("skill.boost"), null, Primary);
+                Feed(DivaText.T("skill.boost"), Primary);
+                if (bubbles) bubbles.Burst(1.2f);
+            }
+            else boosting = false;
+        }
+
+        /// <summary>赛道上的道具（糖果）吃到：加分、充一点能量、提示条、声音。</summary>
+        public void Collect(int points, Vector3 at)
+        {
+            if (Phase != ShowPhase.Play) return;
+            bonus += points;
+            charge = Mathf.Min(100, charge + 4);
+            stats.candies++;
+            Feed(DivaText.F("feed.candy", points), new Color(1f, .8f, .3f));
+            if (Diva.VR.DivaVR.Active) sound.PlayAt("candy", at, .9f); else sound.Play("candy", .9f);
+        }
 
         void OnTargetHit(DivaTarget target)
         {

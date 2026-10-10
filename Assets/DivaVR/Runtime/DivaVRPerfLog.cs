@@ -55,7 +55,8 @@ namespace Diva.VR
             casters = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Shadow Casters Count");
             if (Application.targetFrameRate > 0) target = Application.targetFrameRate;
             log.WriteLine($"# Diva VR perf {DateTime.Now:yyyy-MM-dd HH:mm:ss} target {target} fps, {SystemInfo.deviceModel}, {SystemInfo.graphicsDeviceName}");
-            log.WriteLine("# t  phase/stage  fps  avg_ms  worst_ms  slow(>1.5x)  very_slow(>3x)  gpu_ms  batches  tris_k  shadow_casters");
+            log.WriteLine("# t  phase/stage  fps  avg_ms  worst_ms  slow(>1.5x)  very_slow(>3x)  gpu_ms  cpu_main_ms  cpu_render_ms  batches  tris_k  shadow_casters  [sweep]");
+            if (DivaVRDebug.On("DIVA_SWEEP")) sweep = true;
             next = Time.unscaledTime + 5;
         }
 
@@ -101,11 +102,12 @@ namespace Diva.VR
             if (dt > budget * 1.5f) slow++;
             if (dt > budget * 3f) { verySlow++; log.WriteLine($"{sinceStart:F1}  HITCH {dt * 1000:F0} ms at {Where()}"); }
             FrameTimingManager.CaptureFrameTimings();
-            if (FrameTimingManager.GetLatestTimings(1, timing) > 0 && timing[0].gpuFrameTime > 0) { gpuSum += (float)timing[0].gpuFrameTime; gpuFrames++; }
+            if (FrameTimingManager.GetLatestTimings(1, timing) > 0 && timing[0].gpuFrameTime > 0) { gpuSum += (float)timing[0].gpuFrameTime; cpuMainSum += (float)timing[0].cpuMainThreadFrameTime; cpuRenderSum += (float)timing[0].cpuRenderThreadFrameTime; gpuFrames++; }
+            if (sweep) Sweep();
             if (Time.unscaledTime < next) return;
             next = Time.unscaledTime + 5;
-            log.WriteLine($"{sinceStart:F1}  {Where()}  {frames / Mathf.Max(.001f, sum):F1}  {sum / Mathf.Max(1, frames) * 1000:F1}  {worst * 1000:F1}  {slow}  {verySlow}  {(gpuFrames > 0 ? gpuSum / gpuFrames : 0):F1}  {batches.LastValue}  {tris.LastValue / 1000}  {casters.LastValue}");
-            sum = worst = gpuSum = 0; frames = slow = verySlow = gpuFrames = 0;
+            log.WriteLine($"{sinceStart:F1}  {Where()}  {frames / Mathf.Max(.001f, sum):F1}  {sum / Mathf.Max(1, frames) * 1000:F1}  {worst * 1000:F1}  {slow}  {verySlow}  {(gpuFrames > 0 ? gpuSum / gpuFrames : 0):F1}  {(gpuFrames > 0 ? cpuMainSum / gpuFrames : 0):F1}  {(gpuFrames > 0 ? cpuRenderSum / gpuFrames : 0):F1}  {batches.LastValue}  {tris.LastValue / 1000}  {casters.LastValue}  {(sweep ? SweepNames[sweepStep % SweepNames.Length] : "")}");
+            sum = worst = gpuSum = cpuMainSum = cpuRenderSum = 0; frames = slow = verySlow = gpuFrames = 0;
         }
 
         int consoleLines;
@@ -117,6 +119,37 @@ namespace Diva.VR
             consoleLines++;
             console.WriteLine($"{Time.unscaledTime:F1} [{type}] {message}");
             if (type == LogType.Exception || type == LogType.Error) console.WriteLine(stack);
+        }
+
+        // ---------- 性能扫描（DIVA_SWEEP=1）：每 10 秒换一种设置，看哪一项让帧率回到 90
+        bool sweep; int sweepStep = -1; float sweepNext;
+        float cpuMainSum, cpuRenderSum;
+        static readonly string[] SweepNames = { "baseline", "no-shadows", "no-post", "scale0.6", "msaa1", "all-off", "scale1.0" };
+        Light sun; float sunShadowDist;
+        void Sweep()
+        {
+            if (Time.unscaledTime < sweepNext) return;
+            sweepNext = Time.unscaledTime + 10;
+            sweepStep++;
+            var urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+            var cam = DivaVR.Head ? DivaVR.Head.GetComponent<Camera>() : Camera.main;
+            var data = cam ? UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(cam) : null;
+            if (urp == null || data == null) return;
+            if (sweepStep == 0) sunShadowDist = urp.shadowDistance;
+            // 先全部恢复
+            urp.shadowDistance = sunShadowDist; data.renderPostProcessing = true; urp.renderScale = .85f; urp.msaaSampleCount = 2;
+            switch (SweepNames[sweepStep % SweepNames.Length])
+            {
+                case "no-shadows": urp.shadowDistance = 0; break;
+                case "no-post": data.renderPostProcessing = false; break;
+                case "scale0.6": urp.renderScale = .6f; break;
+                case "msaa1": urp.msaaSampleCount = 1; break;
+                case "all-off": urp.shadowDistance = 0; data.renderPostProcessing = false; urp.renderScale = .6f; urp.msaaSampleCount = 1; break;
+                case "scale1.0": urp.renderScale = 1f; break;
+            }
+            log.WriteLine($"{sinceStart:F1}  SWEEP -> {SweepNames[sweepStep % SweepNames.Length]}");
+            // 让这一段的统计从头算
+            sum = worst = gpuSum = cpuMainSum = cpuRenderSum = 0; frames = slow = verySlow = gpuFrames = 0; next = Time.unscaledTime + 5;
         }
 
         void OnDestroy()

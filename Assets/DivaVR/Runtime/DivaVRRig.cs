@@ -114,6 +114,8 @@ namespace Diva.VR
             if (show && show.glowMaterial) gameObject.AddComponent<DivaVRAmbience>().glow = show.glowMaterial;
             gameObject.AddComponent<DivaVRGlass>();
             gameObject.AddComponent<DivaVRUiShaders>();
+            gameObject.AddComponent<DivaVRDash>();
+            gameObject.AddComponent<DivaVRPickups>();
             // 大时刻（倒数、技能横幅）的空中面板：前方 3.2 米、比眼睛高一点
             var moments = new GameObject("Moments").transform;
             moments.SetParent(transform, false);
@@ -235,7 +237,7 @@ namespace Diva.VR
         void LateUpdate()
         {
             if (!root) return;
-            if (Detached) { UpdateStats(); return; }
+            if (Detached) { UpdateJumpFade(); UpdateStats(); return; }
             // 水平朝向：慢慢跟上大象，最快 maxYawSpeed
             float target = root.eulerAngles.y;
             float dt = Time.unscaledDeltaTime;
