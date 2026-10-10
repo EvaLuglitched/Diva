@@ -63,6 +63,7 @@ namespace Diva.Show
         float savedShadow = 1;
         Color savedSky, savedEquator, savedGround;
         float pulse, blend;
+        const float VrBloom = .5f;
         CameraClearFlags previousClear;
         AntialiasingMode previousAa;
         AntialiasingQuality previousAaQuality;
@@ -129,10 +130,12 @@ namespace Diva.Show
             bloom.highQualityFiltering.Override(true);
             if (Diva.VR.DivaVR.Active)
             {
-                // VR：双眼高分辨率下泛光用半分辨率、不用高质量过滤（省 GPU）；阈值低一点，霓虹和技能更亮
-                bloom.highQualityFiltering.Override(false);
+                // VR：泛光用半分辨率（省 GPU），但要高质量过滤、强度减半：头显里头一直在微动，小亮点（串灯、霓虹边、星星）
+                // 一会儿亮一会儿暗，低质量的泛光会把它们放大成一闪一闪的光团
+                bloom.highQualityFiltering.Override(true);
                 bloom.downscale.Override(BloomDownscaleMode.Half);
                 bloom.threshold.Override(Mathf.Min(bloomThreshold, 1f));
+                bloom.intensity.Override(bloomIntensity * VrBloom);
             }
             var colour = profile.Add<ColorAdjustments>(true);
             colour.contrast.Override(contrast);
@@ -275,7 +278,8 @@ namespace Diva.Show
             grain.intensity.value = .22f * blend;
             vig.intensity.value = vr ? 0 : vignette + .08f * blend + .1f * pulse;
             aberration.intensity.value = vr ? 0 : .45f * pulse;
-            bloom.intensity.value = bloomIntensity * (1 + .6f * pulse);
+            // VR 里不做"冲击"加亮：整个视野一下变亮就是闪屏
+            bloom.intensity.value = vr ? bloomIntensity * VrBloom : bloomIntensity * (1 + .6f * pulse);
         }
     }
 }

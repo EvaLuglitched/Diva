@@ -15,7 +15,7 @@ namespace Diva.VR
     public class DivaVRCockpit : MonoBehaviour
     {
         [Tooltip("舒适暗角最深多暗（0 = 关）。")]
-        [Range(0, 1)] public float vignetteMax = .8f;
+        [Range(0, 1)] public float vignetteMax = .5f;
 
         DivaVRRig rig;
         DigiPhantLocomotion loco;
@@ -105,8 +105,9 @@ namespace Diva.VR
             DivaShowDirector.PhaseChanged -= OnPhase;
         }
 
-        void OnHit(DivaTarget t) => flash = Mathf.Max(flash, .55f);
-        void OnPhase(ShowPhase p) { if (p == ShowPhase.Ult) flash = 1.6f; else if (p == ShowPhase.Finish || p == ShowPhase.Countdown) flash = 1f; }
+        // 驾驶舱灯条就在眼前：命中、大招只让它亮一点点、慢慢退（以前一下变白，打靶时一闪一闪）
+        void OnHit(DivaTarget t) => flash = Mathf.Max(flash, .3f);
+        void OnPhase(ShowPhase p) { if (p == ShowPhase.Ult) flash = .7f; else if (p == ShowPhase.Finish || p == ShowPhase.Countdown) flash = .5f; }
 
         void OnSkin(int index)
         {
@@ -158,13 +159,14 @@ namespace Diva.VR
             float yaw = transform.eulerAngles.y;
             float turnRate = haveYaw ? Mathf.Abs(Mathf.DeltaAngle(lastYaw, yaw)) / dt : 0;
             lastYaw = yaw; haveYaw = true;
-            float speed = loco ? Mathf.Abs(loco.CurrentSpeed) / Mathf.Max(.1f, loco.runSpeed) : 0;
-            float target = Mathf.Clamp01(Mathf.InverseLerp(.35f, 1f, speed) * .6f + Mathf.InverseLerp(8, 32, turnRate) * .8f) * vignetteMax;
-            // 头穿进树、柱子这些物体时变暗（VR 游戏的通常做法），看不到模型里面；靠近时先暗一点
+            // 只在转弯时（视野在转，最容易晕）收一点边；直着跑不收。以前跑起来就 0.5、一转弯到 0.8，
+            // 比赛里 5 秒一次一明一暗，视野边上像在闪
+            float target = Mathf.InverseLerp(12, 40, turnRate) * vignetteMax;
+            // 头真的穿进树冠、拱门这些看得见的物体时才变暗（VR 游戏的通常做法），看不到模型里面。
+            // 以前离任何碰撞体（包括看不见的镜头挡板）45 厘米内就一下暗到一半，骑过树下、拱门下就一暗一暗的
             float inside = HeadInside();
             if (inside > 0) target = Mathf.Max(target, inside);
-            // 变暗快一点、变亮慢一点，避免一闪一闪
-            vignetteNow = Mathf.MoveTowards(vignetteNow, target, dt * (target > vignetteNow ? (inside > 0 ? 6f : 1.6f) : .6f));
+            vignetteNow = Mathf.MoveTowards(vignetteNow, target, dt * (target > vignetteNow ? (inside > 0 ? 3f : .7f) : .45f));
             var c = vignette.color; c.a = vignetteNow; vignette.color = c;
             vignette.SetColor("_BaseColor", c);
         }
@@ -172,13 +174,14 @@ namespace Diva.VR
         void UpdateGlow()
         {
             float dt = Time.unscaledDeltaTime;
-            flash = Mathf.MoveTowards(flash, 0, dt * 3f);
+            flash = Mathf.MoveTowards(flash, 0, dt * 1.2f);
             float speed = loco ? Mathf.Clamp01(Mathf.Abs(loco.CurrentSpeed) / Mathf.Max(.1f, loco.runSpeed)) : 0;
             bool boost = show && show.Boosting;
-            float k = .7f + .5f * speed + (boost ? .35f + .35f * Mathf.Sin(Time.unscaledTime * 14) : 0);
-            var white = Color.white * 2.8f;
-            if (glowA) { glowA.color = Color.Lerp(baseA * k, white, Mathf.Clamp01(flash)); glowA.SetColor("_BaseColor", glowA.color); }
-            if (glowB) { glowB.color = Color.Lerp(baseB * k, white, Mathf.Clamp01(flash * .8f)); glowB.SetColor("_BaseColor", glowB.color); }
+            // 冲刺时灯条更亮、慢慢呼吸（以前每秒两下明暗，像频闪）
+            float k = .7f + .5f * speed + (boost ? .3f + .08f * Mathf.Sin(Time.unscaledTime * 5) : 0);
+            float f = 1 + .6f * Mathf.Clamp01(flash);
+            if (glowA) { glowA.color = baseA * k * f; glowA.SetColor("_BaseColor", glowA.color); }
+            if (glowB) { glowB.color = baseB * k * f; glowB.SetColor("_BaseColor", glowB.color); }
             if (screen) screen.SetColor("_BaseColor", Color.Lerp(new Color(.05f, .22f, .28f), new Color(.2f, .5f, .6f), Mathf.Clamp01(flash)));
         }
 
@@ -243,14 +246,17 @@ namespace Diva.VR
                 headProbe = go.AddComponent<SphereCollider>();
                 headProbe.isTrigger = true; headProbe.radius = .12f;
             }
-            int n = Physics.OverlapSphereNonAlloc(head.position, .45f, near, ~0, QueryTriggerInteraction.Ignore);
+            int n = Physics.OverlapSphereNonAlloc(head.position, headProbe.radius, near, ~0, QueryTriggerInteraction.Ignore);
             float best = 0;
             for (int i = 0; i < n; i++)
             {
                 var c = near[i];
                 if (!c || c == headProbe || (loco && c.transform.IsChildOf(loco.travelRoot)) || c.transform.IsChildOf(transform)) continue;
-                bool inside = Physics.ComputePenetration(headProbe, head.position, head.rotation, c, c.transform.position, c.transform.rotation, out _, out _);
-                best = Mathf.Max(best, inside ? .97f : .55f);
+                // 只算看得见的东西（自己或子物体有开着的渲染器）；看不见的挡板、触发区不算
+                var r = c.GetComponentInChildren<Renderer>();
+                if (!r || !r.enabled) continue;
+                if (Physics.ComputePenetration(headProbe, head.position, head.rotation, c, c.transform.position, c.transform.rotation, out _, out _))
+                    best = .9f;
             }
             return best;
         }

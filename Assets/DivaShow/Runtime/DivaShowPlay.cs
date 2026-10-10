@@ -191,6 +191,8 @@ namespace Diva.Show
             ultRunStart = Time.time - runStart;
             replay.Mark(ultRunStart, "ult", 150, "skill.ult");
             ultOrigin = ElephantCenter + Vector3.up * ElephantSize * .15f;
+            // VR：人就坐在大象背上，泡泡从大象中间长出来会把整个视野糊住（闪屏）。改成在眼前 3 米处长出来往前飞
+            if (Diva.VR.DivaVR.Active && Diva.VR.DivaVR.Head) ultOrigin = Diva.VR.DivaVR.Head.position + Forward * 3f - Vector3.up * .5f;
             ultDirection = Forward;
             sound.Play("whoosh");
             Banner(DivaText.T("skill.ult") + "!", null, Accent, 2.2f, "ready");
@@ -208,7 +210,7 @@ namespace Diva.Show
             // 泡泡从背上的炮舱冒出，长大，往前飞，然后爆开
             float grow = DivaUi.EaseOut(Mathf.Clamp01((t - .2f) / 1f));
             float fly = DivaUi.Smooth(Mathf.Clamp01((t - .7f) / .8f));
-            float radius = Mathf.Lerp(.3f, 4.2f, grow);
+            float radius = Mathf.Lerp(.3f, Diva.VR.DivaVR.Active ? 2.4f : 4.2f, grow);
             var center = ultOrigin + ultDirection * Mathf.Lerp(0, ultRange * .55f, fly) + Vector3.up * (radius * .6f + fly * 1.5f);
             ultBubble = center;
             if (megaBubble && !ultPopped)

@@ -260,6 +260,8 @@ namespace Diva.Show
                           new Color(1, .33f, .66f, .95f), Color.white, 58, PlayAgain, 26);
             var hint = DivaUi.Text(resultsRoot, "Again Hint", new Vector2(1, 0), new Vector2(-60, 172), new Vector2(600, 36), 26, new Color(1, 1, 1, .7f), TextAlignmentOptions.Right, false);
             DivaUi.Localize(hint, () => DivaText.T("again.hint"));
+            // VR：这个按钮点不到、提示也重复了，换成驾驶舱里教学牌上的"再来一局"
+            if (DivaVR.Active) { resultsRoot.Find("Again")?.gameObject.SetActive(false); hint.gameObject.SetActive(false); }
             DivaText.Changed += FillResults;
         }
 

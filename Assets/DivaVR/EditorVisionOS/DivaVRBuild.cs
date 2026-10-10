@@ -138,6 +138,8 @@ namespace Diva.VR.EditorTools
             // 失去焦点（打开系统菜单）时继续运行，不然镜头会锁在头上（插件的检查规则）
             PlayerSettings.runInBackground = true;
             PlayerSettings.VisionOS.targetOSVersionString = "2.0";
+            // 头显上记 GPU 每帧用时（DivaVRPerfLog）
+            PlayerSettings.enableFrameTimingStats = true;
             AssetDatabase.SaveAssets();
         }
 
@@ -152,15 +154,28 @@ namespace Diva.VR.EditorTools
                 if (p.boolValue == value) return;
                 p.boolValue = value; changed = true;
             }
-            // 传送门开场要露出真实房间：开着后期处理时画面的透明通道要一路保留到最后。URP 打包时会把"保留透明度"的
-            // 着色器变体裁掉，除非有一个 URP 资源打开了 Alpha Processing；运行时再打开已经晚了，所以打包前在这里打开
-            Set("m_AllowPostProcessAlphaOutput", true);
+            void SetInt(string name, int value)
+            {
+                var p = so.FindProperty(name);
+                if (p == null) { Debug.LogWarning($"DIVA_VR: URP asset has no {name}"); return; }
+                if (p.intValue == value) return;
+                p.intValue = value; changed = true;
+            }
+            // 透视版（-divaMixed）要露出真实房间：开着后期处理时画面的透明通道要一路保留到最后，URP 打包时会把"保留透明度"的
+            // 着色器变体裁掉，除非 URP 资源打开了 Alpha Processing。完全沉浸版不要它：画面里半透明的东西（粒子、面板、泡泡）
+            // 会写出小于 1 的透明度，头显合成时那些地方会变暗、跟着粒子一闪一闪
+            Set("m_AllowPostProcessAlphaOutput", Mixed);
             Set("m_RequireDepthTexture", true);
             Set("m_SupportsHDR", false);
+            // 阴影：软阴影 + 2048 的阴影图。Mobile 设置是 1024 的硬阴影，头一动阴影边缘的锯齿就爬来爬去（闪）。
+            // 软阴影的着色器变体也是打包时决定的，运行时再开没用
+            Set("m_SoftShadowsSupported", true);
+            SetInt("m_SoftShadowQuality", 2);
+            SetInt("m_MainLightShadowmapResolution", 2048);
             if (!changed) return;
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(urp);
-            Debug.Log($"DIVA_VR URP for visionOS: {urp.name} depth texture on, HDR off, alpha processing on");
+            Debug.Log($"DIVA_VR URP for visionOS: {urp.name} depth texture on, HDR off, alpha processing {Mixed}, soft shadows 2048");
         }
     }
 }

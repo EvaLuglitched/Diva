@@ -126,6 +126,7 @@ namespace Diva.VR
             DivaVRDebug.Apply(cam, transform, eyeHeight);
             if (DivaVRAutopilot.On) gameObject.AddComponent<DivaVRAutopilot>();
             if (DivaVRCapture.Requested) gameObject.AddComponent<DivaVRCapture>();
+            if (!Application.isEditor) gameObject.AddComponent<DivaVRPerfLog>();
             // 每次打开 app 先演一次泡泡开场：在梦境里捏一下出发，泡泡载着人绕镇子飞一圈，落到大象背上
             if (!DivaVR.ArrivalDone && !DivaVRDebug.On("DIVA_NOPORTAL")) gameObject.AddComponent<DivaVRBubbleTour>();
             gameObject.AddComponent<DivaVRInput>();
@@ -147,11 +148,10 @@ namespace Diva.VR
                 // （visionOS 用的是 Mobile 那套设置，缩放 0.8）。调试：环境变量 DIVA_RS=0.8 试别的值
                 urp.renderScale = DivaVRDebug.Float("DIVA_RS", 1);
                 urp.shadowDistance = Mathf.Min(urp.shadowDistance, 35);
+                urp.mainLightShadowmapResolution = Mathf.Max(urp.mainLightShadowmapResolution, 2048);
                 // 阴影：2 级级联够用（双眼要画两遍），点光 / 聚光的阴影关掉（主光的保留）
                 urp.shadowCascadeCount = Mathf.Min(urp.shadowCascadeCount, 2);
-                // 传送门开场要露出真实房间（Mixed 沉浸）：后期处理要保留透明通道，否则整屏都是不透明的
-                typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset).GetField("m_AllowPostProcessAlphaOutput",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(urp, true);
+                // 透明通道输出（透视版要）由打包时决定（DivaVRBuild.PrepareUrp）：完全沉浸版关着，这里不再强行打开
                 typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset).GetProperty("supportsAdditionalLightShadows")?
                     .SetValue(urp, false);
                 var renderer = urp.GetRenderer(0);
@@ -160,7 +160,7 @@ namespace Diva.VR
                 if (renderer != null && prop?.GetValue(renderer) is System.Collections.Generic.List<UnityEngine.Rendering.Universal.ScriptableRendererFeature> features)
                     foreach (var f in features)
                         if (f && f.GetType().Name.Contains("AmbientOcclusion")) f.SetActive(false);
-                Debug.Log($"DIVA_VR graphics: rp {urp.name} scale {urp.renderScale} msaa {urp.msaaSampleCount} hdr {urp.supportsHDR} alphaOut {urp.allowPostProcessAlphaOutput} quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}");
+                Debug.Log($"DIVA_VR graphics: rp {urp.name} scale {urp.renderScale} msaa {urp.msaaSampleCount} hdr {urp.supportsHDR} alphaOut {urp.allowPostProcessAlphaOutput} shadows {urp.mainLightShadowmapResolution} soft {urp.supportsSoftShadows} dist {urp.shadowDistance} quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}");
             }
         }
 
@@ -238,7 +238,12 @@ namespace Diva.VR
             // 平滑地开始转、平滑地停（角速度不突变），最快 maxYawSpeed
             yaw = placed ? Mathf.SmoothDampAngle(yaw, target, ref yawVelocity, yawSmoothTime, maxYawSpeed, dt) : target;
             placed = true;
+            // 大象被瞬移（结算、再来一局时回到起点）：这一帧整个世界跳一下。盖一层暗紫再慢慢淡开，看不到跳；
+            // 朝向也直接对上（盖着的时候转好，不然淡开以后世界还在慢慢转）
+            if (hasLastRoot && (root.position - lastRoot).sqrMagnitude > 2.5f * 2.5f) { jumpFade = 1; yaw = target; yawVelocity = 0; }
             var rot = Quaternion.Euler(0, yaw, 0);
+            lastRoot = root.position; hasLastRoot = true;
+            UpdateJumpFade();
             transform.SetPositionAndRotation(root.TransformPoint(seat), rot);
             if (!recentered) Recenter(boardKeepFacing);
             UpdateStats();
@@ -295,6 +300,38 @@ namespace Diva.VR
         /// <summary>上机甲：回到大象背上的座位，按现在的头重新对准（这一帧的 LateUpdate 里就到位）。</summary>
         /// <param name="keepFacing">只对齐位置，不把人现在面朝的方向转成大象的正前方（泡泡落下来时朝向已经对好了，转了反而跳）。</param>
         /// <param name="snap">朝向这一帧直接对准大象（画面被盖住时用）：不盖住时慢慢转过去，眼睛看着世界自己转最容易晕。</param>
+        Vector3 lastRoot; bool hasLastRoot;
+        float jumpFade;
+        Transform fadeSphere; Material fadeMat;
+
+        void UpdateJumpFade()
+        {
+            if (jumpFade <= 0 && !fadeSphere) return;
+            if (!fadeSphere && cam)
+            {
+                var shared = Resources.Load<Material>("DivaVR Vignette");
+                if (!shared) { jumpFade = 0; return; }
+                fadeMat = new Material(shared) { mainTexture = Texture2D.whiteTexture };
+                if (fadeMat.HasProperty("_BaseMap")) fadeMat.SetTexture("_BaseMap", Texture2D.whiteTexture);
+                if (fadeMat.HasProperty("_Cull")) fadeMat.SetFloat("_Cull", 0);
+                var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Destroy(go.GetComponent<Collider>());
+                go.name = "Jump Fade";
+                fadeSphere = go.transform;
+                fadeSphere.SetParent(cam.transform, false);
+                fadeSphere.localScale = Vector3.one * .4f;
+                var r = go.GetComponent<MeshRenderer>();
+                r.sharedMaterial = fadeMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            if (!fadeSphere) return;
+            var c = new Color(.2f, .15f, .33f, DivaUiSmooth(jumpFade));
+            fadeMat.color = c; if (fadeMat.HasProperty("_BaseColor")) fadeMat.SetColor("_BaseColor", c);
+            fadeSphere.gameObject.SetActive(jumpFade > 0);
+            jumpFade = Mathf.MoveTowards(jumpFade, 0, Time.unscaledDeltaTime / .6f);
+        }
+
+        static float DivaUiSmooth(float t) { t = Mathf.Clamp01(t); return t * t * (3 - 2 * t); }
+
         public void Board(bool keepFacing = false, bool snap = false)
         {
             Detached = false;

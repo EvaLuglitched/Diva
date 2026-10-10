@@ -35,7 +35,9 @@ namespace Diva.VR
         static readonly int PortalCenter = Shader.PropertyToID("_PortalCenter"), PortalNormal = Shader.PropertyToID("_PortalNormal"), PortalRadius = Shader.PropertyToID("_PortalRadius");
         static readonly int BubbleAlpha = Shader.PropertyToID("_Alpha"), BubbleShift = Shader.PropertyToID("_Shift"), Dissolve = Shader.PropertyToID("_Dissolve");
         static readonly Color[] Candy = { new Color(1f, .45f, .8f), new Color(.45f, .95f, .9f), new Color(1f, .85f, .4f), new Color(.7f, .55f, 1f), new Color(.55f, 1f, .6f) };
-        static readonly Color Pastel = new Color(1f, .86f, .95f);
+        // 切镜头时眼前淡到的颜色：和夜晚的小镇差不多暗的薰衣草紫。不用亮粉色：头显里整个视野一下变亮就是"闪屏"
+        static readonly Color Dusk = new Color(.2f, .15f, .33f);
+        const float WipeIn = .4f, WipeOut = .55f;
 
         DivaVRRig rig;
         DivaVRInput input;
@@ -457,16 +459,16 @@ namespace Diva.VR
             }
         }
 
-        // 泡泡转场：贴在眼前的一层粉色，切镜头的那一下全盖住
+        // 转场：包住头的一个小球（半径 0.2 米），切镜头的那一下全盖住。用球不用贴脸的方片：视野多大都盖得住，没有边
         void BuildWipe()
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             Destroy(go.GetComponent<Collider>());
-            go.name = "Bubble Wipe";
+            go.name = "Shot Fade";
             wipe = go.transform;
             wipe.SetParent(cam.transform, false);
-            wipe.localPosition = new Vector3(0, 0, .11f);
-            wipe.localScale = Vector3.one * .7f;
+            wipe.localPosition = Vector3.zero;
+            wipe.localScale = Vector3.one * .4f;
             var shared = Resources.Load<Material>("DivaVR Vignette");
             wipeMat = shared ? new Material(shared) : null;
             if (wipeMat)
@@ -474,7 +476,7 @@ namespace Diva.VR
                 wipeMat.mainTexture = Texture2D.whiteTexture;
                 if (wipeMat.HasProperty("_BaseMap")) wipeMat.SetTexture("_BaseMap", Texture2D.whiteTexture);
                 if (wipeMat.HasProperty("_Cull")) wipeMat.SetFloat("_Cull", 0);
-                Tint(wipeMat, new Color(Pastel.r, Pastel.g, Pastel.b, 0));
+                Tint(wipeMat, new Color(Dusk.r, Dusk.g, Dusk.b, 0));
             }
             var r = go.GetComponent<MeshRenderer>();
             r.sharedMaterial = wipeMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -513,9 +515,9 @@ namespace Diva.VR
                     portal.SetPositionAndRotation(portalPos, Quaternion.LookRotation(-Flat(wide.look - wide.from, forward)));
                     sound?.PlayAt("pop", portalPos, .7f);
                     sound?.Play("ready", .5f);
-                    fx.Flash(portalPos, new Color(1f, .7f, .95f), 1.8f, .45f);
-                    Burst(portalPos, 140, 2.4f, .05f);
-                    flash = 1;
+                    // 门开：只放一些泡泡，不要闪光（头显里一闪很刺眼）
+                    Burst(portalPos, 90, 2.0f, .05f);
+                    flash = .35f;
                     break;
                 case Stage.Wide:
                     sound?.Play("confirm", .5f);
@@ -561,11 +563,11 @@ namespace Diva.VR
                     break;
                 case Stage.Wide:
                     PlaceShot(wide);
-                    if (stageTime >= wide.seconds - .3f) StartWipe(Stage.Mid);
+                    if (stageTime >= wide.seconds - WipeIn) StartWipe(Stage.Mid);
                     break;
                 case Stage.Mid:
                     PlaceShot(mid);
-                    if (stageTime >= mid.seconds - .3f) StartWipe(Stage.Hero);
+                    if (stageTime >= mid.seconds - WipeIn) StartWipe(Stage.Hero);
                     break;
                 case Stage.Hero:
                     PlaceShot(hero);
@@ -574,7 +576,7 @@ namespace Diva.VR
                         greeted = true; greetTime = 0;
                         sound?.PlayAt("toot", head ? head.position + forward * .8f : start, 1.1f);
                     }
-                    if (stageTime >= hero.seconds - .3f) StartWipe(Stage.Pop);
+                    if (stageTime >= hero.seconds - WipeIn) StartWipe(Stage.Pop);
                     break;
                 case Stage.Pop:
                     // 泡泡碎片等人坐到座位上（下一帧）再放：在正前方散开，不往脸上飞
@@ -582,8 +584,7 @@ namespace Diva.VR
                     {
                         popBurst = true;
                         var at = cam.transform.position + Flat(cam.transform.forward, forward) * 1.6f;
-                        fx.Flash(at, new Color(1f, .8f, .95f), 2.2f, .35f);
-                        Burst(at, 220, 3.2f, .06f);
+                        Burst(at, 160, 2.6f, .06f);
                         sound?.PlayAt("pop", at, 1f);
                     }
                     if (stageTime >= 1.1f) Finish();
@@ -605,7 +606,7 @@ namespace Diva.VR
         {
             if (wipeAt > 0) return;
             wipeTo = next;
-            wipeAt = Time.unscaledTime + .3f;
+            wipeAt = Time.unscaledTime + WipeIn;
             sound?.Play("whoosh", .35f);
         }
 
@@ -634,7 +635,6 @@ namespace Diva.VR
             bubbleFloor.gameObject.SetActive(false);
             // 粉色盖住的这一下换位置：坐到座位上，朝向直接对准大象的正前方（盖着看不见，不用慢慢转），驾驶舱出来
             wipeAt = -1;
-            flash = 1.2f;
             rig.Board(snap: true);
             ShowCockpit(true);
             Capture("tour_cockpit", .8f);
@@ -724,8 +724,20 @@ namespace Diva.VR
                 Tint(innerMat, new Color(1, .95f, 1) * 2.2f * (1 + flash));
                 if (stage == Stage.Wide)
                 {
-                    if (dissolve == 0) { sound?.PlayAt("whoosh", h.position + Vector3.up, .6f); Burst(portalPos, 160, 3f, .06f); }
-                    dissolve = Mathf.Min(1.2f, dissolve + dt * 1.1f);
+                    if (dissolve == 0)
+                    {
+                        sound?.PlayAt("whoosh", h.position + Vector3.up, .6f);
+                        Burst(portalPos, 80, 2.4f, .06f);
+                        // 化开时梦境球改成半透明、画在镇子后面（透明队列），镇子才能从下面透出来
+                        if (dreamMat)
+                        {
+                            dreamMat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                            dreamMat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                            dreamMat.SetFloat("_ZWrite", 0);
+                            dreamMat.renderQueue = 3000;
+                        }
+                    }
+                    dissolve = Mathf.Min(1.2f, dissolve + dt * .75f);
                     if (dreamMat) { dreamMat.SetFloat(PortalRadius, 0); dreamMat.SetFloat(Dissolve, dissolve); }
                     if (dreamBubbles) { var em = dreamBubbles.emission; em.rateOverTime = 0; }
                     if (sparkles) { var em = sparkles.emission; em.rateOverTime = 0; }
@@ -741,7 +753,7 @@ namespace Diva.VR
                 float breathe = 1 + .012f * Mathf.Sin(t * 1.1f);
                 bubble.position = transform.position + Vector3.up * (rig.StandingEyeHeight * .55f);
                 bubble.localScale = Vector3.one * Mathf.Max(.001f, bubbleRadius * 2 * size * breathe);
-                if (bubbleMat) { bubbleMat.SetFloat(BubbleAlpha, .45f + flash * .3f); bubbleMat.SetFloat(BubbleShift, t * .02f); }
+                if (bubbleMat) { bubbleMat.SetFloat(BubbleAlpha, .45f + flash * .15f); bubbleMat.SetFloat(BubbleShift, t * .02f); }
                 bubbleFloor.position = transform.position + Vector3.up * .01f;
                 Tint(floorMat, new Color(1f, .7f, .9f, .22f * size));
             }
@@ -763,16 +775,17 @@ namespace Diva.VR
                 if (to.sqrMagnitude > 1e-4f) b.label.rotation = Quaternion.LookRotation(to);
             }
 
-            // 泡泡转场：0.3 秒盖住，切镜头，0.35 秒散开
+            // 转场：0.4 秒淡到暗紫，切镜头，0.55 秒淡回来（电影里的"暗场"，比一下变亮的粉色舒服得多）
             float cover = 0;
             if (wipeAt > 0)
             {
                 float d = Time.unscaledTime - wipeAt;
-                cover = d < 0 ? DivaUi.Smooth(1 + d / .3f) : 1 - DivaUi.Smooth(d / .35f);
-                if (d > .35f) wipeAt = -1;
+                cover = d < 0 ? DivaUi.Smooth(1 + d / WipeIn) : 1 - DivaUi.Smooth(d / WipeOut);
+                if (d > WipeOut) wipeAt = -1;
             }
-            if (stage == Stage.Pop) cover = Mathf.Max(cover, 1 - DivaUi.Smooth((stageTime - .05f) / .6f));
-            Tint(wipeMat, new Color(Pastel.r, Pastel.g, Pastel.b, cover));
+            if (stage == Stage.Pop) cover = Mathf.Max(cover, 1 - DivaUi.Smooth((stageTime - .1f) / .7f));
+            Tint(wipeMat, new Color(Dusk.r, Dusk.g, Dusk.b, cover));
+            if (wipe) wipe.gameObject.SetActive(cover > .001f);
             UpdatePrompt(dt);
         }
 

@@ -52,7 +52,8 @@ namespace Diva.VR
             // 名字 + 距离
             label = Canvas("Coach Label", new Vector2(1200, 300), 4.5f / 1200f, null, 56);
             var ink = new Color(.06f, .05f, .12f);
-            DivaUi.Panel((RectTransform)label, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1150, 260), DivaUi.WithAlpha(ink, .8f), DivaUi.WithAlpha(ink, .5f), 24).stripeWidth = 8;
+            // 不透明底板（线性色彩空间里半透明的深色板会透出很多背景，字看不清）
+            DivaUi.Panel((RectTransform)label, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1150, 260), ink, new Color(.6f, .6f, .75f, 1), 24).stripeWidth = 8;
             labelText = DivaUi.Text((RectTransform)label, "Text", new Vector2(.5f, .5f), new Vector2(0, 45), new Vector2(1100, 140), 92, Color.white);
             DivaUi.Glow(labelText, new Color(1, .35f, .75f, .9f));
             labelDist = DivaUi.Text((RectTransform)label, "Dist", new Vector2(.5f, .5f), new Vector2(0, -70), new Vector2(1100, 90), 64, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
@@ -77,7 +78,7 @@ namespace Diva.VR
             tip.localPosition = new Vector3(0, (GetComponent<DivaVRRig>()?.eyeHeight ?? .78f) - .12f, 1.5f);
             tipGroup = tip.gameObject.AddComponent<CanvasGroup>();
             tipGroup.alpha = 0; tipGroup.blocksRaycasts = false;
-            DivaUi.Panel((RectTransform)tip, "Plate", new Vector2(.5f, .5f), new Vector2(0, 8), new Vector2(1120, 200), DivaUi.WithAlpha(ink, .84f), DivaUi.WithAlpha(ink, .55f), 22).stripeWidth = 8;
+            DivaUi.Panel((RectTransform)tip, "Plate", new Vector2(.5f, .5f), new Vector2(0, 8), new Vector2(1120, 200), ink, new Color(.6f, .6f, .75f, 1), 22).stripeWidth = 8;
             tipTitle = DivaUi.Text((RectTransform)tip, "Title", new Vector2(.5f, .5f), new Vector2(0, 38), new Vector2(1100, 90), 64, Color.white);
             DivaUi.Glow(tipTitle, new Color(1, .3f, .7f, .9f));
             tipSub = DivaUi.Text((RectTransform)tip, "Sub", new Vector2(.5f, .5f), new Vector2(0, -36), new Vector2(1100, 60), 36, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
@@ -150,9 +151,15 @@ namespace Diva.VR
                 float angle = Vector3.SignedAngle(Vector3.ProjectOnPlane(root.forward, Vector3.up), to, Vector3.up);
                 arrow.localRotation = Quaternion.Euler(0, 0, -angle);
                 arrowDist.text = $"{dist:0} m";
-                if (arrowMat) { var c = new Color(1f, .5f, .85f, 1) * (1.4f + .4f * Mathf.Sin(t * 4)); arrowMat.color = c; if (arrowMat.HasProperty("_BaseColor")) arrowMat.SetColor("_BaseColor", c); }
-                // 到喝水的任务点了：手放嘴边
-                if (current.check == TaskCheck.CurlTrunk && dist < current.radius * 1.2f && t > lastDrinkTip + 10) { lastDrinkTip = t; Tip("vr.coach.drink"); }
+                if (arrowMat) { var c = new Color(1f, .5f, .85f, 1) * (1.4f + .15f * Mathf.Sin(t * 3)); arrowMat.color = c; if (arrowMat.HasProperty("_BaseColor")) arrowMat.SetColor("_BaseColor", c); }
+                // 到了任务点告诉人这里要做什么：吃 / 喝 = 手放嘴边；跨木头 = 继续前倾走过去；终点只要到达
+                if (current.check == TaskCheck.CurlTrunk && dist < current.radius * 1.2f && t > lastDrinkTip + 10)
+                {
+                    lastDrinkTip = t;
+                    var l = (current.label ?? "").ToLowerInvariant();
+                    Tip(l.Contains("eat") || l.Contains("feed") ? "vr.coach.eat" : "vr.coach.drink");
+                }
+                if (current.check == TaskCheck.LiftLegs && dist < current.radius * 1.5f && t > lastDrinkTip + 10) { lastDrinkTip = t; Tip("vr.coach.log"); }
             }
             if (show.Phase == ShowPhase.Play)
             {

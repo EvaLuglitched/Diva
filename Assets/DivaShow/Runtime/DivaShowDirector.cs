@@ -260,6 +260,7 @@ namespace Diva.Show
             }
             UpdateHud();
             UpdateBanners();
+            if (DivaVR.Active) ShowRoots();   // VR 的大面板逐帧淡入淡出
             UpdateVrCard();
         }
 
@@ -439,7 +440,8 @@ namespace Diva.Show
         void ReadInputs()
         {
             var kb = Keyboard.current;
-            confirmEdge = kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame);
+            confirmEdge = kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) || vrConfirm;
+            vrConfirm = false;
             skipEdge = confirmEdge || kb != null && kb.escapeKey.wasPressedThisFrame;
             bool held = demo.State.Ult;
             ultEdge = false;

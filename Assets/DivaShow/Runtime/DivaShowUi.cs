@@ -117,7 +117,8 @@ namespace Diva.Show
             var card = DivaUi.Rect(parent, "VR Controls Card", new Vector2(.5f, .5f), new Vector2(0, -250), new Vector2(980, 420));
             vrCard = card.gameObject.AddComponent<CanvasGroup>();
             vrCard.alpha = 0; vrCard.blocksRaycasts = false;
-            DivaUi.Panel(card, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(980, 420), DivaUi.WithAlpha(Ink, .9f), DivaUi.WithAlpha(Ink, .6f), 28).stripeWidth = 8;
+            // VR 专用的卡片：底板不透明（线性色彩空间里 0.9 的深色板也会透出不少背景）
+            DivaUi.Panel(card, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(980, 420), DivaUi.WithAlpha(Ink, 1), new Color(.6f, .6f, .75f, 1), 28).stripeWidth = 8;
             var title = DivaUi.Text(card, "Title", new Vector2(.5f, 1), new Vector2(0, -44), new Vector2(900, 60), 46, Color.white);
             DivaUi.Localize(title, () => DivaText.T("vr.card.title"));
             DivaUi.Glow(title, new Color(1, .3f, .7f, .9f));
@@ -143,12 +144,23 @@ namespace Diva.Show
         void ShowRoots()
         {
             if (!canvas) return;
-            selectRoot.gameObject.SetActive(Phase == ShowPhase.Select);
-            hudRoot.gameObject.SetActive(Phase == ShowPhase.Play || Phase == ShowPhase.Countdown);
+            Show(selectRoot, Phase == ShowPhase.Select);
+            Show(hudRoot, Phase == ShowPhase.Play || Phase == ShowPhase.Countdown);
             countdownRoot.gameObject.SetActive(Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 1);
             highlightRoot.gameObject.SetActive(Phase == ShowPhase.Highlight);
-            resultsRoot.gameObject.SetActive(Phase == ShowPhase.Results);
+            Show(resultsRoot, Phase == ShowPhase.Results);
             topRoot.gameObject.SetActive(!DivaVR.Active && Phase != ShowPhase.Highlight && Phase != ShowPhase.Intro && Phase != ShowPhase.RaceIntro);
+        }
+
+        // VR：大面板（结算、选涂装、比赛 HUD）一下出现 / 消失，占了大半个视野，整个画面一下变暗变亮就是"闪"。淡入淡出 0.35 秒
+        void Show(RectTransform root, bool on)
+        {
+            if (!DivaVR.Active) { root.gameObject.SetActive(on); return; }
+            var g = root.GetComponent<CanvasGroup>();
+            if (!g) { g = root.gameObject.AddComponent<CanvasGroup>(); g.alpha = on ? 0 : 1; g.blocksRaycasts = false; }
+            if (on && !root.gameObject.activeSelf) { root.gameObject.SetActive(true); g.alpha = 0; }
+            g.alpha = Mathf.MoveTowards(g.alpha, on ? 1 : 0, Time.unscaledDeltaTime / .35f);
+            if (!on && g.alpha <= 0) root.gameObject.SetActive(false);
         }
 
         // ------------------------------------------------------------------ language + setup (top right)
@@ -214,7 +226,7 @@ namespace Diva.Show
             DivaUi.Localize(keys, () => DivaText.T("select.keys"));
             // VR：玩家人数、开始按钮、键盘提示和标题都不要（点不到，挤）；驾驶舱里的"下一步"指引牌说该做什么
             if (DivaVR.Active)
-                foreach (var hide in new[] { "One Player", "Three Players", "Status", "Start", "Gesture Hint", "Key Hint", "Title", "Subtitle" })
+                foreach (var hide in new[] { "One Player", "Three Players", "Status", "Start", "Gesture Hint", "Key Hint", "Title", "Subtitle", "Previous", "Next" })
                     selectRoot.Find(hide)?.gameObject.SetActive(false);
         }
 
@@ -317,6 +329,8 @@ namespace Diva.Show
             float t = DivaClock.Time - bannerStart;
             if (t > bannerSeconds) { bannerRoot.gameObject.SetActive(false); return; }
             float open = DivaUi.EaseOut(t / .18f), close = 1 - DivaUi.Smooth((t - bannerSeconds + .3f) / .3f);
+            // VR：横幅就在眼前 3 米、很大，0.18 秒弹开像闪一下：慢慢展开、淡入淡出
+            if (DivaVR.Active) { open = DivaUi.Smooth(t / .4f); bannerPlate.canvasRenderer.SetAlpha(open * close); }
             bannerPlate.rectTransform.localScale = new Vector3(open * close, 1, 1);
             float pop = DivaUi.EaseOutBack(t / .3f);
             bannerText.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.6f, 1, pop) * close;

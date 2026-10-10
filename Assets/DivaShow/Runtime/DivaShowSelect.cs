@@ -94,6 +94,12 @@ namespace Diva.Show
 
         void OnSkinChanged(int index) => RefreshSelect();
 
+        /// <summary>VR 教学牌上的按钮：换涂装（只在选涂装时有用）。</summary>
+        public void VrStepSkin(int step) { if (Phase == ShowPhase.Select) SwitchSkin(step); }
+        /// <summary>VR 教学牌上的"出发 / 再来一局"：和按回车一样。</summary>
+        public void VrConfirm() => vrConfirm = true;
+        bool vrConfirm;
+
         void ConfirmSelect()
         {
             if (Phase != ShowPhase.Select) return;
@@ -178,7 +184,9 @@ namespace Diva.Show
             float t = PhaseTime;
             sound.FadeMusic(.5f);
             // 发光部件依次亮起：先全暗，再闪两下到最亮，最后回到正常
-            float glow = t < .5f ? 0 : t < 1.4f ? Mathf.Lerp(0, 1.6f, (t - .5f) / .9f) * (.75f + .25f * Mathf.Sin(t * 40)) : Mathf.Lerp(1.6f, 1, (t - 1.4f) / .8f);
+            // VR 里不闪（每秒 6 下的明暗就在人身下）：平滑亮起来
+            float flicker = DivaVR.Active ? 1 : .75f + .25f * Mathf.Sin(t * 40);
+            float glow = t < .5f ? 0 : t < 1.4f ? Mathf.Lerp(0, 1.6f, (t - .5f) / .9f) * flicker : Mathf.Lerp(1.6f, 1, (t - 1.4f) / .8f);
             if (t < 2.3f) SetMechGlow(glow); else ClearMechGlow();
             if (boosters) boosters.SetBoost(t > 1.2f && t < 2.0f ? 1 : -1);
             if (bubbles && t > 1.6f && t < 1.65f) bubbles.Burst(.6f);

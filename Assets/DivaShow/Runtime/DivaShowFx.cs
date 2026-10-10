@@ -127,6 +127,8 @@ namespace Diva.Show
         public void Flash(Vector3 position, Color color, float size, float seconds)
         {
             if (!glow) return;
+            // VR：闪光离眼睛近、占的视野大，一下就是"闪屏"：小一半、暗一半
+            if (Diva.VR.DivaVR.Active) { size *= .5f; color *= .5f; }
             var ps = System("Diva Flash", position, glow, seconds + .5f);
             var main = ps.main; main.startLifetime = seconds; main.startSpeed = 0; main.startSize = size; main.startColor = color; main.maxParticles = 4;
             var sol = ps.sizeOverLifetime; sol.enabled = true; sol.size = new ParticleSystem.MinMaxCurve(1, new AnimationCurve(new Keyframe(0, .4f), new Keyframe(.2f, 1), new Keyframe(1, 1.3f)));

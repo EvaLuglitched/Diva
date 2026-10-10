@@ -48,6 +48,9 @@ namespace Diva.VR
             {
                 case ShowPhase.Select:
                 case ShowPhase.Results:
+                    // 有教学牌：像人一样按教学走（看着按钮捏、学动作、举手出发）
+                    var guide = GetComponent<DivaVRGuide>();
+                    if (guide && guide.isActiveAndEnabled) return guide.Demo();
                     // 看一会儿再举手确认（结算页多停一会儿给人看分数）
                     f.ult = inPhase > (show.Phase == ShowPhase.Select ? 4 : 8) && inPhase % 3 < 1;
                     return f;
