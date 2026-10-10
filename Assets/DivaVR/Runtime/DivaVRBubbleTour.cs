@@ -78,6 +78,12 @@ namespace Diva.VR
         Quaternion[] eyeTurn = new Quaternion[0];
         float lookWeight, greetTime = -1;
         bool greeted, popBurst, menuPlaced;
+        readonly List<GameObject> hiddenClouds = new List<GameObject>();
+        static float DistanceToSegment(Vector3 p, Vector3 a, Vector3 b)
+        {
+            var ab = b - a; float t = Mathf.Clamp01(Vector3.Dot(p - a, ab) / Mathf.Max(1e-4f, ab.sqrMagnitude));
+            return Vector3.Distance(p, a + ab * t);
+        }
         int fireworkNext;
 
         readonly List<GameObject> cockpitParts = new List<GameObject>();
@@ -128,6 +134,15 @@ namespace Diva.VR
             BuildBeacons();
             BuildWipe();
             Prewarm();
+            // 全景镜头的路上有 Eva 的云（漂在 30 多米高）会糊在脸上：开场期间把离镜头路径 20 米内的云藏起来
+            foreach (var f in FindObjectsByType<DivaFloat>(FindObjectsSortMode.None))
+            {
+                bool cloud = f.name.Contains("Cloud") || (f.transform.parent && f.transform.parent.name.Contains("Cloud"));
+                if (!cloud) continue;
+                float d = Mathf.Min(DistanceToSegment(f.transform.position, wide.from, wide.to), DistanceToSegment(f.transform.position, mid.from, mid.to));
+                if (d < 20) { hiddenClouds.Add(f.gameObject); f.gameObject.SetActive(false); }
+            }
+            if (hiddenClouds.Count > 0) Debug.Log($"DIVA_VR tour: {hiddenClouds.Count} clouds hidden near the shots");
             // 开头直接是小镇全景 + 菜单：梦境球、门、光点都不要（Carl：像一团云挡着）
             if (dream) dream.gameObject.SetActive(false);
             if (portal) portal.gameObject.SetActive(false);
@@ -162,7 +177,7 @@ namespace Diva.VR
             var away = Vector3.ProjectOnPlane(start - centre, Vector3.up);
             var back = away.sqrMagnitude > 4 ? away.normalized : -forward;   // 从镇中心往大象那边再往外
             var side = Vector3.Cross(Vector3.up, back);
-            var wideFrom = centre + back * 60 + side * 12 + Vector3.up * 36;
+            var wideFrom = centre + back * 60 + side * 12 + Vector3.up * 31;
             var wideLook = centre + Vector3.up * 2;
             // 无人机从高空往镇子俯冲 14 米（缓入缓出，直线、不转），比之前的 4.5 米有冲劲得多
             wide = new Shot { from = wideFrom, to = wideFrom + (wideLook - wideFrom).normalized * 14f, look = wideLook, seconds = 7.5f };
@@ -677,6 +692,8 @@ namespace Diva.VR
         void Restore()
         {
             ShowCockpit(true);
+            foreach (var c in hiddenClouds) if (c) c.SetActive(true);
+            hiddenClouds.Clear();
             if (rig && rig.Detached) rig.Board();
             if (wipe) Destroy(wipe.gameObject);
             if (world) Destroy(world.gameObject);
