@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -98,6 +99,8 @@ namespace Diva.VR.EditorTools
             vos.appMode = VisionOSSettings.AppMode.Metal;
             // Mixed：画面透明的地方露出真实房间（传送门开场的房间就是靠这个）；镇子和天空是不透明的，开场之后看不到房间
             vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Mixed;
+            // 排查用：命令行 -divaFull 打完全沉浸的包（没有透视）
+            if (System.Environment.GetCommandLineArgs().Contains("-divaFull")) vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Full;
             vos.upperLimbVisibility = VisionOSSettings.Visibility.Visible;
             vos.foveatedRendering = true;
             vos.handsTrackingUsageDescription = "Diva uses your hands to pilot the mech elephant: pinch to spray, hands up for the ultimate.";
