@@ -18,7 +18,9 @@ namespace Diva.VR
     /// </summary>
     public class DivaVRCapture : MonoBehaviour
     {
-        public static bool Requested => Environment.GetEnvironmentVariable("DIVA_CAPTURE") == "1" || Environment.GetCommandLineArgs().Contains("-divaCapture");
+        // 头显上也可以不靠启动参数：往 app 的 Documents 里放一个叫 diva_capture 的文件（xcrun devicectl device copy to …），人自己打开 app 也会截图
+        public static bool Requested => Environment.GetEnvironmentVariable("DIVA_CAPTURE") == "1" || Environment.GetCommandLineArgs().Contains("-divaCapture")
+                                        || File.Exists(Path.Combine(Application.persistentDataPath, "diva_capture"));
 
         Camera cam;
         RenderTexture rt;
@@ -189,14 +191,15 @@ namespace Diva.VR
             Debug.Log($"DIVA_VR xr pass {desc.width}x{desc.height} {desc.graphicsFormat} {desc.dimension} slices {desc.volumeDepth} msaa {desc.msaaSamples} params {pass.GetRenderParameterCount()} cams {string.Join(",", cams.Select(c => c.name))}");
             try
             {
-                if (!xrRt || xrRt.width != desc.width || xrRt.height != desc.height || xrRt.graphicsFormat != desc.graphicsFormat)
+                if (!xrRt || xrRt.width != desc.width || xrRt.height != desc.height)
                 {
                     if (xrRt) { xrRt.Release(); Destroy(xrRt); }
-                    xrRt = new RenderTexture(desc.width, desc.height, 0, desc.graphicsFormat) { name = "Diva XR Copy", dimension = TextureDimension.Tex2D };
+                    // 固定用 8 位 sRGB：头显的目标可能是别的格式、带多重采样，Blit 会转换和解析；CopyTexture 不会
+                    xrRt = new RenderTexture(desc.width, desc.height, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_SRGB) { name = "Diva XR Copy", dimension = TextureDimension.Tex2D };
                     xrRt.Create();
                 }
                 var cmd = new CommandBuffer { name = "Diva XR copy" };
-                cmd.CopyTexture(pass.renderTarget, 0, 0, xrRt, 0, 0);
+                cmd.Blit(pass.renderTarget, xrRt, 0, 0);
                 ctx.ExecuteCommandBuffer(cmd);
                 ctx.Submit();
                 cmd.Release();
