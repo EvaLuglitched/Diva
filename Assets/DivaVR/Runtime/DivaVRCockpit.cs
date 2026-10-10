@@ -46,6 +46,7 @@ namespace Diva.VR
                 mesh.vertices = verts; mesh.normals = norms; mesh.triangles = p.t;
                 mesh.RecalculateBounds();
                 var m = p.material == "glowA" ? glowA : p.material == "glowB" ? glowB : p.material == "screen" ? screen : body;
+                if (p.name.Contains("Under Trim") || p.name.Contains("Arm Trim")) m = glowC;   // 仪表台下沿、扶手饰条走 RGB
                 // 顶上那道粗"眉"看着压抑（Carl），不装；换成下面细细的发光环框
                 if (p.name.StartsWith("Brow")) continue;
                 Part(root, p.name, mesh, m);
@@ -62,6 +63,7 @@ namespace Diva.VR
         DivaDemo demo;
         bool blender;
         Transform cockpitRoot; float rumble;
+        Material glowC; Light cabinLight;
         /// <summary>驾驶舱抖一下（大招、冲刺、命中）：只抖驾驶舱的壳，不抖人的视角。</summary>
         public void Rumble(float amount) => rumble = Mathf.Max(rumble, amount);
         // 仪表台两块侧屏：左边速度，右边水量和连击
@@ -82,6 +84,8 @@ namespace Diva.VR
             body = Lit(new Color(.12f, .1f, .18f));
             glowA = Unlit(new Color(1f, .4f, .8f) * 2f);
             glowB = Unlit(new Color(.3f, .95f, .85f) * 2f);
+            // RGB 氛围条：青 → 蓝 → 紫 → 粉来回流转（D.Va 的色系，不是整圈彩虹）
+            glowC = Unlit(new Color(.5f, .9f, 1f) * 2f);
             var root = new GameObject("Cockpit").transform;
             root.SetParent(transform, false);
             cockpitRoot = root;
@@ -89,7 +93,7 @@ namespace Diva.VR
             if (blender = BuildFromBlender(root))
             {
                 // 细环框：眼睛上方 0.36 米一圈很细的发光弧，左右各 58°，只是暗示座舱的轮廓
-                Part(root, "Halo", Sector(.705f, .72f, -58, 58, eye + .36f, eye + .375f, 24), glowA);
+                Part(root, "Halo", Sector(.705f, .72f, -58, 58, eye + .36f, eye + .375f, 24), glowC);
                 Part(root, "Halo Shadow", Sector(.70f, .725f, -58, 58, eye + .345f, eye + .36f, 24), body);
                 // 顶盖骨架：两根肋从仪表台两侧的柱顶弯过头顶到身后，中间两道横梁发光，身后一圈靠背和一道发光饰条——抬头有东西看，又不挡视线
                 Vector3 RibPoint(int sign, float t) => new Vector3(sign * Mathf.Lerp(.42f, .30f, t), eye + .40f + .55f * Mathf.Sin(Mathf.PI * t * .92f), Mathf.Lerp(.60f, -.50f, t));
@@ -97,9 +101,13 @@ namespace Diva.VR
                     for (int i = 0; i < 10; i++) Tube(root, "Rib", RibPoint(sign, i / 10f), RibPoint(sign, (i + 1) / 10f), .013f, body);
                 Tube(root, "Beam Glow", RibPoint(-1, .45f), RibPoint(1, .45f), .008f, glowB);
                 Tube(root, "Beam", RibPoint(-1, .75f), RibPoint(1, .75f), .012f, body);
-                Tube(root, "Beam Glow 2", RibPoint(-1, .76f), RibPoint(1, .76f), .006f, glowA);
+                Tube(root, "Beam Glow 2", RibPoint(-1, .76f), RibPoint(1, .76f), .006f, glowC);
                 Part(root, "Seat Back", Sector(.60f, .68f, 135, 225, eye - .52f, eye - .12f, 12), body);
-                Part(root, "Seat Trim", Sector(.595f, .605f, 135, 225, eye - .13f, eye - .11f, 12), glowB);
+                Part(root, "Seat Trim", Sector(.595f, .605f, 135, 225, eye - .13f, eye - .11f, 12), glowC);
+                // 舱内氛围灯：跟着 RGB 条变色，把光洒在仪表台和扶手上
+                var lamp = new GameObject("Cabin RGB Light");
+                lamp.transform.SetParent(root, false); lamp.transform.localPosition = new Vector3(0, eye - .25f, .45f);
+                cabinLight = lamp.AddComponent<Light>(); cabinLight.type = LightType.Point; cabinLight.range = 1.8f; cabinLight.intensity = 1.1f; cabinLight.shadows = LightShadows.None;
                 if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); }
                 BuildVignette(); return;
             }
@@ -208,6 +216,11 @@ namespace Diva.VR
             // 冲刺时灯条更亮、慢慢呼吸（以前每秒两下明暗，像频闪）
             float k = .7f + .5f * speed + (boost ? .3f + .08f * Mathf.Sin(Time.unscaledTime * 5) : 0);
             float f = 1 + .6f * Mathf.Clamp01(flash);
+            // RGB 流转：色相在 0.5（青）到 0.92（粉）之间来回，12 秒一个来回
+            float hue = Mathf.Lerp(.5f, .92f, .5f + .5f * Mathf.Sin(Time.unscaledTime * .52f));
+            var rgb = Color.HSVToRGB(hue, .75f, 1f);
+            if (glowC) { var cc = rgb * (1.8f + .3f * Mathf.Sin(Time.unscaledTime * 2.1f)); glowC.color = cc; glowC.SetColor("_BaseColor", cc); }
+            if (cabinLight) cabinLight.color = rgb;
             if (glowA) { glowA.color = baseA * k * f; glowA.SetColor("_BaseColor", glowA.color); }
             if (glowB) { glowB.color = baseB * k * f; glowB.SetColor("_BaseColor", glowB.color); }
             if (screen) screen.SetColor("_BaseColor", Color.Lerp(new Color(.05f, .22f, .28f), new Color(.2f, .5f, .6f), Mathf.Clamp01(flash)));
