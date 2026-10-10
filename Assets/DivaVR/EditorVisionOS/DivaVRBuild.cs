@@ -49,6 +49,8 @@ namespace Diva.VR.EditorTools
         /// <summary>命令行（模拟器）：… -executeMethod Diva.VR.EditorTools.DivaVRBuild.BuildSimulatorFromCommandLine</summary>
         public static void BuildSimulatorFromCommandLine() => EditorApplication.Exit(Build(true) == BuildResult.Succeeded ? 0 : 1);
 
+        static bool Full => System.Environment.GetCommandLineArgs().Contains("-divaFull");
+
         public static BuildResult Build(bool simulator = false)
         {
             Configure();
@@ -56,7 +58,7 @@ namespace Diva.VR.EditorTools
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { Scene },
-                locationPathName = simulator ? Output + "-sim" : Output,
+                locationPathName = (simulator ? Output + "-sim" : Output) + (Full ? "-full" : ""),
                 target = BuildTarget.VisionOS,
                 options = BuildOptions.None
             });
@@ -100,14 +102,15 @@ namespace Diva.VR.EditorTools
             // Mixed：画面透明的地方露出真实房间（传送门开场的房间就是靠这个）；镇子和天空是不透明的，开场之后看不到房间
             vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Mixed;
             // 排查用：命令行 -divaFull 打完全沉浸的包（没有透视）
-            if (System.Environment.GetCommandLineArgs().Contains("-divaFull")) vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Full;
+            if (Full) vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Full;
             vos.upperLimbVisibility = VisionOSSettings.Visibility.Visible;
             vos.foveatedRendering = true;
             vos.handsTrackingUsageDescription = "Diva uses your hands to pilot the mech elephant: pinch to spray, hands up for the ultimate.";
             vos.worldSensingUsageDescription = "Diva opens a portal in your room and keeps the cockpit steady.";
             EditorUtility.SetDirty(vos);
 
-            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.VisionOS, "com.jchen60.divavr");
+            // -divaFull 的包用另一个 ID，可以和透视版同时装在头显上对比（主屏幕名字在 Unity 外面改成 "Diva VR Full"）
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.VisionOS, Full ? "com.jchen60.divavr.full" : "com.jchen60.divavr");
 
             // 传送门开场要露出真实房间：开着后期处理（泛光、调色）时，画面的透明通道要一路保留到最后。
             // URP 打包时会把"保留透明度"的着色器变体裁掉，除非有一个 URP 资源打开了 Alpha Processing；
