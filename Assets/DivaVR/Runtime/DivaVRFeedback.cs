@@ -52,6 +52,16 @@ namespace Diva.VR
                 }
                 if (!task.Done) done[i] = false;
             }
+            // 到终点拱门就算完赛（Carl：不管四个任务完没完成，冲线就要有全场最佳）
+            if (!game.Finished && loco && show.Phase == ShowPhase.Play)
+            {
+                var finish = game.tasks.LastOrDefault(t => t != null && t.landmark && t.check == TaskCheck.Reach);
+                if (finish != null)
+                {
+                    var d = finish.landmark.position - loco.travelRoot.position; d.y = 0;
+                    if (d.magnitude < finish.radius) game.ForceFinish();
+                }
+            }
             // 脚下闪粉：越快越多
             if (dust && loco)
             {

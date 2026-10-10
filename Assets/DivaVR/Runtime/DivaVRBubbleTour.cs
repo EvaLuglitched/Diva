@@ -77,7 +77,7 @@ namespace Diva.VR
         Quaternion headTurn = Quaternion.identity;
         Quaternion[] eyeTurn = new Quaternion[0];
         float lookWeight, greetTime = -1;
-        bool greeted, popBurst, menuPlaced;
+        bool greeted, popBurst, menuPlaced; float menuShownAt;
         readonly List<GameObject> hiddenClouds = new List<GameObject>();
         static float DistanceToSegment(Vector3 p, Vector3 a, Vector3 b)
         {
@@ -588,9 +588,11 @@ namespace Diva.VR
                     // 捏一下出发（没有手部追踪时 20 秒后自己出发）
                     PlaceEye(wide.from, shotRot);
                     menuHovered = cam ? MenuHitDir(cam.transform.forward) : null;
-                    if (aligned && stageTime > 1f && pinch && MenuHit(raw) == btnLang) { DivaText.Toggle(); sound?.Play("tick", .5f); pinch = false; }
-                    // 开始：捏一下（看着"开始"或者随便哪里）直接无人机俯冲——没有梦境球和门了（Carl：开头那团"云"挡视线）
-                    if (aligned && stageTime > 1f && (pinch || autopilot && stageTime > 2.5f || stageTime > 30)) { sound?.Play("confirm", .6f); Go(Stage.Wide); }
+                    // 菜单出来 1.5 秒内的捏合不算（刚进来手还在动）；只有按到按钮才有反应：语言键切语言，开始键才开始
+                    bool armed = aligned && menuPlaced && Time.unscaledTime - menuShownAt > 1.5f;
+                    var hit = pinch && armed ? MenuHit(raw) : null;
+                    if (hit == btnLang) { DivaText.Toggle(); sound?.Play("tick", .5f); }
+                    if (hit == btnStart || autopilot && stageTime > 2.5f || stageTime > 45) { sound?.Play("confirm", .6f); Go(Stage.Wide); }
                     break;
                 case Stage.Burst:
                     PlaceEye(wide.from, shotRot);
@@ -658,7 +660,7 @@ namespace Diva.VR
             aligned = true;
             if (stage == Stage.Dream && !menuPlaced)
             {
-                menuPlaced = true;
+                menuPlaced = true; menuShownAt = Time.unscaledTime;
                 var h = cam.transform;
                 var flat = Flat(h.forward, shotRot * Vector3.forward);
                 prompt.position = h.position + flat * 1.4f - Vector3.up * .12f;

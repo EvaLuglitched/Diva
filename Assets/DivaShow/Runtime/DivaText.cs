@@ -134,7 +134,7 @@ namespace Diva.Show
             ["vr.coach.here"] = ("YOU'RE HERE", "到了"),
             ["vr.menu.sub"] = ("mech elephant race in Candy Town", "糖果镇 机甲大象竞速"),
             ["vr.menu.start"] = ("START", "开始"),
-            ["vr.menu.hint"] = ("look at a button and pinch  ·  or just pinch to start", "看着按钮捏一下  ·  直接捏一下也能开始"),
+            ["vr.menu.hint"] = ("face a button and pinch", "头朝向按钮，捏一下"),
             ["vr.coach.eat"] = ("HAND TO MOUTH — EAT", "手放嘴边 吃东西"),
             ["vr.coach.eat.b"] = ("your trunk grabs a snack", "象鼻会去够吃的"),
             ["vr.coach.log"] = ("KEEP LEANING FORWARD", "继续前倾"),

@@ -13,7 +13,7 @@ namespace Diva.VR
     public class DivaVRPickups : MonoBehaviour
     {
         public int points = 15;
-        public float spacing = 4.5f, height = 1.7f, reach = 2.6f;
+        public float spacing = 3f, height = 1.7f, reach = 2.8f;
 
         class Candy { public Transform t; public Vector3 at; public bool taken, rocket; public float phase; public Material mat; }
         DivaVRDash dash;
@@ -65,8 +65,8 @@ namespace Diva.VR
                     pos.y = a.y + height;
                     candies.Add(Make(pos, colours[n++ % colours.Length]));
                 }
-                // 每段直道中间一枚小火箭：吃到就冲刺
-                if (len > 18) { var rp = a + dir * (len * .5f) + side * -1.6f; rp.y = a.y + height + .2f; candies.Add(MakeRocket(rp)); }
+                // 每段直道三分之一、三分之二处各一枚小火箭：吃到就冲刺
+                if (len > 18) foreach (float k in new[] { .33f, .67f }) { var rp = a + dir * (len * k) + side * (k < .5f ? -1.8f : 1.8f); rp.y = a.y + height + .2f; candies.Add(MakeRocket(rp)); }
             }
             Debug.Log($"DIVA_VR candies: {candies.Count} on the course");
         }

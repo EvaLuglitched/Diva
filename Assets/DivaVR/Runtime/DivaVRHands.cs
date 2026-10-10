@@ -18,8 +18,8 @@ namespace Diva.VR
         public float sideStart = .05f, sideFull = .16f;
         [Tooltip("拇指尖和食指尖小于这个距离（米）算捏合。")]
         public float pinchDistance = .02f;
-        [Tooltip("手离嘴小于这个距离（米）算喝水。")]
-        public float mouthDistance = .16f;
+        [Tooltip("手（掌心、指尖或手腕）离嘴小于这个距离（米）算喝水。")]
+        public float mouthDistance = .19f;
         [Tooltip("大招：两只手腕都举到比眼睛低不超过这么多米（眼睛的高度附近）、在身前，保持多少秒。举过头顶手会出摄像头视野，追踪丢了就识别不到。")]
         public float ultBelowEye = .12f, ultHold = .4f;
         [Tooltip("一只手追踪丢了多久以内当作还在。")]
@@ -31,6 +31,7 @@ namespace Diva.VR
         bool hasNeutral;
         float ultSince = -1;
         readonly float[] lastUpAt = { -10f, -10f };
+        static readonly XRHandJointID[] MouthJoints = { XRHandJointID.Palm, XRHandJointID.IndexTip, XRHandJointID.MiddleTip, XRHandJointID.ThumbTip, XRHandJointID.Wrist };
         static readonly List<XRHandSubsystem> found = new List<XRHandSubsystem>();
         // Vision Pro 的"看 + 捏"：系统给出捏下去那一刻眼睛看的方向（按控件路径读，不直接依赖 visionOS 插件的类型）
         readonly InputAction[] gazeDirection = new InputAction[2], gazePhase = new InputAction[2];
@@ -127,12 +128,13 @@ namespace Diva.VR
                 bool index = hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var indexPose);
                 // 捏合 = 喷水；握着把手时手指本来就是弯的，不算（系统的"看 + 捏"另外算）
                 if (!onGrip && thumb && index && Vector3.Distance(thumbPose.position, indexPose.position) < pinchDistance) f.shoot = true;
-                if (index)
-                {
-                    var tip = space.TransformPoint(indexPose.position);
-                    // 手到嘴边：离嘴近、不高过眼睛、在脸前面
-                    if (Vector3.Distance(tip, mouth) < mouthDistance && tip.y < head.position.y + .02f && Vector3.Dot(tip - head.position, fwd) > -.02f) f.drink = true;
-                }
+                // 手到嘴边：手掌 / 任一指尖 / 手腕哪个离嘴最近算哪个，19 厘米内、不高过眼睛、在脸前面就算（以前只看食指尖，手一歪就不算）
+                foreach (var jid in MouthJoints)
+                    if (hand.GetJoint(jid).TryGetPose(out var jp))
+                    {
+                        var pt = space.TransformPoint(jp.position);
+                        if (Vector3.Distance(pt, mouth) < mouthDistance && pt.y < head.position.y + .03f && Vector3.Dot(pt - head.position, fwd) > -.04f) { f.drink = true; break; }
+                    }
                 if (hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out var wrist))
                 {
                     var w = space.TransformPoint(wrist.position);

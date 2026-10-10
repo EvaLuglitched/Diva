@@ -35,6 +35,19 @@ namespace Diva.VR
                 else { r.gameObject.layer = MediumLayer; m++; }   // 中等的（小屋、伞、招牌、栏杆段）75 米外不画
             }
             Debug.Log($"DIVA_VR culling: {n} small renderers culled beyond {dist[SmallLayer]} m (no shadows), {m} medium beyond {dist[MediumLayer]} m");
+            // 诊断：DIVA_TOWN=0 整个小镇不画（只留驾驶舱和大象），看帧率是不是被几何拖住
+            if (DivaVRDebug.Get("DIVA_TOWN") == "0")
+            {
+                int off = 0;
+                foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                {
+                    if (loco && loco.travelRoot && r.transform.IsChildOf(loco.travelRoot)) continue;
+                    if (DivaVR.Rig && r.transform.IsChildOf(DivaVR.Rig)) continue;
+                    if (r.gameObject.layer == 5) continue;
+                    r.enabled = false; off++;
+                }
+                Debug.Log($"DIVA_VR debug: town hidden ({off} renderers off)");
+            }
         }
     }
 }

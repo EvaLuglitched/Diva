@@ -113,6 +113,9 @@ namespace Diva
 
         static Vector3 Flat(Vector3 v) { v.y = 0; return v; }
 
+        /// <summary>直接判定冲线（VR：到终点拱门就算完赛，没做完的任务只是少拿分）。</summary>
+        public void ForceFinish() { if (startTime >= 0 && finishTime < 0) finishTime = Time.time; }
+
         void OnGUI()
         {
             if (!showHud) return;

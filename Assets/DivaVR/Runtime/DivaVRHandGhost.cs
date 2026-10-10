@@ -17,7 +17,7 @@ namespace Diva.VR
         Transform space;
         DivaVRHandlebars bars;
         DivaVRInput input;
-        static readonly Color Idle = new Color(1f, .75f, .9f), Grip = new Color(.5f, 1f, .95f), Pinch = new Color(1f, 1f, .6f);
+        static readonly Color Idle = new Color(1f, .75f, .9f), Grip = new Color(.5f, 1f, .95f), Pinch = new Color(1f, 1f, .6f), Drink = new Color(.45f, .7f, 1f);
 
         void Start()
         {
@@ -51,13 +51,13 @@ namespace Diva.VR
         {
             if (hands == null || !hands.running) { SubsystemManager.GetSubsystems(found); hands = found.Count > 0 ? found[0] : null; }
             if (!space) space = DivaVR.Head ? DivaVR.Head.parent : null;
-            bool pinching = input && input.Current.shoot;
+            bool pinching = input && input.Current.shoot, drinking = input && input.Current.drink;
             for (int h = 0; h < 2; h++)
             {
                 var hand = h == 0 ? hands?.leftHand : hands?.rightHand;
                 bool on = hand.HasValue && hand.Value.isTracked && space;
                 var held = bars && (h == 0 ? bars.HeldLeft : bars.HeldRight);
-                Tint(mats[h], (held ? Grip : pinching ? Pinch : Idle) * 1.4f);
+                Tint(mats[h], (drinking ? Drink : held ? Grip : pinching ? Pinch : Idle) * (drinking ? 2.2f : 1.4f));
                 for (int j = 0; j < dots[h].Length; j++)
                 {
                     var d = dots[h][j];
