@@ -18,7 +18,8 @@ namespace Diva.VR
 
         DivaShowDirector show;
         DivaMechSkins skins;
-        Transform holo, spin, glowRing;
+        Transform holo, spin, glowRing, glowRing2;
+        float bump;
         readonly List<(Renderer source, Renderer copy)> parts = new List<(Renderer, Renderer)>();
         float height = 1, eye;
 
@@ -83,6 +84,16 @@ namespace Diva.VR
                 mr.sharedMaterial = show.glowMaterial;
                 mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 glowRing = ring.transform;
+                // 第二圈：更大、更淡、反向转
+                var ring2 = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Destroy(ring2.GetComponent<Collider>());
+                ring2.name = "Pad 2";
+                ring2.transform.SetParent(holo, false);
+                ring2.transform.localScale = new Vector3(1.25f, .003f, 1.25f);
+                var mr2 = ring2.GetComponent<MeshRenderer>();
+                var m2 = new Material(show.glowMaterial); var c2 = new Color(.6f, .95f, 1f, .6f); m2.color = c2; if (m2.HasProperty("_BaseColor")) m2.SetColor("_BaseColor", c2); if (m2.HasProperty("_TintColor")) m2.SetColor("_TintColor", c2);
+                mr2.sharedMaterial = m2; mr2.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                glowRing2 = ring2.transform;
             }
             if (skins) skins.Changed += OnSkin;
             Place(true);
@@ -91,7 +102,12 @@ namespace Diva.VR
         void OnDestroy() { if (skins) skins.Changed -= OnSkin; }
 
         // 涂装换的是真机甲的材质：再拿一遍
-        void OnSkin(int index) { foreach (var (source, copy) in parts) if (source && copy) copy.sharedMaterials = source.sharedMaterials; }
+        void OnSkin(int index)
+        {
+            foreach (var (source, copy) in parts) if (source && copy) copy.sharedMaterials = source.sharedMaterials;
+            bump = 1;   // 换涂装：弹一下
+            if (show && show.Sound != null) show.Sound.Play("whoosh", .35f, 1.6f);
+        }
 
         void LateUpdate() => Place(false);
 
@@ -107,6 +123,10 @@ namespace Diva.VR
             holo.localPosition = Vector3.Lerp(holo.localPosition, target, k);
             holo.localScale = Vector3.one * Mathf.Lerp(holo.localScale.x, size, k);
             spin.localRotation = Quaternion.Euler(0, Time.unscaledTime * (select ? 25 : 12), 0);
+            bump = Mathf.MoveTowards(bump, 0, Time.unscaledDeltaTime * 2.5f);
+            spin.localScale = Vector3.one * (1 + .18f * Mathf.Sin(bump * Mathf.PI) );
+            if (glowRing) glowRing.localRotation = Quaternion.Euler(0, Time.unscaledTime * 40, 0);
+            if (glowRing2) { glowRing2.localRotation = Quaternion.Euler(0, -Time.unscaledTime * 25, 0); glowRing2.gameObject.SetActive(select); }
             if (glowRing) glowRing.localRotation = Quaternion.identity;
         }
     }

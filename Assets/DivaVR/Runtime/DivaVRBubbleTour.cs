@@ -85,8 +85,9 @@ namespace Diva.VR
         // 提示面板
         Transform prompt;
         CanvasGroup promptGroup;
-        TextMeshProUGUI promptTitle, promptSub;
-        string promptKey;
+        TextMeshProUGUI promptTitle, promptSub, menuHint, menuStart, menuLang;
+        RectTransform btnStart, btnLang;
+        string promptKey, menuLangText;
         float promptShownAt;
 
         void Start()
@@ -391,17 +392,26 @@ namespace Diva.VR
             prompt = go.transform;
             prompt.SetParent(world, false);
             var rt = (RectTransform)prompt;
-            rt.sizeDelta = new Vector2(1100, 260);
-            rt.localScale = Vector3.one * (.9f / 1100f);
+            // 进入菜单：标题、副标题、[开始] [EN / 中文]，看着按钮捏一下；不看按钮直接捏也是开始
+            rt.sizeDelta = new Vector2(1100, 520);
+            rt.localScale = Vector3.one * (1.1f / 1100f);
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace; canvas.worldCamera = cam; canvas.sortingOrder = 60;
             promptGroup = go.GetComponent<CanvasGroup>();
             promptGroup.alpha = 0; promptGroup.blocksRaycasts = false; promptGroup.interactable = false;
             var ink = new Color(.06f, .05f, .12f);
-            DivaUi.Panel(rt, "Plate", new Vector2(.5f, .5f), new Vector2(0, 8), new Vector2(1020, 200), DivaUi.WithAlpha(ink, .82f), DivaUi.WithAlpha(ink, .55f), 22).stripeWidth = 8;
-            promptTitle = DivaUi.Text(rt, "Title", new Vector2(.5f, .5f), new Vector2(0, 38), new Vector2(1000, 90), 66, Color.white);
+            var plate = DivaUi.Panel(rt, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1060, 500), ink, new Color(.6f, .6f, .75f, 1), 30);
+            plate.stripe = new Color(1f, .45f, .8f); plate.stripeWidth = 14;
+            promptTitle = DivaUi.Text(rt, "Title", new Vector2(.5f, 1), new Vector2(0, -90), new Vector2(1000, 130), 112, Color.white);
             DivaUi.Glow(promptTitle, new Color(1, .3f, .7f, .9f));
-            promptSub = DivaUi.Text(rt, "Sub", new Vector2(.5f, .5f), new Vector2(0, -36), new Vector2(1000, 60), 36, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
+            promptSub = DivaUi.Text(rt, "Sub", new Vector2(.5f, 1), new Vector2(0, -185), new Vector2(1000, 60), 40, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
+            btnStart = DivaUi.Rect(rt, "Start", new Vector2(.5f, 0), new Vector2(-150, 120), new Vector2(520, 120));
+            DivaUi.Panel(btnStart, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(520, 120), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 20);
+            menuStart = DivaUi.Text(btnStart, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(500, 100), 60, Color.white);
+            btnLang = DivaUi.Rect(rt, "Lang", new Vector2(.5f, 0), new Vector2(270, 120), new Vector2(260, 120));
+            DivaUi.Panel(btnLang, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(260, 120), new Color(.26f, .22f, .4f), new Color(.17f, .14f, .28f), 20);
+            menuLang = DivaUi.Text(btnLang, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(240, 100), 44, Color.white);
+            menuHint = DivaUi.Text(rt, "Hint", new Vector2(.5f, 0), new Vector2(0, 38), new Vector2(1000, 44), 28, new Color(1, 1, 1, .7f), TextAlignmentOptions.Center, false);
 
             // 全景里的大标题：浮在镇子上空，正对着人
             var tg = new GameObject("Tour Title", typeof(RectTransform), typeof(Canvas)) { layer = 5 };
@@ -551,7 +561,8 @@ namespace Diva.VR
                 case Stage.Dream:
                     // 捏一下出发（没有手部追踪时 20 秒后自己出发）
                     PlaceEye(wide.from, shotRot);
-                    if (aligned && stageTime > 1f && (pinch || autopilot && stageTime > 2.5f || stageTime > 20)) Go(Stage.Burst);
+                    if (aligned && stageTime > 1f && pinch && MenuHit(raw) == btnLang) { DivaText.Toggle(); sound?.Play("tick", .5f); pinch = false; }
+                    if (aligned && stageTime > 1f && (pinch || autopilot && stageTime > 2.5f || stageTime > 30)) Go(Stage.Burst);
                     break;
                 case Stage.Burst:
                     PlaceEye(wide.from, shotRot);
@@ -623,7 +634,7 @@ namespace Diva.VR
                 var h = cam.transform;
                 var flat = Flat(h.forward, shotRot * Vector3.forward);
                 spark.position = h.position + flat * .75f - Vector3.up * .08f;
-                prompt.position = h.position + flat * 1.3f - Vector3.up * .3f;
+                prompt.position = h.position + flat * 1.4f - Vector3.up * .12f;
                 sound?.PlayAt("skill", spark.position, .5f);
             }
         }
@@ -789,14 +800,34 @@ namespace Diva.VR
             UpdatePrompt(dt);
         }
 
+        /// <summary>捏的时候眼睛看的方向打到菜单的哪个按钮（打不到就 null）。</summary>
+        RectTransform MenuHit(DivaVRFrame raw)
+        {
+            if (!prompt || promptGroup.alpha < .5f || !cam) return null;
+            var origin = cam.transform.position;
+            var dir = raw.look.sqrMagnitude > .01f ? raw.look : cam.transform.forward;
+            var plane = new Plane(prompt.forward, prompt.position);
+            if (!plane.Raycast(new Ray(origin, dir.normalized), out float d)) return null;
+            var p = new Ray(origin, dir.normalized).GetPoint(d);
+            foreach (var b in new[] { btnStart, btnLang })
+            {
+                var local = (Vector2)b.InverseTransformPoint(p); var r = b.rect;
+                if (Mathf.Abs(local.x - r.center.x) < r.width * .5f + 30 && Mathf.Abs(local.y - r.center.y) < r.height * .5f + 30) return b;
+            }
+            return null;
+        }
+
         void UpdatePrompt(float dt)
         {
             string key = stage == Stage.Dream && aligned && stageTime > 1f ? "vr.tour.begin" : null;
-            if (key != null && key != promptKey)
+            if (key != null && (key != promptKey || menuLangText != DivaText.T("lang")))
             {
-                promptKey = key; promptShownAt = Time.unscaledTime;
-                promptTitle.text = DivaText.T(key);
-                promptSub.text = DivaText.T(key + ".b");
+                promptKey = key; if (menuLangText == null) promptShownAt = Time.unscaledTime;
+                promptTitle.text = DivaText.T("game");
+                promptSub.text = DivaText.T("vr.menu.sub");
+                menuStart.text = DivaText.T("vr.menu.start");
+                menuLangText = DivaText.T("lang"); menuLang.text = menuLangText;
+                menuHint.text = DivaText.T("vr.menu.hint");
             }
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, key != null ? 1 : 0, dt * (key != null ? 3 : 4));
             float pop = key != null ? DivaUi.EaseOutBack((Time.unscaledTime - promptShownAt) / .5f) : 1;

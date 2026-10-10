@@ -40,7 +40,10 @@ namespace Diva.VR
         CanvasGroup group;
         DivaSlant plate;
         TextMeshProUGUI stepLabel, title, lineA, lineB;
-        GameObject learnRoot, handsRow;
+        GameObject learnRoot, handsRow, statsRow;
+        readonly RectTransform[] statFills = new RectTransform[3];
+        TextMeshProUGUI stamp; float stampAt = -10;
+        DivaMechSkins skinsRef;
         Image[] dots = new Image[0];
         RectTransform fill;
 
@@ -129,7 +132,26 @@ namespace Diva.VR
             var bar = DivaUi.Image(hr, "Hold", new Vector2(.5f, .5f), Vector2.zero, new Vector2(340, 14), new Color(1, 1, 1, .18f));
             fill = DivaUi.Image(bar.transform, "Fill", new Vector2(0, .5f), Vector2.zero, new Vector2(340, 14), new Color(1f, .45f, .8f)).rectTransform;
             fill.pivot = new Vector2(0, .5f); fill.anchoredPosition = Vector2.zero; fill.localScale = new Vector3(0, 1, 1);
-            learnRoot.SetActive(false); handsRow.SetActive(false);
+            // 选涂装页：三条属性（装饰用，按涂装变化）
+            statsRow = new GameObject("Stats", typeof(RectTransform));
+            var sr = (RectTransform)statsRow.transform; sr.SetParent(panel, false); sr.anchoredPosition = new Vector2(0, -22); sr.sizeDelta = new Vector2(1000, 60);
+            string[] statKeys = { "vr.stat.speed", "vr.stat.cannon", "vr.stat.bubble" };
+            for (int i = 0; i < 3; i++)
+            {
+                float x = -330 + i * 330;
+                var lbl = DivaUi.Text(sr, "Stat " + i, new Vector2(.5f, .5f), new Vector2(x, 16), new Vector2(300, 36), 26, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
+                DivaUi.Localize(lbl, () => DivaText.T(statKeys[i]));
+                var back = DivaUi.Image(sr, "Bar " + i, new Vector2(.5f, .5f), new Vector2(x, -12), new Vector2(240, 12), new Color(1, 1, 1, .15f));
+                var fillImg = DivaUi.Image(back.rectTransform, "Fill", new Vector2(0, .5f), Vector2.zero, new Vector2(240, 12), new Color(1f, .45f, .8f));
+                fillImg.rectTransform.pivot = new Vector2(0, .5f); fillImg.rectTransform.anchoredPosition = Vector2.zero;
+                statFills[i] = fillImg.rectTransform;
+            }
+            // 确认时砸下来的图章
+            stamp = DivaUi.Text(panel, "Stamp", new Vector2(.5f, .5f), new Vector2(0, 10), new Vector2(1100, 160), 110, new Color(1f, .9f, .4f));
+            DivaUi.Glow(stamp, new Color(1f, .5f, .1f, .9f), .7f, .5f, .18f);
+            stamp.gameObject.SetActive(false);
+            skinsRef = FindAnyObjectByType<DivaMechSkins>();
+            learnRoot.SetActive(false); handsRow.SetActive(false); statsRow.SetActive(false);
             // 动作演示：牌子上方
             var glow = Resources.Load<Material>("DivaVR Cockpit Glow"); var body = Resources.Load<Material>("DivaVR Cockpit Body");
             if (glow && body) demo = DivaVRGestureDemo.Create(transform, new Vector3(-.12f, rig.eyeHeight + .36f, 1.4f), glow, body);
@@ -211,7 +233,7 @@ namespace Diva.VR
                 case Step.Pick:
                     roundSteps = learned ? 2 : 3;
                     AddButton("vr.guide.prev", -410, 150, false, () => show.VrStepSkin(-1));
-                    AddButton("vr.guide.choose", 0, 540, true, () => Go(learned ? Step.Ready : Step.Learn));
+                    AddButton("vr.guide.choose", 0, 540, true, () => { stampAt = Time.unscaledTime; stamp.text = DivaText.T("vr.guide.locked"); stamp.gameObject.SetActive(true); if (show.Sound != null) show.Sound.Play("powerup", .5f, 1.3f); Invoke(nameof(AfterStamp), .9f); });
                     AddButton("vr.guide.next", 410, 150, false, () => show.VrStepSkin(1));
                     break;
                 case Step.Learn:
@@ -231,6 +253,8 @@ namespace Diva.VR
             Debug.Log("DIVA_VR guide " + next);
         }
 
+        void AfterStamp() { stamp.gameObject.SetActive(false); if (step == Step.Pick) Go(learned ? Step.Ready : Step.Learn); }
+
         void Refresh()
         {
             if (step == Step.Hidden) return;
@@ -243,6 +267,7 @@ namespace Diva.VR
             int total = roundSteps;
             learnRoot.SetActive(step == Step.Learn);
             handsRow.SetActive(step == Step.Ready);
+            statsRow.SetActive(step == Step.Pick);
             // 结算的牌子矮一些：两行字往下挪，不和标题叠在一起
             bool compact = step == Step.Results;
             lineA.rectTransform.anchoredPosition = new Vector2(0, compact ? 34 : 50);
@@ -373,6 +398,20 @@ namespace Diva.VR
             panel.localRotation = Quaternion.LookRotation(panel.localPosition - eye);
             if (group.alpha <= 0) return;
 
+            // 属性条跟着涂装变（装饰：每个涂装一套固定的数）
+            if (step == Step.Pick && skinsRef)
+            {
+                int k = Mathf.Max(0, skinsRef.Current);
+                float[] vals = { .55f + .4f * Mathf.PerlinNoise(k * 1.7f, .3f), .55f + .4f * Mathf.PerlinNoise(k * 1.7f, 1.3f), .55f + .4f * Mathf.PerlinNoise(k * 1.7f, 2.3f) };
+                for (int i = 0; i < 3; i++) statFills[i].localScale = new Vector3(Mathf.Lerp(statFills[i].localScale.x, vals[i], 1 - Mathf.Exp(-dt * 8)), 1, 1);
+            }
+            // 图章：大→小砸下来
+            if (stamp.gameObject.activeSelf)
+            {
+                float st = t - stampAt; float sp = DivaUi.EaseOutBack(st / .35f);
+                stamp.rectTransform.localScale = Vector3.one * Mathf.Lerp(2.6f, 1, sp);
+                stamp.rectTransform.localRotation = Quaternion.Euler(0, 0, Mathf.Lerp(-14, -6, sp));
+            }
             // 按钮：主按钮轻轻呼吸，按下时缩一下、亮一下
             foreach (var b in buttons)
             {
