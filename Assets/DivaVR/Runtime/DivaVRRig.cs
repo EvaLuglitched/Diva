@@ -106,6 +106,7 @@ namespace Diva.VR
                 if (cam) { headPose = cam.gameObject.AddComponent<DivaVRHeadPose>(); headPose.head = cam.transform; }
                 gameObject.AddComponent<DivaVRHandlebars>();
                 hands = gameObject.AddComponent<DivaVRHands>();
+                gameObject.AddComponent<DivaVRHandGhost>();
             }
             BuildStats(hud);
             gameObject.AddComponent<DivaVRCockpit>();
