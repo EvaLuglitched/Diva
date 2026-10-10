@@ -97,7 +97,23 @@ namespace Diva.VR.EditorTools
             general.InitManagerOnStart = true;
             XRPackageMetadataStore.AssignLoader(general.Manager, "UnityEngine.XR.VisionOS.VisionOSLoader", group);
 
-            var vos = VisionOSSettings.GetOrCreateSettings();   // 新拉下来的工程里还没有这份设置
+            // 插件的设置资源：用工程里已有的；没有就新建一个存到 Assets/XR/Settings，并登记到 EditorBuildSettings
+            //（GetOrCreateSettings 只在内存里建、不登记，打包后处理那一步会因为找不到它而出错，Info.plist 不完整）
+            var vos = VisionOSSettings.currentSettings;
+            if (!vos)
+            {
+                var guid = AssetDatabase.FindAssets("t:VisionOSSettings").FirstOrDefault();
+                vos = guid != null ? AssetDatabase.LoadAssetAtPath<VisionOSSettings>(AssetDatabase.GUIDToAssetPath(guid)) : null;
+                if (!vos)
+                {
+                    Directory.CreateDirectory("Assets/XR/Settings");
+                    vos = ScriptableObject.CreateInstance<VisionOSSettings>();
+                    AssetDatabase.CreateAsset(vos, "Assets/XR/Settings/VisionOSSettings.asset");
+                }
+                VisionOSSettings.currentSettings = vos;
+                vos.GetOrCreateRuntimeSettings();
+                Debug.Log("DIVA_VR visionOS settings registered: " + AssetDatabase.GetAssetPath(vos));
+            }
             vos.appMode = VisionOSSettings.AppMode.Metal;
             // Mixed：画面透明的地方露出真实房间（传送门开场的房间就是靠这个）；镇子和天空是不透明的，开场之后看不到房间
             vos.metalImmersionStyle = VisionOSSettings.ImmersionStyle.Mixed;
