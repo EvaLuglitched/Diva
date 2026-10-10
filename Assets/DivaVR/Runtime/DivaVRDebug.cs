@@ -6,7 +6,8 @@ namespace Diva.VR
 {
     /// <summary>
     /// 头显上排查画面问题用的开关（环境变量；从电脑启动时传：xcrun devicectl device process launch --environment-variables '{"DIVA_CUBE":"1"}' …）。
-    /// DIVA_CUBE=1 眼前放一个亮色方块；DIVA_POST=0 关后期处理；DIVA_HDR=1 开场不关 HDR；DIVA_NOPORTAL=1 跳过传送门开场；DIVA_RS=0.8 渲染缩放。
+    /// DIVA_CUBE=1 眼前放一个亮色方块；DIVA_POST=0 关后期处理；DIVA_HDR=1 开场不关 HDR；DIVA_NOPORTAL=1 跳过传送门开场；DIVA_RS=0.8 渲染缩放；
+    /// DIVA_FOV=0 关注视点渲染；DIVA_NRP=0 关原生渲染通道；DIVA_MSAA=1 关多重采样；DIVA_CLEAR=1 背景纯洋红（看画面有没有送到头显）。
     /// </summary>
     public static class DivaVRDebug
     {
@@ -37,6 +38,30 @@ namespace Diva.VR
                 Debug.Log("DIVA_VR debug: cube in front of the head, shader " + (shader ? shader.name : "missing"));
             }
             if (On("DIVA_NOPORTAL")) { DivaVR.ArrivalDone = true; Debug.Log("DIVA_VR debug: portal opening skipped"); }
+            if (cam && On("DIVA_CLEAR"))
+            {
+                cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(1, 0, 1, 1);
+                Debug.Log("DIVA_VR debug: solid magenta background");
+            }
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
+            {
+                if (Environment.GetEnvironmentVariable("DIVA_MSAA") == "1") { urp.msaaSampleCount = 1; Debug.Log("DIVA_VR debug: MSAA off"); }
+                if (Environment.GetEnvironmentVariable("DIVA_NRP") == "0")
+                {
+                    var list = typeof(UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset).GetField("m_RendererDataList",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(urp) as UnityEngine.Rendering.Universal.ScriptableRendererData[];
+                    if (list != null)
+                        foreach (var d in list)
+                            if (d is UnityEngine.Rendering.Universal.UniversalRendererData ur) { ur.useNativeRenderPass = false; Debug.Log("DIVA_VR debug: native render pass off on " + ur.name); }
+                }
+            }
+            if (Environment.GetEnvironmentVariable("DIVA_FOV") == "0")
+            {
+                var displays = new System.Collections.Generic.List<UnityEngine.XR.XRDisplaySubsystem>();
+                SubsystemManager.GetSubsystems(displays);
+                foreach (var d in displays) { d.foveatedRenderingLevel = 0; d.foveatedRenderingFlags = UnityEngine.XR.XRDisplaySubsystem.FoveatedRenderingFlags.None; }
+                Debug.Log("DIVA_VR debug: foveated rendering off on " + displays.Count + " displays");
+            }
         }
     }
 }
