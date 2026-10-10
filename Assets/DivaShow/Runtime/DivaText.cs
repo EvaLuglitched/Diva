@@ -125,7 +125,7 @@ namespace Diva.Show
             ["vr.guide.again.btn"] = ("PLAY AGAIN", "再来一局"),
             ["vr.coach.eat"] = ("HAND TO MOUTH — EAT", "手放嘴边 吃东西"),
             ["vr.coach.eat.b"] = ("your trunk grabs a snack", "象鼻会去够吃的"),
-            ["vr.coach.log"] = ("KEEP LEANING FORWARD", "继续前倾"),
+            ["vr.coach.log"] = ("KEEP PUSHING", "继续推"),
             ["vr.coach.log.b"] = ("keep pushing, walk over the log", "继续推，从木头上走过去"),
             ["vr.coach.shoot"] = ("LOOK AT THE TARGET + PINCH", "看着靶子 捏一下"),
             ["vr.coach.shoot.b"] = ("trunk cannon", "象鼻水炮"),
