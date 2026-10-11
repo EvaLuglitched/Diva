@@ -104,7 +104,8 @@ namespace Diva.VR
                     Debug.Log("DIVA_VR AR session created");
                 }
                 if (cam) { headPose = cam.gameObject.AddComponent<DivaVRHeadPose>(); headPose.head = cam.transform; }
-                hands = gameObject.AddComponent<DivaVRHands>();   // 体感把手（DivaVRHandlebars）试过，Carl 不要
+                gameObject.AddComponent<DivaVRLever>();   // 握拳拉杆；前倾那套太晕，固定把手够不到
+                hands = gameObject.AddComponent<DivaVRHands>();
                 gameObject.AddComponent<DivaVRHandGhost>();
             }
             BuildStats(hud);

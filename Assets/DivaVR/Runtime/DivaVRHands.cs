@@ -27,6 +27,7 @@ namespace Diva.VR
 
         XRHandSubsystem hands;
         DivaVRHandlebars handlebars;
+        DivaVRLever lever;
         Vector3 neutral;
         bool hasNeutral;
         float ultSince = -1;
@@ -39,6 +40,7 @@ namespace Diva.VR
         void OnEnable()
         {
             handlebars = GetComponent<DivaVRHandlebars>();
+            lever = GetComponent<DivaVRLever>();
             for (int i = 0; i < 2; i++)
             {
                 gazeDirection[i] = new InputAction($"Gaze {i} Direction", binding: $"<VisionOSSpatialPointerDevice>/spatialPointer{i}/startRayDirection");
@@ -102,22 +104,18 @@ namespace Diva.VR
             }
             if (!hasNeutral) SetNeutral(head.localPosition);
 
-            // 身体：头相对坐好时的位置，换到驾驶舱的前 / 右方向（试过把手，Carl 还是要这个）
-            var lean = space.localRotation * (head.localPosition - neutral);
-            f.go = Mathf.Clamp01((lean.z - leanStart) / Mathf.Max(.01f, leanFull - leanStart));
-            float side = Mathf.Abs(lean.x);
-            f.steer = Mathf.Sign(lean.x) * Mathf.Clamp01((side - sideStart) / Mathf.Max(.01f, sideFull - sideStart));
-
             if (GazePinch(space, out var gaze)) { f.shoot = true; f.look = gaze; }
             if (hands == null || !hands.running) return f;
-            if (handlebars) { handlebars.Read(hands, space); f.go = handlebars.Go; f.steer = handlebars.Steer; }
+            // 走和转弯：握拳拉杆（DivaVRLever）。前倾 / 侧倾把头当油门，太晕，不用了
+            if (lever) { lever.Read(hands, space, head); f.go = lever.Go; f.steer = lever.Steer; }
+            else if (handlebars) { handlebars.Read(hands, space); f.go = handlebars.Go; f.steer = handlebars.Steer; }
             var mouth = head.position - head.up * .09f + head.forward * .04f;
             var fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
             int up = 0, i = 0;
             float now = Time.unscaledTime;
             foreach (var hand in new[] { hands.leftHand, hands.rightHand })
             {
-                bool onGrip = handlebars && (i == 0 ? handlebars.HeldLeft : handlebars.HeldRight);
+                bool onGrip = handlebars && (i == 0 ? handlebars.HeldLeft : handlebars.HeldRight) || lever && lever.Hand == i;   // 握着杆的手指尖是弯的，不算捏
                 if (!hand.isTracked)
                 {
                     // 追踪丢了一下：这只手刚才举着就当还举着
