@@ -93,8 +93,8 @@ namespace Diva.VR
         Transform prompt;
         CanvasGroup promptGroup;
         TextMeshProUGUI promptTitle, promptSub, menuHint, menuStart, menuLang;
-        // 落地页的"任务"块：四个站（编号 + 名字）和一行玩法
-        TextMeshProUGUI menuMission, menuMissionLine; readonly System.Collections.Generic.List<(TextMeshProUGUI text, string label)> menuStops = new System.Collections.Generic.List<(TextMeshProUGUI, string)>();
+        // 糖果招牌的 3D 部件：吊着牌子的气球和绳子（跟着 prompt 走），头正对着的气球可以捏爆
+        DivaSlant signFace, signBand; Transform signRoot; readonly List<Transform> balloons = new List<Transform>(), strings = new List<Transform>(); int balloonHover = -1;
         RectTransform btnStart, btnLang, menuHovered;
         DivaSlant plateStart, plateLang;
         string promptKey, menuLangText;
@@ -425,35 +425,24 @@ namespace Diva.VR
             canvas.renderMode = RenderMode.WorldSpace; canvas.worldCamera = cam; canvas.sortingOrder = 60;
             promptGroup = go.GetComponent<CanvasGroup>();
             promptGroup.alpha = 0; promptGroup.blocksRaycasts = false; promptGroup.interactable = false;
-            var ink = new Color(.06f, .05f, .12f);
-            var plate = DivaUi.Panel(rt, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1060, 640), ink, new Color(.6f, .6f, .75f, 1), 30);
-            plate.stripe = new Color(1f, .45f, .8f); plate.stripeWidth = 14;
-            promptTitle = DivaUi.Text(rt, "Title", new Vector2(.5f, 1), new Vector2(0, -66), new Vector2(1000, 96), 96, Color.white);
+            // 糖果招牌（参考 PvZ 的墓碑菜单：菜单是立在世界里的一块实物）：粉色厚边 + 奶油面板 + 顶上一条粉色标题带，
+            // 上面吊着五个气球（捏一下会爆，好玩）；四个站不用文字列，直接在下面的镇子里一个个亮起信标
+            DivaUi.Panel(rt, "Rim", new Vector2(.5f, .5f), new Vector2(0, -10), new Vector2(1080, 664), new Color(.95f, .35f, .68f), new Color(.72f, .18f, .48f), 30);
+            signFace = DivaUi.Panel(rt, "Face", new Vector2(.5f, .5f), new Vector2(0, 4), new Vector2(1040, 630), new Color(1f, .97f, .99f), new Color(.99f, .9f, .95f), 30);
+            signBand = DivaUi.Panel(rt, "Band", new Vector2(.5f, 1), new Vector2(0, -80), new Vector2(980, 132), new Color(1f, .45f, .78f), new Color(.9f, .3f, .66f), 24);
+            promptTitle = DivaUi.Text(rt, "Title", new Vector2(.5f, 1), new Vector2(0, -80), new Vector2(960, 120), 92, Color.white);
             DivaUi.Glow(promptTitle, new Color(1, .3f, .7f, .9f));
-            promptSub = DivaUi.Text(rt, "Sub", new Vector2(.5f, 1), new Vector2(0, -140), new Vector2(1000, 44), 34, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
-            // 落地页的小介绍：这局要干什么——四个站一排（编号牌 + 站名），下面一行玩法
-            menuMission = DivaUi.Text(rt, "Mission", new Vector2(.5f, 0), new Vector2(0, 440), new Vector2(1000, 34), 24, new Color(.55f, 1f, .9f, .85f), TextAlignmentOptions.Center, false);
-            var stopsRow = DivaUi.Rect(rt, "Stops", new Vector2(.5f, 0), new Vector2(0, 345), new Vector2(1000, 90));
-            var tasks = game ? game.tasks : null; int n = tasks != null ? Mathf.Min(tasks.Length, 4) : 0;
-            for (int i = 0; i < n; i++)
-            {
-                float x = -375 + i * 250;
-                var badge = DivaUi.Panel(stopsRow, "Badge " + i, new Vector2(.5f, .5f), new Vector2(x - 80, 0), new Vector2(54, 54), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 10);
-                var num = DivaUi.Text(badge.rectTransform, "Num", new Vector2(.5f, .5f), new Vector2(0, 1), new Vector2(54, 54), 30, Color.white);
-                num.text = (i + 1).ToString();
-                var name = DivaUi.Text(stopsRow, "Stop " + i, new Vector2(.5f, .5f), new Vector2(x + 50, 0), new Vector2(180, 84), 24, Color.white, TextAlignmentOptions.Left, false);
-                name.textWrappingMode = TextWrappingModes.Normal;
-                menuStops.Add((name, tasks[i] != null ? tasks[i].label : ""));
-            }
-            menuMissionLine = DivaUi.Text(rt, "Mission Line", new Vector2(.5f, 0), new Vector2(0, 300), new Vector2(1000, 36), 24, new Color(1, 1, 1, .75f), TextAlignmentOptions.Center, false);
-            // 视觉层级：标题 > START（唯一的主按钮，居中、大）> EN/中文（小药丸）> 提示（小、淡）
-            btnStart = DivaUi.Rect(rt, "Start", new Vector2(.5f, 0), new Vector2(0, 152), new Vector2(620, 130));   // y 是下边（轴心在底）：152–282，副标题在 305 以上
-            plateStart = DivaUi.Panel(btnStart, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(620, 130), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 20);
-            menuStart = DivaUi.Text(btnStart, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(600, 110), 66, Color.white);
-            btnLang = DivaUi.Rect(rt, "Lang", new Vector2(.5f, 0), new Vector2(0, 70), new Vector2(300, 76));
+            promptSub = DivaUi.Text(rt, "Sub", new Vector2(.5f, 1), new Vector2(0, -226), new Vector2(980, 50), 32, new Color(.1f, .5f, .55f), TextAlignmentOptions.Center, false);   // 锚点在顶：-226 是文字的上边，正好在标题带（到 -212）下面
+            // START：一块大糖果板，整块牌子唯一的主按钮
+            btnStart = DivaUi.Rect(rt, "Start", new Vector2(.5f, 0), new Vector2(0, 180), new Vector2(780, 190));
+            plateStart = DivaUi.Panel(btnStart, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(780, 190), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 22);
+            menuStart = DivaUi.Text(btnStart, "Label", new Vector2(.5f, .5f), new Vector2(0, 4), new Vector2(760, 150), 70, Color.white);
+            DivaUi.Glow(menuStart, new Color(1, .2f, .6f, .8f));
+            btnLang = DivaUi.Rect(rt, "Lang", new Vector2(.5f, 0), new Vector2(0, 86), new Vector2(300, 76));
             plateLang = DivaUi.Panel(btnLang, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 76), new Color(.26f, .22f, .4f), new Color(.17f, .14f, .28f), 16);
             menuLang = DivaUi.Text(btnLang, "Label", new Vector2(.5f, .5f), new Vector2(0, 1), new Vector2(280, 66), 34, Color.white);
-            menuHint = DivaUi.Text(rt, "Hint", new Vector2(.5f, 0), new Vector2(0, 8), new Vector2(1000, 56), 26, new Color(1, 1, 1, .6f), TextAlignmentOptions.Center, false);
+            menuHint = DivaUi.Text(rt, "Hint", new Vector2(.5f, 0), new Vector2(0, 16), new Vector2(1000, 56), 24, new Color(.16f, .13f, .25f, .7f), TextAlignmentOptions.Center, false);
+            BuildBalloons();
 
             // 全景里的大标题：浮在镇子上空，正对着人
             var tg = new GameObject("Tour Title", typeof(RectTransform), typeof(Canvas)) { layer = 5 };
@@ -610,6 +599,7 @@ namespace Diva.VR
                     bool armed = aligned && menuPlaced && Time.unscaledTime - menuShownAt > 1.5f;
                     var hit = pinch && armed ? MenuHit(raw) : null;
                     if (hit == btnLang) { DivaText.Toggle(); sound?.Play("tick", .5f); }
+                    else if (pinch && armed && hit == null && balloonHover >= 0) PopBalloon(balloonHover);
                     if (hit == btnStart || autopilot && stageTime > 2.5f || stageTime > 150) { sound?.Play("confirm", .6f); Go(Stage.Wide); }   // 150 秒兜底只救卡住的开场（手没追踪到），不能在玩家还在选语言时替他开始
                     break;
                 case Stage.Burst:
@@ -835,9 +825,10 @@ namespace Diva.VR
             for (int i = 0; i < beacons.Count; i++)
             {
                 var b = beacons[i];
-                if (stage == Stage.Wide && b.shown == 0 && stageTime > 2.2f + i * .9f) { b.shown = t; sound?.Play("confirm", .35f); }
+                bool reveal = stage == Stage.Wide ? stageTime > 2.2f + i * .9f : stage == Stage.Dream && menuPlaced && Time.unscaledTime - menuShownAt > 1.2f + i * .9f;
+                if ((stage == Stage.Wide || stage == Stage.Dream) && b.shown == 0 && reveal) { b.shown = t; sound?.Play("confirm", .35f); }
                 float k = b.shown > 0 ? DivaUi.EaseOutBack((t - b.shown) / .6f) : 0;
-                if (stage != Stage.Wide) k = 0;
+                if (stage != Stage.Wide && stage != Stage.Dream) k = 0;
                 Tint(b.mat, new Color(1f, .6f, .9f, .6f * k * (.8f + .2f * Mathf.Sin(t * 3 + i))));
                 b.label.localScale = Vector3.one * (12f / 1200f) * Mathf.Max(0, k);
                 var to = b.label.position - h.position; to.y = 0;
@@ -892,9 +883,6 @@ namespace Diva.VR
                 menuStart.text = DivaText.T("vr.menu.start");
                 menuLangText = DivaText.T("lang"); menuLang.text = menuLangText;
                 menuHint.text = DivaText.T("vr.menu.hint") + "\n<size=70%>" + DivaText.T("vr.menu.exit") + "</size>";
-                if (menuMission) menuMission.text = DivaText.T("vr.menu.mission");
-                if (menuMissionLine) menuMissionLine.text = DivaText.T("vr.menu.mission.b");
-                foreach (var (text, label) in menuStops) text.text = DivaText.Task(label);
             }
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, key != null ? 1 : 0, dt * (key != null ? 3 : 4));
             // 头朝向的按钮高亮
@@ -910,6 +898,58 @@ namespace Diva.VR
             if (Vector3.Angle(flat, to) > 22 || Mathf.Abs((prompt.position - h.position).magnitude - 1.33f) > .5f || promptGroup.alpha < .05f)
                 prompt.position = Vector3.Lerp(prompt.position, want, promptGroup.alpha < .05f ? 1 : 1 - Mathf.Exp(-dt * 3));
             prompt.rotation = Quaternion.LookRotation(prompt.position - h.position);
+            if (btnStart) btnStart.localScale = Vector3.one * (menuHovered == btnStart ? 1.06f : 1f);
+            // 气球：吊在牌子顶边上，各自慢慢摇；头正对着哪个哪个鼓起来
+            if (signRoot)
+            {
+                signRoot.gameObject.SetActive(promptGroup.alpha > .05f);
+                signRoot.position = prompt.position; signRoot.rotation = prompt.rotation; signRoot.localScale = Vector3.one * Mathf.Max(.01f, pop);
+                float tt = Time.unscaledTime; balloonHover = -1;
+                for (int i = 0; i < balloons.Count; i++)
+                {
+                    var b = balloons[i]; var st = strings[i];
+                    if (!b.gameObject.activeSelf) { st.gameObject.SetActive(false); continue; }
+                    var lp = new Vector3((i - 2) * .17f + Mathf.Sin(tt * .9f + i) * .025f, .66f + Mathf.Sin(tt * 1.3f + i * 1.7f) * .03f, 0);
+                    b.localPosition = lp;
+                    var top = new Vector3((i - 2) * .1f, .33f, 0);
+                    st.localPosition = (lp + top) * .5f; st.localRotation = Quaternion.FromToRotation(Vector3.up, lp - top); st.localScale = new Vector3(.004f, Vector3.Distance(lp, top) * .5f, .004f);
+                    bool hov = Vector3.Angle(h.forward, b.position - h.position) < 3.5f;
+                    if (hov) balloonHover = i;
+                    b.localScale = Vector3.one * (hov ? .19f : .16f);
+                }
+            }
+        }
+
+        void BuildBalloons()
+        {
+            var glow = Resources.Load<Material>("DivaVR Cockpit Glow");
+            if (!glow || !prompt) return;
+            signRoot = new GameObject("Sign Balloons").transform; signRoot.SetParent(prompt.parent, false);
+            Color[] cs = { new Color(1f, .55f, .8f), new Color(.6f, 1f, .85f), new Color(1f, .9f, .45f), new Color(.75f, .6f, 1f), new Color(.55f, .85f, 1f) };
+            var stringMat = new Material(glow); stringMat.color = Color.white * 1.2f; stringMat.SetColor("_BaseColor", Color.white * 1.2f);
+            for (int i = 0; i < 5; i++)
+            {
+                var b = GameObject.CreatePrimitive(PrimitiveType.Sphere); Destroy(b.GetComponent<Collider>());
+                b.name = "Balloon " + i; b.transform.SetParent(signRoot, false); b.transform.localScale = Vector3.one * .16f;
+                var m = new Material(glow); m.color = cs[i] * 1.3f; m.SetColor("_BaseColor", cs[i] * 1.3f);
+                var mr = b.GetComponent<MeshRenderer>(); mr.sharedMaterial = m; mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                balloons.Add(b.transform);
+                var st = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Destroy(st.GetComponent<Collider>());
+                st.name = "String " + i; st.transform.SetParent(signRoot, false);
+                var sr = st.GetComponent<MeshRenderer>(); sr.sharedMaterial = stringMat; sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                strings.Add(st.transform);
+            }
+            signRoot.gameObject.SetActive(false);
+        }
+
+        void PopBalloon(int i)
+        {
+            if (i < 0 || i >= balloons.Count || !balloons[i].gameObject.activeSelf) return;
+            var b = balloons[i];
+            fx?.Pop(b.position, new Color(1f, .6f, .9f), .25f);
+            sound?.PlayAt("pop", b.position, .7f, 1.25f);
+            b.gameObject.SetActive(false); strings[i].gameObject.SetActive(false);
+            Debug.Log("DIVA_VR menu balloon popped " + i);
         }
 
         void LateUpdate()
