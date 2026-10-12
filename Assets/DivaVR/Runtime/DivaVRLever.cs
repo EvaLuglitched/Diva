@@ -15,7 +15,7 @@ namespace Diva.VR
         [Tooltip("往前推多少米开始走、多少米跑满；左右推多少米死区、多少米转满。")]
         public float pushDead = .03f, pushFull = .12f, sideDead = .03f, sideFull = .10f;
         [Tooltip("杆头相对眼睛的默认位置：右、下、前（米）；手离杆头多近能抓住。")]
-        public float restSide = .20f, restDrop = .46f, restForward = .30f, grabRadius = .10f;
+        public float restSide = .20f, restDrop = .40f, restForward = .34f, grabRadius = .11f;
         [Tooltip("拇指尖和食指尖小于这个距离算捏住。")]
         public float pinchDistance = .025f;
 
