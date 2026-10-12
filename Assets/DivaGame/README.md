@@ -44,7 +44,7 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 
 - P3's spray gesture calls `DivaLaserBlaster.Fire(aim)` on every water burst, aimed by P3; the trunk water
   jet shows the shot and the beam is hidden (`showBeam`). Space and the HUD button still work.
-- Course tasks use the gestures (the body sliders are not driven in Diva mode): hands to mouth (P3 drink)
+- Course tasks use the gestures (the body sliders are not driven in Diva mode): a 0.4-second thumbs-up (P3 drink)
   counts as curling the trunk for the eat/drink tasks, P1 pumping counts as lifting the legs at the log.
 - DivaDemo no longer spawns its own five placeholder spheres when these targets exist.
 

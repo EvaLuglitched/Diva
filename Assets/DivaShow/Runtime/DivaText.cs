@@ -101,7 +101,7 @@ namespace Diva.Show
             ["skill.task"] = ("TASK COMPLETE", "任务完成"),
             ["key.boost"] = ("RUN", "跑起来"),
             ["key.cannon"] = ("PUSH HANDS", "双手前推"),
-            ["key.bubble"] = ("HANDS TO MOUTH", "手放嘴边"),
+            ["key.bubble"] = ("THUMBS UP (0.4s)", "竖起拇指保持0.4秒"),
             ["key.ult"] = ("BOTH HANDS UP · U", "双手举高 · U"),
             ["ult.ready"] = ("MEGA BUBBLE READY — hold both hands above your head!", "超级泡泡就绪——双手举过头顶！"),
             ["feed.hit"] = ("Target hit  +{0}", "命中靶子  +{0}"),

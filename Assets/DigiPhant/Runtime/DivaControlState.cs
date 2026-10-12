@@ -101,7 +101,7 @@ namespace DigiPhant
                 Shoot = p3.shoot && !Drink && Water >= Math.Max(.0001f, WaterPerBurst);
             }
             // One person doing everything: moving the arms into the spray / drink pose must not also walk,
-            // and drinking (hands at the mouth) must not steer.
+            // and refilling with a thumbs-up must not steer.
             if (all && (Shoot || Drink || Ult)) Forward = 0;
             if (all && (Drink || Ult)) Turn = 0;
         }
