@@ -6,11 +6,31 @@ from bridge import PerformerTracker, extract_features, requested_count
 class TrackingTests(unittest.TestCase):
     def test_roles_survive_detection_reordering_and_dropout(self):
         t = PerformerTracker(3)
-        self.assertEqual(t.assign([(.8, .5), (.2, .5)]), {})
+        # Two of three visible: they get the leftmost roles for now (not locked yet).
+        self.assertEqual(t.assign([(.8, .5), (.2, .5)]), {1: 1, 2: 0})
+        self.assertFalse(t.locked)
+        # The third arrives in the middle: roles re-sort left to right and lock.
         self.assertEqual(t.assign([(.8, .5), (.2, .5), (.5, .5)]), {1: 1, 2: 2, 3: 0})
+        self.assertTrue(t.locked)
         self.assertEqual(t.assign([(.51, .5), (.81, .5), (.21, .5)]), {1: 2, 2: 0, 3: 1})
         self.assertEqual(t.assign([(.52, .5), (.22, .5)]), {1: 1, 2: 0})
         self.assertEqual(t.assign([(.82, .5)]), {3: 0})
+
+    def test_group_fills_in_as_people_arrive_and_locks_on_calibration(self):
+        t = PerformerTracker(3)
+        self.assertEqual(t.assign([(.5, .5)]), {1: 0})
+        self.assertEqual(t.filled, 1)
+        # Someone steps in on the left before the group is complete: they become P1, the first person moves to P2.
+        self.assertEqual(t.assign([(.51, .5), (.2, .5)]), {1: 1, 2: 0})
+        # Unity saves the neutral pose with only two people: roles lock as they are, slot 3 stays open.
+        t.lock()
+        self.assertFalse(t.locked)   # cannot lock an incomplete group
+        self.assertEqual(t.assign([(.52, .5), (.21, .5), (.85, .5)]), {1: 1, 2: 0, 3: 2})
+        self.assertTrue(t.locked)
+        # Locked: a newcomer far from every known position gets no role.
+        self.assertEqual(t.assign([(.52, .5), (.21, .5), (.85, .5), (.05, .5)]), {1: 1, 2: 0, 3: 2})
+        t.reset()
+        self.assertFalse(t.locked)
 
     def test_ambiguous_assignment_is_rejected(self):
         t = PerformerTracker(3)

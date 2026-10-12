@@ -40,6 +40,19 @@ P1 movement, P2 turning, P3 water. Keep other people out of the camera view.
 Click Get ready and hold a natural resting pose. Avoid crossing positions.
 Use Reassign players if assignments are lost or people exchange places, then calibrate.
 
+### If only one player turns green (3 players)
+
+The camera bridge now detects the whole frame on every frame in group mode (MediaPipe's video tracking tended to keep
+only the first body it found), players are assigned as they arrive (left to right; roles re-sort until all three are
+in, then lock when the neutral pose is saved), and the status line says what the camera sees, for example
+`Waiting for P3 ... (camera sees 2 bodies, 2 usable)`:
+- **sees 2 bodies** — the third person is not detected at all: step back so all three are fully in frame, more light,
+  no one half-hidden behind another.
+- **sees 3 bodies, 2 usable** — one body is too cut off or too far: shoulders and hips must be inside the frame.
+- **sees 3, 3 usable but still waiting** — that player's gesture confidence is low (wrists or hips barely visible);
+  lower `gestureConfidence` on `DivaDemo` (default 0.3) if it keeps happening.
+The bridge console (Unity's camera panel shows its lines) prints the same counts whenever they change.
+
 ## If something does not respond
 - Camera stopped: … — the words after the colon are the tracker's own error
   (missing model, missing file, camera not opening). Fix that, then Retry.
