@@ -257,7 +257,7 @@ def main():
     parser.add_argument('--port', type=int, default=5055)
     parser.add_argument('--model', type=Path, default=Path(__file__).parent / 'pose_landmarker_full.task')
     parser.add_argument('--download-model', action='store_true', help='Download the official model if missing')
-    parser.add_argument('--diva', action='store_true', help='Enable Diva GO/prayer-hands lean steer/open-palm shoot/thumbs-up refill gesture rules')
+    parser.add_argument('--diva', action='store_true', help='Enable Diva GO/body-lean steer/open-palm shoot/thumbs-up refill gesture rules')
     parser.add_argument('--diva-config', type=Path, default=Path(__file__).parent / 'diva_gestures.json')
     parser.add_argument('--hand-model', type=Path, default=Path(__file__).parent / 'hand_landmarker.task')
     parser.add_argument('--gesture-model', type=Path, default=Path(__file__).parent / 'gesture_recognizer.task',

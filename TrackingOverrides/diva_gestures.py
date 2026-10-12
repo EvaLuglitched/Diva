@@ -6,6 +6,7 @@ camera-left. Thresholds are in torso/shoulder units and configurable in JSON.
 from collections import deque
 import json
 import math
+from numbers import Real
 from pathlib import Path
 
 DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
@@ -20,8 +21,6 @@ DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
                 thumb_up_cos=.70, thumb_extension=.5, curled_angle_max=135.,
                 # MediaPipe Gesture Recognizer's pretrained 'Thumb_Up' (when the bridge runs it) also counts.
                 thumb_model_score=.5,
-                prayer_separation_max=.45, prayer_center_max=.25,
-                prayer_depth_min=-.10, prayer_depth_max=.50,
                 # Aim while spraying: both hands pushed toward one side (shooting keeps hands below aim_height).
                 shoot_aim_full_offset=.35, shoot_aim_deadzone=.06,
                 # Ultimate: both wrists well above the head (torso lengths above the shoulders), held still.
@@ -35,11 +34,18 @@ def val(point,name,default=0.):
 
 def xyz(point): return tuple(val(point,k) for k in ('x','y','z'))
 def xy(point): return xyz(point)[:2]
-def quality(point): return min(val(point,'visibility',1.),val(point,'presence',1.))
+def confidence_value(value):
+    # MediaPipe hand landmarks omit these optional scores (None). Explicit low
+    # scores remain authoritative; malformed scores must never become confidence.
+    if value is None:return 1.
+    if isinstance(value,bool) or not isinstance(value,Real) or not math.isfinite(value) or not 0<=value<=1:return 0.
+    return float(value)
+
+def quality(point): return min(confidence_value(val(point,'visibility',1.)),confidence_value(val(point,'presence',1.)))
 def scale_body(points,aspect):
     """Convert x/z into image-height units so portrait/landscape agree."""
     return [dict(x=val(p,'x')*aspect,y=val(p,'y'),z=val(p,'z')*aspect,
-                 visibility=val(p,'visibility',1.),presence=val(p,'presence',1.)) for p in points]
+                 visibility=confidence_value(val(p,'visibility',1.)),presence=confidence_value(val(p,'presence',1.))) for p in points]
 def midpoint(a,b):return tuple((x+y)/2 for x,y in zip(xyz(a),xyz(b)))
 def angle(a,b,c):
     u=[x-y for x,y in zip(xyz(a),xyz(b))]; v=[x-y for x,y in zip(xyz(c),xyz(b))]
@@ -181,11 +187,7 @@ class DivaGestureDetector:
         same_side=(previous is not None and 0 < time-previous[1] <= .3
                    and previous[0]*cfg['steer_direction']*lean>0)
         threshold=cfg['steer_lean_release'] if same_side else cfg['steer_lean_start']
-        wrist_valid=all(quality(b[i])>=cfg['min_quality'] and all(math.isfinite(c) for c in xyz(b[i])) for i in (15,16))
-        prayer_pose=(wrist_valid and math.dist(xy(b[15]),xy(b[16]))/torso<=cfg['prayer_separation_max']
-            and abs((midpoint(b[15],b[16])[0]-shoulder[0])/torso)<=cfg['prayer_center_max']
-            and all(cfg['prayer_depth_min']<=(val(b[i],'y')-shoulder[1])/torso<=cfg['prayer_depth_max'] for i in (15,16)))
-        if prayer_pose and torso_quality>=cfg['min_quality'] and abs(lean)>threshold:
+        if torso_quality>=cfg['min_quality'] and abs(lean)>threshold:
             out['steer']=cfg['steer_direction']*max(-1.,min(1.,lean/cfg['steer_lean_full']))
             self.steering[slot]=(out['steer'],time)
         else:

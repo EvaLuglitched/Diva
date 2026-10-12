@@ -252,7 +252,7 @@ namespace DigiPhant
             bool upper = GUILayout.Toggle(controller.upperBodyOnly, "Upper body only");
             if (upper != controller.upperBodyOnly) controller.SetUpperBodyOnly(upper);
             Label("P1: pump raised arms to go; stop pumping to stop.");
-            Label("P2: bring both hands together at chest center, then lean left/right to turn, even while stopped. Stand upright or separate hands to stop. Keep wrists and hips visible.");
+            Label("P2: lean your torso left or right to turn, even while stopped. Keep shoulders and hips visible; stand upright to stop turning. Arms can stay relaxed.");
             Label("P3: raise left/right arm to aim. Push both open hands out to spray; hold either hand in a thumbs-up (thumb pointing up, four fingers curled) for 0.4 seconds to refill. Release to stop.");
             float now = Time.realtimeSinceStartup;
             if (!solo) Label("Start left to right in the unmirrored preview: P1, P2, P3. Avoid crossing.");

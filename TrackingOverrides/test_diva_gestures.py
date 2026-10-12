@@ -7,10 +7,6 @@ def body(offset=0., lean=0., handshift=0., height=-.8, separate=.2, visibility=1
         p[i].update(x=x+offset,y=y)
     return p
 
-def prayer_body(**kwargs):
-    kwargs.setdefault("height",-.2); kwargs.setdefault("separate",.2)
-    return body(**kwargs)
-
 def hand(wrist, opened=True):
     x,y= wrist['x'],wrist['y']; h=[dict(x=x,y=y,z=0.) for _ in range(21)]
     for base in [5,9,13,17]:
@@ -35,12 +31,12 @@ class GestureTests(unittest.TestCase):
         self.assertEqual(g['go'],0.)
     def test_left_and_right_use_confirmed_camera_direction(self):
         d=DivaGestureDetector()
-        self.assertLess(d.update(1,prayer_body(lean=.2),0)['steer'],0)
-        self.assertGreater(d.update(1,prayer_body(lean=-.2),.1)['steer'],0)
-    def test_spread_hands_reject_turn_even_with_body_lean(self):
+        self.assertLess(d.update(1,body(lean=.2,handshift=.7),0)['steer'],0)
+        self.assertGreater(d.update(1,body(lean=-.2,handshift=-.7),.1)['steer'],0)
+    def test_neutral_straight_but_lean_turns_with_spread_hands(self):
         d=DivaGestureDetector()
         self.assertEqual(d.update(1,body(),0)['steer'],0)
-        self.assertEqual(d.update(1,body(lean=.4,handshift=.6,separate=1.8),.1)['steer'],0)
+        self.assertLess(d.update(1,body(lean=.4,handshift=.6,separate=1.8),.1)['steer'],0)
     def test_missing_and_bad_tracking_stop_everything(self):
         d=DivaGestureDetector()
         d.update(1,body(lean=.3,handshift=.7),0)
@@ -79,24 +75,24 @@ class GestureTests(unittest.TestCase):
         for i in range(40):g=d.update(1,body(height=.1+math.sin(i*.22)*.2),i/30)
         self.assertGreater(g['go'],.5)
     def test_neutral_calibration_and_reset(self):
-        d=DivaGestureDetector(); b=prayer_body(lean=.2,handshift=.1)
+        d=DivaGestureDetector(); b=body(lean=.2,handshift=.6)
         self.assertLess(d.update(1,b,0)['steer'],0)
         d.calibrate()
         self.assertEqual(d.update(1,b,.1)['steer'],0)
         d.reset()
         self.assertLess(d.update(1,b,.2)['steer'],0)
     def test_aspect_correction_preserves_actions(self):
-        d=DivaGestureDetector(); p=prayer_body(lean=.2)
+        d=DivaGestureDetector(); p=body(lean=.2,handshift=.7)
         expected=d.update(1,p,0)['steer']
         portrait=[dict(j,x=j['x']/ .6,z=j['z']/ .6) for j in p]
         self.assertAlmostEqual(d.update(2,portrait,.1,aspect=.6)['steer'],expected)
     def test_calibration_survives_missing_body(self):
-        d=DivaGestureDetector(); b=prayer_body(lean=.2,handshift=.1)
+        d=DivaGestureDetector(); b=body(lean=.2,handshift=.6)
         d.update(1,b,0);d.calibrate();d.update(1,None,.1)
         self.assertEqual(d.update(1,b,1.)['steer'],0.)
-    def test_offcenter_hands_do_not_pass_prayer_gate(self):
+    def test_body_direction_wins_over_opposed_hand_offset(self):
         d=DivaGestureDetector()
-        self.assertEqual(d.update(1,body(lean=-.2,handshift=.9),0)['steer'],0.)
+        self.assertGreater(d.update(1,body(lean=-.2,handshift=.9),0)['steer'],0.)
     def test_curled_fists_at_shoulders_below_face_do_not_drink(self):
         d=DivaGestureDetector(); b=body(height=0,separate=.5)
         b[9]['y']=b[10]['y']=.13
@@ -115,16 +111,16 @@ class GestureTests(unittest.TestCase):
 
     def test_steering_hysteresis_keeps_turning_until_torso_returns(self):
         d=DivaGestureDetector()
-        self.assertLess(d.update(2,prayer_body(lean=.2),0)['steer'],0)
+        self.assertLess(d.update(2,body(lean=.2,handshift=.7),0)['steer'],0)
         # Smaller torso lean cannot start a turn, but keeps an existing same-side turn.
-        self.assertLess(d.update(2,prayer_body(lean=.1),.1)['steer'],0)
-        self.assertEqual(DivaGestureDetector().update(2,prayer_body(lean=.1),0)['steer'],0)
+        self.assertLess(d.update(2,body(lean=.1),.1)['steer'],0)
+        self.assertEqual(DivaGestureDetector().update(2,body(lean=.1),0)['steer'],0)
         # Torso upright: stop even if hands remain offset.
         self.assertEqual(d.update(2,body(handshift=.8),.2)['steer'],0)
     def test_steering_stops_on_hip_tracking_loss(self):
         d=DivaGestureDetector()
-        turning=d.update(2,prayer_body(lean=.2),0)['steer']
-        b=prayer_body(lean=.2)
+        turning=d.update(2,body(lean=.2,handshift=.7),0)['steer']
+        b=body(lean=.2,handshift=.7)
         for i in [23,24]: b[i]['visibility']=b[i]['presence']=.1
         self.assertLess(turning,0)
         self.assertEqual(d.update(2,b,.15)['steer'],0)
