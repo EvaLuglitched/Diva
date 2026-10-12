@@ -141,6 +141,7 @@ namespace Diva.VR
             if (!DivaVR.ArrivalDone && !DivaVRDebug.On("DIVA_NOPORTAL")) gameObject.AddComponent<DivaVRBubbleTour>();
             gameObject.AddComponent<DivaVRInput>();
             gameObject.AddComponent<DivaVRCoach>();
+            gameObject.AddComponent<DivaVRHowTo>();
             gameObject.AddComponent<DivaVRGuide>();
         }
 

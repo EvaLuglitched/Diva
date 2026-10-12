@@ -9,7 +9,9 @@ namespace Diva.VR
 {
     /// <summary>
     /// 驾驶舱正前方的"教学牌"：坐进驾驶舱后一步一步教，永远知道下一步做什么，每一步都有按钮可以按。
-    /// 第 1 步 选涂装：捏一下 = 下一个；看着按钮捏 = 按按钮（&lt; 上一个、就选这个、&gt; 下一个）。
+    /// 第 1 步 怎么玩（每次打开 app 第一局才有）：什么都不用做，看一遍 6 个小动画——看着按钮捏、推杆、左右推杆、看靶子捏、手放嘴边、双手举高，
+    ///        每段 2.8 秒，右边一行大字说明；可以跳过。光给一张文字卡片新手看不懂。
+    /// 第 2 步 选涂装：捏一下 = 下一个；看着按钮捏 = 按按钮（&lt; 上一个、就选这个、&gt; 下一个）。
     /// 第 2 步 学开大象（每次打开 app 第一局才有）：前倾走、左右倾转弯、看 + 捏 喷水、手放嘴边 吃喝，每个动作做一次就打勾，
     ///        牌子上有实时的反馈条；可以跳过。
     /// 第 3 步 出发：双手举过头顶举住（比赛里这就是大招），或者看着"出发"捏一下。
@@ -19,13 +21,20 @@ namespace Diva.VR
     /// </summary>
     public class DivaVRGuide : MonoBehaviour
     {
-        enum Step { Hidden, Pick, Learn, Ready, Results }
+        enum Step { Hidden, Watch, Pick, Learn, Ready, Results }
         enum Move { Lean, Turn, Pinch, Mouth }
 
-        /// <summary>这次打开 app 已经学过开大象了（之后几局选完涂装直接到"出发"）。</summary>
-        static bool learned;
+        /// <summary>这次打开 app 已经学过开大象了（之后几局选完涂装直接到"出发"）；watched：演示已经看过一遍。</summary>
+        static bool learned, watched;
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => learned = false;
+        static void ResetStatics() => learned = watched = false;
+
+        // 第 0 步的演示：6 段，每段 2.8 秒
+        const float ClipSeconds = 2.8f; const int Clips = 6;
+        int clip; float clipAt; bool roundHadWatch;
+        readonly Image[] dotsWatch = new Image[Clips];
+        static DivaVRGestureDemo.Move ClipMove(int c) => c switch { 0 => DivaVRGestureDemo.Move.Button, 1 => DivaVRGestureDemo.Move.Push, 2 => DivaVRGestureDemo.Move.Twist, 3 => DivaVRGestureDemo.Move.Pinch, 4 => DivaVRGestureDemo.Move.Mouth, _ => DivaVRGestureDemo.Move.HandsUp };
+        static string ClipKey(int c) => c == 0 ? "vr.watch.btn" : "vr.card." + c;
 
         const float Width = 1.1f;   // 牌子宽 1.1 米、在 1.45 米外：大约占视野 40°，一眼能读完
         const float Units = 1200;    // 牌子的画布宽（UI 单位）
@@ -125,6 +134,12 @@ namespace Diva.VR
             for (int i = 0; i < 4; i++)
                 dotsLearn[i] = DivaUi.Image(lr, "Dot " + i, new Vector2(.5f, 0), new Vector2(-54 + i * 36, 44), new Vector2(18, 18), new Color(1, 1, 1, .3f), null);
             foreach (var d in dotsLearn) d.sprite = circle;
+            // 第 0 步的 6 个进度点（牌子下方，按钮那排的上面）
+            for (int i = 0; i < Clips; i++)
+            {
+                dotsWatch[i] = DivaUi.Image(panel, "Watch Dot " + i, new Vector2(.5f, 0), new Vector2(-90 + i * 36, 118), new Vector2(18, 18), new Color(1, 1, 1, .3f), null);
+                dotsWatch[i].sprite = circle; dotsWatch[i].gameObject.SetActive(false);
+            }
             // 第 3 步：两只手的指示灯和按住进度条
             handsRow = new GameObject("Hands", typeof(RectTransform));
             var hr = (RectTransform)handsRow.transform; hr.SetParent(panel, false); hr.anchoredPosition = new Vector2(0, -60); hr.sizeDelta = new Vector2(500, 60);
@@ -236,8 +251,12 @@ namespace Diva.VR
             if (next == Step.Learn) foreach (var r in rows) { r.doneAt = -1; r.progress = 0; }
             switch (next)
             {
+                case Step.Watch:
+                    roundHadWatch = true; roundSteps = 4; clip = 0; clipAt = Time.unscaledTime;
+                    AddButton("vr.guide.skip", 440, 200, false, () => { watched = true; Go(Step.Pick); });
+                    break;
                 case Step.Pick:
-                    roundSteps = learned ? 2 : 3;
+                    roundSteps = roundHadWatch ? 4 : learned ? 2 : 3;
                     AddButton("vr.guide.prev", -410, 150, false, () => show.VrStepSkin(-1));
                     AddButton("vr.guide.choose", 0, 540, true, () => { stampAt = Time.unscaledTime; stamp.text = DivaText.T("vr.guide.locked"); stamp.gameObject.SetActive(true); if (show.Sound != null) show.Sound.Play("powerup", .5f, 1.3f); Invoke(nameof(AfterStamp), .9f); });
                     AddButton("vr.guide.next", 410, 150, false, () => show.VrStepSkin(1));
@@ -260,6 +279,7 @@ namespace Diva.VR
         }
 
         void HideStamp() { if (step != Step.Pick) stamp.gameObject.SetActive(false); }
+        void AfterWatch() { stamp.gameObject.SetActive(false); if (step == Step.Watch) Go(Step.Pick); }
         void AfterStamp() { stamp.gameObject.SetActive(false); if (step == Step.Pick) Go(learned ? Step.Ready : Step.Learn); }
 
         void Refresh()
@@ -277,20 +297,40 @@ namespace Diva.VR
             statsRow.SetActive(step == Step.Pick);
             // 结算的牌子矮一些：两行字往下挪，不和标题叠在一起
             bool compact = step == Step.Results;
-            lineA.rectTransform.anchoredPosition = new Vector2(0, compact ? 34 : 56);
-            lineB.rectTransform.anchoredPosition = new Vector2(0, compact ? -40 : 8);
+            // 第 0 步像一页幻灯片：左边小动画，右边两行字
+            bool watch = step == Step.Watch;
+            foreach (var d in dotsWatch) d.gameObject.SetActive(watch);
+            // 标题、步骤、进度点都挪到右半边，左边整块留给小动画
+            stepLabel.rectTransform.anchoredPosition = new Vector2(watch ? 200 : 0, -38); stepLabel.rectTransform.sizeDelta = new Vector2(watch ? 700 : 1100, 40);
+            title.rectTransform.anchoredPosition = new Vector2(watch ? 200 : 0, -92); title.rectTransform.sizeDelta = new Vector2(watch ? 700 : 1100, 80);
+            for (int i = 0; i < Clips; i++) dotsWatch[i].rectTransform.anchoredPosition = new Vector2(200 - 90 + i * 36, 118);
+            lineA.rectTransform.sizeDelta = new Vector2(watch ? 680 : 1100, watch ? 110 : 64); lineA.fontSize = watch ? 40 : 46;
+            lineA.textWrappingMode = watch ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
+            lineB.rectTransform.sizeDelta = new Vector2(watch ? 680 : 1100, 44);
+            lineA.rectTransform.anchoredPosition = new Vector2(watch ? 200 : 0, compact ? 34 : watch ? 30 : 56);
+            lineB.rectTransform.anchoredPosition = new Vector2(watch ? 200 : 0, compact ? -40 : watch ? -56 : 8);
             lineA.gameObject.SetActive(step != Step.Learn);
             lineB.gameObject.SetActive(step != Step.Learn && step != Step.Results);
             switch (step)
             {
+                case Step.Watch:
+                    stepLabel.text = DivaText.F("vr.guide.step", 1, total) + "   ·   " + DivaText.T("vr.watch.sub");
+                    title.text = DivaText.T("vr.watch");
+                    if (clip < Clips)
+                    {
+                        lineA.text = $"<color=#8CFFE6>{clip + 1}/{Clips}</color>   {DivaText.T(ClipKey(clip))}";
+                        lineB.text = "=  " + DivaText.T(ClipKey(clip) + "b");
+                    }
+                    for (int i = 0; i < Clips; i++) dotsWatch[i].color = i < clip ? new Color(1f, .45f, .8f) : i == clip ? Color.white : new Color(1, 1, 1, .3f);
+                    break;
                 case Step.Pick:
-                    stepLabel.text = DivaText.F("vr.guide.step", 1, total);
+                    stepLabel.text = DivaText.F("vr.guide.step", roundHadWatch ? 2 : 1, total);
                     title.text = DivaText.T("vr.guide.pick");
                     lineA.text = DivaText.T("vr.guide.pick.a");
                     lineB.text = DivaText.T("vr.guide.pick.b");
                     break;
                 case Step.Learn:
-                    stepLabel.text = DivaText.F("vr.guide.step", 2, 3);
+                    stepLabel.text = DivaText.F("vr.guide.step", roundHadWatch ? 3 : 2, total);
                     title.text = DivaText.T("vr.guide.learn");
                     string[] keys = { "lean", "turn", "pinch", "mouth" };
                     for (int i = 0; i < rows.Length; i++)
@@ -321,13 +361,26 @@ namespace Diva.VR
             bool arrived = DivaVR.ArrivalDone || !GetComponent<DivaVRBubbleTour>();
             if (step == Step.Hidden && arrived)
             {
-                if (phase == ShowPhase.Select && show.PhaseTime > .8f) Go(Step.Pick);
+                if (phase == ShowPhase.Select && show.PhaseTime > .8f) { roundHadWatch = false; Go(watched ? Step.Pick : Step.Watch); }
                 else if (phase == ShowPhase.Results && show.PhaseTime > 3.5f) Go(Step.Results);
             }
             var f = input ? input.Current : default;
             bool pinch = f.shoot && !lastShoot;
             lastShoot = f.shoot;
             if (step == Step.Hidden) return;
+            // 第 0 步：演示一段一段自动往下走，放完盖个"该你试试了"的章再进选涂装
+            if (step == Step.Watch && clip < Clips && Time.unscaledTime - clipAt > ClipSeconds)
+            {
+                clip++; clipAt = Time.unscaledTime;
+                if (clip >= Clips)
+                {
+                    watched = true; demo?.Hide();
+                    stampAt = Time.unscaledTime; stamp.text = DivaText.T("vr.watch.done"); stamp.gameObject.SetActive(true);
+                    if (show.Sound != null) show.Sound.Play("confirm", .6f);
+                    Invoke(nameof(AfterWatch), 1.1f);
+                }
+                else { Fill(); UpdateDemo(); if (show.Sound != null) show.Sound.Play("tick", .35f); }
+            }
             // 头朝向哪个按钮哪个就高亮；捏一下按下它（眼睛看的方向有的话优先）
             var headT = DivaVR.Head;
             hovered = headT ? HitButton(headT.position, headT.forward) : null;
@@ -353,7 +406,9 @@ namespace Diva.VR
         void UpdateDemo()
         {
             if (!demo) return;
-            if (step == Step.Learn && !AllDone) { demo.Show((DivaVRGestureDemo.Move)(int)Current); demo.transform.localScale = Vector3.one * 1.7f; demo.transform.localPosition = new Vector3(-.12f, rig.eyeHeight + .4f, 1.4f); }
+            // 第 0 步的小人站在牌子前面 35 厘米（牌子不透明，演示里的靶子 / 按钮在小人前方，再近就埋进牌子里）
+            if (step == Step.Watch && clip < Clips) { demo.Show(ClipMove(clip)); demo.transform.localScale = Vector3.one * 1.4f; demo.transform.localPosition = new Vector3(-.30f, rig.eyeHeight - .04f, 1.10f); }
+            else if (step == Step.Learn && !AllDone) { demo.Show((DivaVRGestureDemo.Move)(int)Current); demo.transform.localScale = Vector3.one * 1.7f; demo.transform.localPosition = new Vector3(-.12f, rig.eyeHeight + .4f, 1.4f); }
             else if (step == Step.Ready) { demo.Show(DivaVRGestureDemo.Move.HandsUp); demo.transform.localScale = Vector3.one * 1.3f; demo.transform.localPosition = new Vector3(-.12f, rig.eyeHeight + .38f, 1.4f); }
             else demo.Hide();
         }
@@ -533,6 +588,8 @@ namespace Diva.VR
             }
             switch (step)
             {
+                case Step.Watch:
+                    break;   // 看着就行
                 case Step.Pick:
                     if (inStep > 1.5f && inStep < 2.2f) PinchAt(Find("vr.guide.next"));
                     else if (inStep > 3.2f) PinchAt(Find("vr.guide.choose"));

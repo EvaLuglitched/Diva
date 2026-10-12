@@ -8,10 +8,10 @@ namespace Diva.VR
     /// </summary>
     public class DivaVRGestureDemo : MonoBehaviour
     {
-        public enum Move { Push, Twist, Pinch, Mouth, HandsUp }
+        public enum Move { Push, Twist, Pinch, Mouth, HandsUp, Button }
         Move move; bool shown;
-        Transform stage, handL, handR, head, thumb, index, gripL, gripR, bar, target, arrow;
-        Material handMat, headMat, barMat, targetMat, arrowMat;
+        Transform stage, handL, handR, head, thumb, index, gripL, gripR, bar, target, arrow, button;
+        Material handMat, headMat, barMat, targetMat, arrowMat, buttonMat;
         float t0;
 
         public static DivaVRGestureDemo Create(Transform parent, Vector3 localPos, Material glow, Material body)
@@ -44,6 +44,9 @@ namespace Diva.VR
             gripR = Prim(PrimitiveType.Cylinder, "Grip R", new Vector3(.065f, -.02f, .02f), new Vector3(.014f, .018f, .014f), handMat); gripR.localRotation = Quaternion.Euler(0, 0, 90);
             target = Prim(PrimitiveType.Cylinder, "Target", new Vector3(.12f, .08f, .18f), new Vector3(.05f, .003f, .05f), targetMat); target.localRotation = Quaternion.Euler(90, 0, 0);
             arrow = Prim(PrimitiveType.Cube, "Arrow", Vector3.zero, new Vector3(.006f, .006f, .05f), arrowMat);
+            // "看着按钮捏"用的小按钮（青色小方块，捏下去那一刻闪白）
+            buttonMat = new Material(glow); Tint(buttonMat, new Color(.5f, .95f, 1f) * 1.4f);
+            button = Prim(PrimitiveType.Cube, "Button", new Vector3(.1f, .05f, .16f), new Vector3(.07f, .03f, .006f), buttonMat);
             Hide();
         }
 
@@ -65,10 +68,12 @@ namespace Diva.VR
             stage.gameObject.SetActive(true);
             bool bars = false;   // 把手演示不用了（操控改回前倾 / 侧倾）
             bar.gameObject.SetActive(bars); gripL.gameObject.SetActive(bars); gripR.gameObject.SetActive(bars);
+            bool pinchy = m == Move.Pinch || m == Move.Button;
             target.gameObject.SetActive(m == Move.Pinch);
-            thumb.gameObject.SetActive(m == Move.Pinch); index.gameObject.SetActive(m == Move.Pinch);
-            handL.gameObject.SetActive(m != Move.Pinch && m != Move.Mouth);
-            arrow.gameObject.SetActive(m == Move.Push || m == Move.HandsUp || m == Move.Pinch);
+            button.gameObject.SetActive(m == Move.Button);
+            thumb.gameObject.SetActive(pinchy); index.gameObject.SetActive(pinchy);
+            handL.gameObject.SetActive(!pinchy && m != Move.Mouth);
+            arrow.gameObject.SetActive(m == Move.Push || m == Move.HandsUp || pinchy);
         }
 
         public void Hide() { shown = false; if (stage) stage.gameObject.SetActive(false); }
@@ -97,16 +102,21 @@ namespace Diva.VR
                     gripL.gameObject.SetActive(true); gripL.localRotation = Quaternion.identity; gripL.localScale = new Vector3(.05f, .003f, .05f); gripL.localPosition = new Vector3(.03f, -.06f, 0);
                     break;
                 case Move.Pinch:
-                    // 看着靶子（头朝向靶子），拇指食指捏合，靶子闪
+                case Move.Button:
+                {
+                    // 看着靶子 / 按钮（头朝向它，一条视线），拇指食指捏合，捏下去那一刻它闪白
+                    var at = move == Move.Pinch ? target : button;
                     handR.localPosition = new Vector3(.03f, .02f, .05f);
                     float pinch = ease;
                     thumb.localPosition = handR.localPosition + new Vector3(-.02f + .012f * pinch, .005f, .02f);
                     index.localPosition = handR.localPosition + new Vector3(.02f - .012f * pinch, .012f, .022f);
-                    head.localRotation = Quaternion.LookRotation(target.localPosition - head.localPosition);
-                    arrow.localPosition = Vector3.Lerp(head.localPosition, target.localPosition, .5f);
-                    arrow.localRotation = head.localRotation; arrow.localScale = new Vector3(.003f, .003f, Vector3.Distance(head.localPosition, target.localPosition));
-                    Tint(targetMat, (pinch > .9f ? Color.white : new Color(1f, .4f, .4f)) * 1.5f);
+                    head.localRotation = Quaternion.LookRotation(at.localPosition - head.localPosition);
+                    arrow.localPosition = Vector3.Lerp(head.localPosition, at.localPosition, .5f);
+                    arrow.localRotation = head.localRotation; arrow.localScale = new Vector3(.003f, .003f, Vector3.Distance(head.localPosition, at.localPosition));
+                    if (move == Move.Pinch) Tint(targetMat, (pinch > .9f ? Color.white : new Color(1f, .4f, .4f)) * 1.5f);
+                    else Tint(buttonMat, (pinch > .9f ? Color.white : new Color(.5f, .95f, 1f)) * 1.4f);
                     break;
+                }
                 case Move.Mouth:
                     // 手从前面抬到嘴边
                     handR.localPosition = Vector3.Lerp(new Vector3(.05f, -.02f, .06f), new Vector3(.0f, .08f, -.03f), ease);
@@ -118,7 +128,7 @@ namespace Diva.VR
                     arrow.localPosition = new Vector3(0, .02f + .06f * ease, .04f); arrow.localRotation = Quaternion.Euler(-90, 0, 0);
                     break;
             }
-            if (move != Move.Pinch) { head.localRotation = Quaternion.identity; arrow.localScale = new Vector3(.006f, .006f, .05f); }
+            if (move != Move.Pinch && move != Move.Button) { head.localRotation = Quaternion.identity; arrow.localScale = new Vector3(.006f, .006f, .05f); }
             if (move != Move.Push && move != Move.Twist) { head.localPosition = new Vector3(0, .11f, -.08f); handR.localScale = Vector3.one * .035f; }
         }
     }

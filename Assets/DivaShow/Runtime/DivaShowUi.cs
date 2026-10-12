@@ -111,25 +111,45 @@ namespace Diva.Show
         }
 
         // VR 操作卡：点亮和倒数时出现在前方横幅下面，开跑两秒后淡出（第一次戴头显的人最需要）
-        CanvasGroup vrCard;
+        CanvasGroup vrCard; RectTransform vrCardRect;
+        readonly TextMeshProUGUI[] vrRowA = new TextMeshProUGUI[5], vrRowB = new TextMeshProUGUI[5];
+        /// <summary>VR：没推杆之前卡片多留一会儿（DivaVRHowTo 管）。</summary>
+        public bool VrCardHold;
+        public RectTransform VrCardRect => vrCardRect;
         void BuildVrCard(RectTransform parent)
         {
-            var card = DivaUi.Rect(parent, "VR Controls Card", new Vector2(.5f, .5f), new Vector2(0, -250), new Vector2(980, 420));
+            // 左边 1/3 留空给小动画（DivaVRHowTo 把 3D 小人放在那里，和亮着的那一行同步做动作）
+            var card = DivaUi.Rect(parent, "VR Controls Card", new Vector2(.5f, .5f), new Vector2(0, -250), new Vector2(1180, 420));
+            vrCardRect = card;
             vrCard = card.gameObject.AddComponent<CanvasGroup>();
             vrCard.alpha = 0; vrCard.blocksRaycasts = false;
             // VR 专用的卡片：底板不透明（线性色彩空间里 0.9 的深色板也会透出不少背景）
-            DivaUi.Panel(card, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(980, 420), DivaUi.WithAlpha(Ink, 1), new Color(.6f, .6f, .75f, 1), 28).stripeWidth = 8;
-            var title = DivaUi.Text(card, "Title", new Vector2(.5f, 1), new Vector2(0, -44), new Vector2(900, 60), 46, Color.white);
+            DivaUi.Panel(card, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1180, 420), DivaUi.WithAlpha(Ink, 1), new Color(.6f, .6f, .75f, 1), 28).stripeWidth = 8;
+            var title = DivaUi.Text(card, "Title", new Vector2(.5f, 1), new Vector2(170, -44), new Vector2(800, 60), 46, Color.white);
             DivaUi.Localize(title, () => DivaText.T("vr.card.title"));
             DivaUi.Glow(title, new Color(1, .3f, .7f, .9f));
             for (int i = 1; i <= 5; i++)
             {
                 int n = i;
                 float y = -100 - (i - 1) * 60;
-                var a = DivaUi.Text(card, "Row " + i, new Vector2(.5f, 1), new Vector2(-230, y), new Vector2(520, 56), 36, Color.white, TextAlignmentOptions.Right, false);
+                var a = DivaUi.Text(card, "Row " + i, new Vector2(.5f, 1), new Vector2(-40, y), new Vector2(400, 56), 36, Color.white, TextAlignmentOptions.Right, false);
                 DivaUi.Localize(a, () => DivaText.T("vr.card." + n));
-                var b = DivaUi.Text(card, "Row " + i + " b", new Vector2(.5f, 1), new Vector2(280, y), new Vector2(460, 56), 34, new Color(.55f, 1f, .9f), TextAlignmentOptions.Left, false);
+                var b = DivaUi.Text(card, "Row " + i + " b", new Vector2(.5f, 1), new Vector2(370, y), new Vector2(420, 56), 34, new Color(.55f, 1f, .9f), TextAlignmentOptions.Left, false);
                 DivaUi.Localize(b, () => "— " + DivaText.T("vr.card." + n + "b"));
+                vrRowA[i - 1] = a; vrRowB[i - 1] = b;
+            }
+        }
+
+        /// <summary>卡片上亮哪一行（0–4；-1 全亮）。</summary>
+        public void VrCardHighlight(int row)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                if (!vrRowA[i]) continue;
+                bool on = row < 0 || row == i;
+                vrRowA[i].color = on ? Color.white : new Color(1, 1, 1, .35f);
+                vrRowB[i].color = on ? new Color(.55f, 1f, .9f) : new Color(.55f, 1f, .9f, .35f);
+                vrRowA[i].fontSize = on && row >= 0 ? 40 : 36;
             }
         }
 
@@ -138,7 +158,7 @@ namespace Diva.Show
             if (dashDisplay) dashDisplay.gameObject.SetActive(hudRoot.gameObject.activeSelf);
             if (!vrCard) return;
             // 只在起跑前后露一下；大招结束回到 Play 时 PhaseTime 会归零，不能再弹出来压住教练提示
-            bool show = Phase == ShowPhase.PowerUp || Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 3 && Time.time - runStart < 3;
+            bool show = Phase == ShowPhase.PowerUp || Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 3 && Time.time - runStart < 3 || VrCardHold;
             vrCard.alpha = Mathf.MoveTowards(vrCard.alpha, show ? 1 : 0, DivaClock.DeltaTime * (show ? 3 : 1.2f));
         }
 
