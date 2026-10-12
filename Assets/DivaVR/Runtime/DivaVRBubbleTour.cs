@@ -577,7 +577,7 @@ namespace Diva.VR
         {
             if (stage == Stage.Done) return;
             float dt = Time.unscaledDeltaTime;
-            stageTime += dt;
+            stageTime += Mathf.Min(dt, .1f);   // 加载卡顿的一帧不算进阶段时间（否则一帧就把菜单 / 转场跳过去）
             var raw = input ? input.Current : default;
             bool pinch = raw.shoot && !lastPinch;
             lastPinch = raw.shoot;
