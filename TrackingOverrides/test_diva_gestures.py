@@ -2,8 +2,10 @@ import math, unittest
 from diva_gestures import DivaGestureDetector, associate_hands, open_fingers
 
 def body(offset=0., lean=0., handshift=0., height=-.8, separate=.2, visibility=1.):
+    # `lean` = the steering pose: the shoulder line and the head tilt toward the performer's left by slope `lean`
+    # (left shoulder 11 / left ear 7 lower), plus the old sideways shift. Steering reads only the tilt.
     p=[dict(x=.5+offset,y=.3,z=0.,visibility=visibility,presence=visibility) for _ in range(33)]
-    for i,x,y in [(11,.4+lean*.3,.3),(12,.6+lean*.3,.3),(23,.42,.6),(24,.58,.6),(13,.38,.4),(14,.62,.4),(15,.5+lean*.3+handshift*.3+separate*.15,.3-height*.3),(16,.5+lean*.3+handshift*.3-separate*.15,.3-height*.3),(0,.5,.18),(9,.48,.22),(10,.52,.22)]:
+    for i,x,y in [(11,.4+lean*.3,.3+lean*.1),(12,.6+lean*.3,.3-lean*.1),(7,.465+lean*.3,.2+lean*.035),(8,.535+lean*.3,.2-lean*.035),(23,.42,.6),(24,.58,.6),(13,.38,.4),(14,.62,.4),(15,.5+lean*.3+handshift*.3+separate*.15,.3-height*.3),(16,.5+lean*.3+handshift*.3-separate*.15,.3-height*.3),(0,.5,.18),(9,.48,.22),(10,.52,.22)]:
         p[i].update(x=x+offset,y=y)
     return p
 
@@ -117,14 +119,15 @@ class GestureTests(unittest.TestCase):
         self.assertEqual(DivaGestureDetector().update(2,body(lean=.1),0)['steer'],0)
         # Torso upright: stop even if hands remain offset.
         self.assertEqual(d.update(2,body(handshift=.8),.2)['steer'],0)
-    def test_steering_stops_on_hip_tracking_loss(self):
+    def test_steering_ignores_hip_tracking_loss(self):
+        # Eva: turning uses only the shoulders and head; hidden hips (common in a row of three) do not stop it.
         d=DivaGestureDetector()
         turning=d.update(2,body(lean=.2,handshift=.7),0)['steer']
         b=body(lean=.2,handshift=.7)
         for i in [23,24]: b[i]['visibility']=b[i]['presence']=.1
         self.assertLess(turning,0)
-        self.assertEqual(d.update(2,b,.15)['steer'],0)
-        self.assertEqual(d.update(2,b,.4)['steer'],0)
+        self.assertLess(d.update(2,b,.15)['steer'],0)
+        self.assertLess(d.update(2,b,.4)['steer'],0)
     def test_aim_while_spraying_by_pushing_both_hands_sideways(self):
         d=DivaGestureDetector()
         for t,shift,sign in [(0,.25,-1),(.1,-.25,1),(.2,0.,0)]:

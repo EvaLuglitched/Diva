@@ -108,10 +108,11 @@ class TrackingTests(unittest.TestCase):
         t.reset()
         self.assertFalse(t.locked)
 
-    def test_ambiguous_assignment_is_rejected(self):
+    def test_ambiguous_assignment_pauses_only_the_ambiguous_players(self):
         t = PerformerTracker(3)
         t.assign([(.2, .5), (.4, .5), (.8, .5)])
-        self.assertEqual(t.assign([(.3, .5), (.8, .5)]), {})
+        # (.3) could be P1 or P2: those two pause; P3 (clearly at .8) keeps its role (was: everyone dropped).
+        self.assertEqual(t.assign([(.3, .5), (.8, .5)]), {3: 1})
         t.reset()
         self.assertIsNone(t.positions)
 

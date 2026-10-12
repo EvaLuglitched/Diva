@@ -297,10 +297,11 @@ class PerformerTracker:
             candidates.append((-len(used), sum(distances), assignment))
         candidates.sort()
         best = candidates[0]
-        # Avoid arbitrary role swaps when two assignments are almost equally plausible.
-        if len(candidates) > 1 and candidates[1][0] == best[0] and candidates[1][1] - best[1] < .015:
-            return {}
-        result = {s + 1: i for s, i in enumerate(best[2]) if i >= 0}
+        # Avoid arbitrary role swaps when two assignments are almost equally plausible: pause only the players whose
+        # role differs between the near-tied options (e.g. two people standing close), the others keep playing.
+        ties = [c for c in candidates[1:] if c[0] == best[0] and c[1] - best[1] < .015]
+        uncertain = {s for c in ties for s in range(self.count) if c[2][s] != best[2][s]}
+        result = {s + 1: i for s, i in enumerate(best[2]) if i >= 0 and s not in uncertain}
         for slot, index in result.items():
             self.positions[slot - 1] = centers[index]
         return result
@@ -514,7 +515,7 @@ def main():
     previous_timestamp = -1
     last_preview = 0.0
     preview_id = 0
-    print('Stand side by side, all visible. IDs start left-to-right in the unmirrored preview.')
+    print('Stand side by side, all visible. IDs start left-to-right as seen in the (mirrored) preview.')
     print('R: reset identities (then recalibrate in Unity). Q: quit.')
     go_log = None
     if args.diva and not args.no_go_log:
@@ -615,7 +616,9 @@ def main():
                     shoulder_quality = min(min(landmarks[j].visibility, landmarks[j].presence) for j in (11, 12))
                     if confidence[4] >= usable_quality or (gestures and shoulder_quality >= usable_quality):
                         observations.append((center, values, confidence, landmarks))
-                assignments = tracker.assign([o[0] for o in observations])
+                # Roles go left to right as the players see themselves in the MIRRORED preview (P1 = the player on
+                # the left of the picture), so they match the P1 · P2 · P3 order under Unity's camera check.
+                assignments = tracker.assign([(1 - o[0][0], o[0][1]) for o in observations])
                 # Which detected body is which player, keyed by the RAW landmarks the preview draws (smoothing below
                 # replaces each assigned player's landmarks with a new object).
                 raw_slots = {id(observations[i][3]): (slot, i) for slot, i in assignments.items()}
@@ -677,6 +680,8 @@ def main():
                                      gestures.go_debug.get(1) if walker else None)
                 sender.sendto(json.dumps(packet, allow_nan=False).encode(), ('127.0.0.1', args.port))
                 h, w = frame.shape[:2]
+                # The preview is a mirror (players see themselves like in a mirror); gestures above use the raw image.
+                frame = cv2.flip(frame, 1)
                 # Draw every detection, even while waiting for the full group or
                 # rejecting an ambiguous identity. Only assigned bodies drive Unity.
                 thickness = max(2, round(max(w / 320, h / 240) * 2))
@@ -692,7 +697,7 @@ def main():
                         if (min(landmark.visibility, landmark.presence) >= .5
                                 and math.isfinite(landmark.x) and math.isfinite(landmark.y)
                                 and 0 <= landmark.x <= 1 and 0 <= landmark.y <= 1):
-                            points[index] = (min(w - 1, int(landmark.x * w)),
+                            points[index] = (min(w - 1, int((1 - landmark.x) * w)),
                                              min(h - 1, int(landmark.y * h)))
                     for a, b in edges:
                         if a in points and b in points:
@@ -743,7 +748,7 @@ def main():
                                 break
                     last_preview = now
                 if not args.no_window:
-                    cv2.imshow('DigiPhant tracking (unmirrored)', frame)
+                    cv2.imshow('DigiPhant tracking (mirrored)', frame)
                 key = (cv2.waitKey(1) & 0xff) if not args.no_window else -1
                 if key == ord('q'):
                     break

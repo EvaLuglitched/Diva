@@ -9,10 +9,10 @@ Use Unity **6000.6.3f1** with Universal Render Pipeline **17.6.0**. Open **Asset
 Choose **Try alone** and **All** for the single-player game (one person has every control), or P1 Move, P2 Turn or P3 Water to test one role. Choose **Camera**, click **Get ready (10 seconds)** and hold a natural resting pose with arms down. Changing roles requires calibration again. **Test controls** provides manual movement, turn, aim, spray and refill controls.
 
 - P1: pump raised arms up and down to go; stop pumping to stop.
-- P2: lean your torso left/right to turn even when GO is zero. Arms may stay relaxed and wrists may be hidden; shoulders and hips must remain visible. Stand upright to stop; losing torso tracking also stops turning. Calibrate upright with hips visible.
+- P2: tilt your shoulders or your head left/right (your own left/right) to turn, even when GO is zero. Arms may stay relaxed, wrists and hips may be hidden; shoulders must stay visible (briefly hidden shoulders keep the turn for 0.3 s).
 - P3: raise one arm to aim. Push both hands forward and open them for water spray; while spraying, push both hands toward one side to aim that way. A quick opening gives one burst; holding both open hands extended continues spraying. Each burst fires at the best target in the aimed direction and scores in the HUD. Show either hand thumbs-up with the other four fingers curled for 0.4 seconds to refill; release to stop. That hand, its matched wrist and shoulders must be visible; the other wrist may be hidden.
 
-For group play, start left-to-right in the unmirrored preview: P1 movement, P2 turning, P3 water. Keep background people out of view and avoid crossing. Use Reassign players and recalibrate if roles are lost.
+For group play, stand left-to-right as you see yourselves in the mirrored preview: P1 movement, P2 turning, P3 water. Keep background people out of view and avoid crossing. Use Reassign players and recalibrate if roles are lost.
 
 The demo includes a third-person camera, the game layer's 16 targets, scoring, a water tank and the course tasks. Course tasks follow the Diva gestures: drink/eat with a thumbs-up near the bush or basin, step over the log by pumping (P1) next to it. Refill currently works anywhere. See **DIVA_TRY_IT.md** for details.
 
@@ -74,6 +74,6 @@ Labeled photos/videos, recordings, trial outputs and local backups are excluded 
 
 ### Latest gesture update verification
 
-P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumbs-up is recognised by MediaPipe's pretrained Gesture Recognizer (`Thumb_Up`, `gesture_recognizer.task`, downloaded on first use) or, as a fallback, the geometric rule. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 uses calibrated torso lean alone, with shoulders and hips visible; wrists may be hidden. Upright or lost torso tracking stops turning, including while stationary.
+P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumbs-up is recognised by MediaPipe's pretrained Gesture Recognizer (`Thumb_Up`, `gesture_recognizer.task`, downloaded on first use) or, as a fallback, the geometric rule. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 tilts the shoulders or the head toward one side (calibrated; hips are not used and may be hidden); wrists may be hidden. Level stops turning, including while stationary; shoulders briefly unclear keep the turn for 0.3 s.
 
 The publication Python suite passed 62 override tests; three starter recording tests also passed (65 total). Optional MediaPipe hand confidence set to `None` no longer crashes thumbs-up detection; explicit low or invalid confidence remains rejected. Fresh native Unity and physical checks of this restoration and the combined keyboard/finish-line checkout remain pending. Upstream keyboard and finish-line behavior is preserved.

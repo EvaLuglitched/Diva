@@ -56,7 +56,7 @@ namespace DigiPhant
             if (texture == null) texture = new Texture2D(2, 2, TextureFormat.RGB24, false);
             if (!ImageConversion.LoadImage(texture, bytes, false)) return false;
             lastFrame = now;
-            Status = "Live camera · unmirrored";
+            Status = "Live camera · mirrored";
             return true;
         }
         // A sharp preview arrives split into datagrams: "DVP1" + frame id (uint32) + index (uint16) + count (uint16) + bytes.

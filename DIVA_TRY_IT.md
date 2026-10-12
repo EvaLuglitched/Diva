@@ -21,7 +21,7 @@ Click Get ready (10 seconds), then stand naturally with arms down until ready.
 Changing roles resets calibration, so use Get ready again after changing roles.
 
 - P1: repeatedly pump raised elbows/arms up and down to go. Stop the movement to stop.
-- P2: lean your torso left/right, stationary or moving; arms can stay relaxed.
+- P2: tilt your shoulders or your head left/right (your own left/right), stationary or moving; arms can stay relaxed and hips may be hidden.
   Upright or lost torso tracking stops turning. Keep shoulders and hips visible; wrists may be hidden.
 - P3: raise one arm to aim that way. Push both hands forward and open them to shoot;
   while shooting, push both hands toward one side to aim there.
@@ -35,7 +35,7 @@ score and tasks appear in the HUD (eat/drink: thumbs-up near the bush or basin;
 step over the log: P1 pumping next to it).
 
 ## Three people
-Select 3 players. Start side by side, left-to-right in the UNMIRRORED camera preview:
+Select 3 players. Start side by side, left-to-right as you see yourselves in the MIRRORED camera preview (like a mirror):
 P1 movement, P2 turning, P3 water. Keep other people out of the camera view.
 Click Get ready and hold a natural resting pose. Avoid crossing positions.
 Use Reassign players if assignments are lost or people exchange places, then calibrate.
@@ -110,7 +110,7 @@ Current validation: 65 Python tests passed (62 repository + three starter record
 
 ### Latest gesture update verification
 
-P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumbs-up is recognised by MediaPipe's pretrained Gesture Recognizer (`Thumb_Up`, `gesture_recognizer.task`, downloaded on first use) or, as a fallback, the geometric rule. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 uses calibrated torso lean alone, with shoulders and hips visible; wrists may be hidden. Upright or lost torso tracking stops turning, including while stationary.
+P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumbs-up is recognised by MediaPipe's pretrained Gesture Recognizer (`Thumb_Up`, `gesture_recognizer.task`, downloaded on first use) or, as a fallback, the geometric rule. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 tilts the shoulders or the head toward one side (calibrated; hips are not used and may be hidden); wrists may be hidden. Level stops turning, including while stationary; shoulders briefly unclear keep the turn for 0.3 s.
 
 The publication Python suite passed 62 override tests; three starter recording tests also passed (65 total). Optional MediaPipe hand confidence set to `None` no longer crashes thumbs-up detection; explicit low or invalid confidence remains rejected. Fresh native Unity and physical checks of this restoration and the combined keyboard/finish-line checkout remain pending. Upstream keyboard and finish-line behavior is preserved.
 

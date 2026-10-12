@@ -13,8 +13,12 @@ DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
                 go_stop_delay=.35, go_step=.045, go_hand_min_height=-1.25,
                 # Wrists unclear for less than this (blur, frame edge) keep the swing history and the walking state.
                 go_dropout=.3,
-                steer_lean_start=.12, steer_lean_release=.07,
-                steer_lean_full=.35, steer_direction=-1.,
+                # Steering = tilting the shoulders or the head toward one side (no hips needed). Tilt is the slope of
+                # the shoulder line or the ear (eye) line relative to the calibrated neutral; the larger one counts.
+                steer_tilt_start=.14, steer_tilt_release=.08,
+                steer_tilt_full=.40, steer_direction=-1.,
+                # Shoulders briefly unclear (occluded by a neighbour) keep the current turn this long, then stop.
+                steer_dropout=.3,
                 aim_height=.65, hand_match_distance=.55,
                 finger_angle=145., finger_extension=1.2,
                 shoot_min_height=-.55, shoot_max_height=.65,
@@ -124,6 +128,10 @@ class DivaGestureDetector:
         self.hand_lost={}; self.last_go={}
         # Per slot: why the last frame was GO or not, with the numbers behind it (the bridge logs this).
         self.go_debug={}
+    def _held_steer(self,slot,time):
+        previous=self.steering.get(slot)
+        if previous is not None and 0<=time-previous[1]<=self.config['steer_dropout']:return previous[0]
+        return None
     def _why(self,slot,reason,**values):
         self.go_debug[slot]=dict(reason=reason,**values)
     def calibrate(self):
@@ -152,11 +160,16 @@ class DivaGestureDetector:
             self.reset(slot,preserve_neutral=True);self._why(slot,'body-lost');return out
         b=scale_body(body,aspect)
         required=[11,12]
-        if any(not all(math.isfinite(c) for c in xyz(b[i])) for i in required):
-            self.reset(slot,preserve_neutral=True);self._why(slot,'shoulders-missing');return out
-        q=min(quality(b[i]) for i in [11,12])
-        if q<cfg['min_quality']:
-            self.reset(slot,preserve_neutral=True);self._why(slot,'shoulders-unclear',shoulder_q=round(q,2));return out
+        shoulders_ok=all(all(math.isfinite(c) for c in xyz(b[i])) for i in required)
+        q=min(quality(b[i]) for i in [11,12]) if shoulders_ok else 0.
+        if not shoulders_ok or q<cfg['min_quality']:
+            held=self._held_steer(slot,time)
+            if held is not None:
+                # Brief occlusion: keep turning for up to steer_dropout instead of dropping to straight at once.
+                out['steer']=held;out['confidence']=cfg['min_quality']
+                self._why(slot,'shoulders-unclear-hold',shoulder_q=round(q,2));return out
+            self.reset(slot,preserve_neutral=True)
+            self._why(slot,'shoulders-unclear' if shoulders_ok else 'shoulders-missing',shoulder_q=round(q,2));return out
         out['confidence']=q
         shoulder=midpoint(b[11],b[12])
         width=max(.03,math.dist(xy(b[11]),xy(b[12])))
@@ -182,26 +195,33 @@ class DivaGestureDetector:
             self._why(slot,'thumbs-up-refill')
             return out
         self.refill.pop(slot,None)
-        if any(not all(math.isfinite(c) for c in xyz(b[i])) for i in (23,24)):
-            self.reset(slot,preserve_neutral=True);self._why(slot,'hips-missing');return out
-        hip=midpoint(b[23],b[24])
-        torso_quality=min(quality(b[i]) for i in [23,24])
-        torso=max(.03,math.dist(shoulder[:2],hip[:2])) if torso_quality>=cfg['min_quality'] else width*1.7
-        lean=(shoulder[0]-hip[0])/torso
-        self.latest_geometry[slot]={}
-        if torso_quality>=cfg['min_quality']:
-            self.latest_geometry[slot]['lean']=lean
-        lean-=self.neutral.get(slot,{}).get('lean',0.)
+        # Hips are optional (in a row of three they are often hidden): they only set the torso length for arm heights.
+        hips_ok=all(all(math.isfinite(c) for c in xyz(b[i])) for i in (23,24))
+        torso_quality=min(quality(b[i]) for i in [23,24]) if hips_ok else 0.
+        torso=(max(.03,math.dist(shoulder[:2],midpoint(b[23],b[24])[:2]))
+               if hips_ok and torso_quality>=cfg['min_quality'] else width*1.7)
+        # Steering: tilt of the shoulder line or the head (ears, else eyes). Positive = toward the performer's own
+        # left (their left shoulder / ear lower in the image). Only shoulders and head are used, never hips.
+        rolls=[(val(b[11],'y')-val(b[12],'y'))/width]
+        for a,c in ((7,8),(2,5)):
+            if all(quality(b[i])>=cfg['min_quality'] and all(math.isfinite(v) for v in xyz(b[i])) for i in (a,c)):
+                span=math.dist(xy(b[a]),xy(b[c]))
+                if span>.25*width:
+                    rolls.append((val(b[a],'y')-val(b[c],'y'))/span);break
+        self.latest_geometry[slot]={'tilt':rolls}
+        base=self.neutral.get(slot,{}).get('tilt',[])
+        tilts=[r-(base[k] if k<len(base) else 0.) for k,r in enumerate(rolls)]
+        tilt=max(tilts,key=abs)
         previous=self.steering.get(slot)
         same_side=(previous is not None and 0 < time-previous[1] <= .3
-                   and previous[0]*cfg['steer_direction']*lean>0)
-        threshold=cfg['steer_lean_release'] if same_side else cfg['steer_lean_start']
-        if torso_quality>=cfg['min_quality'] and abs(lean)>threshold:
-            out['steer']=cfg['steer_direction']*max(-1.,min(1.,lean/cfg['steer_lean_full']))
+                   and previous[0]*cfg['steer_direction']*tilt>0)
+        threshold=cfg['steer_tilt_release'] if same_side else cfg['steer_tilt_start']
+        if abs(tilt)>threshold:
+            out['steer']=cfg['steer_direction']*max(-1.,min(1.,tilt/cfg['steer_tilt_full']))
             self.steering[slot]=(out['steer'],time)
         else:
-            self.steering.pop(slot,None)  # Upright or lost hips stops immediately; no stale turn hold.
-        # Steering only needs shoulders + hips. Invalid arms must not emit other actions.
+            self.steering.pop(slot,None)  # Upright stops immediately; no stale turn hold.
+        # Steering only needs shoulders (+ head). Invalid arms must not emit other actions.
         hand_valid=(all(all(math.isfinite(c) for c in xyz(b[i])) for i in (13,14,15,16))
                     and min(quality(b[i]) for i in (15,16))>=cfg['min_quality'])
         wrist_q=min(quality(b[i]) for i in (15,16))
@@ -251,14 +271,10 @@ class DivaGestureDetector:
                         frame_gap=round(frame_gap,3),wrist_q=round(wrist_q,2))
         wrists=midpoint(b[15],b[16])
         hand_offset=(wrists[0]-shoulder[0])/torso
-        sep=math.dist(xy(b[15]),xy(b[16]))/torso
-        lean=(shoulder[0]-hip[0])/torso
-        self.latest_geometry[slot]=dict(hand_offset=hand_offset)
-        if torso_quality>=cfg['min_quality']:
-            self.latest_geometry[slot]['lean']=lean
+        geometry=self.latest_geometry.setdefault(slot,{})   # a frame-gap reset above may have cleared it
+        geometry['tilt']=rolls; geometry['hand_offset']=hand_offset
         neutral=self.neutral.get(slot,{})
         hand_offset-=neutral.get('hand_offset',0.)
-        lean-=neutral.get('lean',0.)
         raised=[h>cfg['aim_height'] for h in heights]
         if raised[0]!=raised[1]:out['aim']=-1. if raised[0] else 1.
         # Ultimate: both hands above the head and held there. Pumping (go) passes through this height

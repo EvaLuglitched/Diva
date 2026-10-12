@@ -95,6 +95,6 @@ class ThumbPrayerTests(unittest.TestCase):
             self.assertLess(DivaGestureDetector().update(2,p,0)['steer'],0)
         d=DivaGestureDetector();d.update(2,body(lean=.3),0)
         p=body(lean=.3);p[23]['visibility']=.01
-        self.assertEqual(d.update(2,p,.1)['steer'],0)
+        self.assertLess(d.update(2,p,.1)['steer'],0)   # Eva: hips are not needed for turning any more
 
 if __name__=='__main__':unittest.main()

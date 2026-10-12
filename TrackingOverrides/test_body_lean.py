@@ -61,13 +61,22 @@ class BodyLeanTests(unittest.TestCase):
                 for name in ('go', 'aim', 'shoot', 'drink', 'ult'):
                     self.assertFalse(result[name], name)
 
-    def test_missing_torso_stops_immediately_and_cannot_hold_stale_turn(self):
+    def test_hidden_hips_keep_turning_and_hidden_shoulders_hold_briefly(self):
+        # Eva: turning reads only shoulders + head. Hidden hips never stop it; hidden shoulders keep the current
+        # turn for steer_dropout (0.3 s), then stop; a lost body or standing upright stops it.
+        for i in (23, 24):
+            d = DivaGestureDetector()
+            self.assertLess(d.update(1, body(lean=.3), 0)['steer'], 0)
+            pose = body(lean=.3); pose[i]['visibility'] = .05
+            self.assertLess(d.update(1, pose, .1)['steer'], 0)
+        for i in (11, 12):
+            d = DivaGestureDetector()
+            turning = d.update(1, body(lean=.3), 0)['steer']
+            pose = body(lean=.3); pose[i]['visibility'] = .05
+            self.assertEqual(d.update(1, pose, .2)['steer'], turning)      # held
+            self.assertEqual(d.update(1, pose, .45)['steer'], 0)           # longer than 0.3 s: stops
         d = DivaGestureDetector()
         self.assertLess(d.update(1, body(lean=.3), 0)['steer'], 0)
-        for i in (11, 12, 23, 24):
-            pose = body(lean=.3)
-            pose[i]['visibility'] = .05
-            self.assertEqual(d.update(1, pose, .1)['steer'], 0)
         self.assertEqual(d.update(1, None, .2)['steer'], 0)
         self.assertEqual(d.update(1, body(), .3)['steer'], 0)
 
