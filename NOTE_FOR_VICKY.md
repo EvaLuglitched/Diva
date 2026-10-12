@@ -32,7 +32,19 @@ turned green. Single player worked. I tracked it down in `TrackingOverrides/` (y
 - `test_bridge.py`: one expectation updated (two of three visible now returns the two leftmost roles instead of `{}`),
   three tests added (progressive fill + lock, late arrivals rebuild the tracker, solo never searches). 50 tests pass.
 - Unity side (small): `DigiPhantController.PoseFrame` gains `detected/usable/rolesLocked`; `DivaDemo.WaitingMessage`
-  appends `(camera sees N bodies, M usable)`; the skin-select START queues the start while calibration is pending.
+  appends `(camera sees N bodies, M usable)`. (I had also made START queue the start while calibration was pending;
+  Eva's new camera-check page supersedes that, so this branch takes her START flow as is.)
+
+## Update (same day): smooth group detection
+
+The first group version (VIDEO tracking + periodic search + tracker rebuilds) was laggy on a real three-person test and
+still missed people, so it is gone. Now: group detection is per-frame IMAGE detection in a **worker thread** (the
+camera loop never waits; it always uses the newest finished result), on a downscaled frame, with a performance profile
+(`--profile auto|quality|fast`: Apple Silicon → full model at 960 px with hands every frame; otherwise lite at 640 px,
+hands every other frame), and **One-Euro smoothing** of each assigned player's landmarks (per-frame detection has no
+temporal filter of its own; beta .3 keeps a 2 Hz arm pump at ~80 % amplitude so GO still triggers). The GO rule also
+survives frame gaps up to 0.6 s and Unity's visibility timeout is at least 0.8 s, so a hiccup no longer flickers a
+player grey. Console line: `Camera sees 3 bodies, 3 usable, 3/3 assigned, pose NN ms/detection in the background`.
 
 ## What I could verify, and what I could not
 

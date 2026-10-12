@@ -52,7 +52,7 @@ class RelaxedGoTests(unittest.TestCase):
         self.assertEqual(d.go_debug[1]['reason'], 'go')
         d.update(1, None, 2.1); self.assertEqual(d.go_debug[1]['reason'], 'body-lost')
         for i in range(70, 75): d.update(1, swing(i), i / 30)
-        d.update(1, swing(90), 90 / 30)                          # 0.5 s gap between frames
+        d.update(1, swing(95), 95 / 30)                          # 0.7 s gap between frames (limit 0.6 s)
         self.assertEqual(d.go_debug[1]['reason'], 'frame-gap-reset')
 
     def test_defaults(self):

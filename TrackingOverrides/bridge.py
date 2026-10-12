@@ -7,11 +7,14 @@ import math
 from pathlib import Path
 import socket
 import struct
+import threading
+import types
 import time
 from contextlib import ExitStack
 
 FEATURES = ('LeftHandHeight', 'RightHandHeight', 'LeftFootLift', 'RightFootLift', 'Lean', 'ArmSpread')
 MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task'
+LITE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task'
 HAND_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task'
 GESTURE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task'
 
@@ -73,56 +76,165 @@ def extract_features(landmarks, upper_body_only=False):
     return hip, [max(-3, min(3, v)) for v in raw], [quality(g) for g in groups]
 
 
+class OneEuro:
+    """One-Euro filter (Casiez 2012): heavy smoothing when still, light smoothing when moving. One per channel."""
+    __slots__ = ('min_cutoff', 'beta', 'd_cutoff', 'x', 'dx', 't')
+    def __init__(self, min_cutoff=1.5, beta=.3, d_cutoff=1.0):   # beta .3: a 2 Hz arm pump keeps ~80% of its amplitude (GO rule), stillness is filtered at 1.5 Hz
+        self.min_cutoff, self.beta, self.d_cutoff = min_cutoff, beta, d_cutoff
+        self.x = self.dx = None; self.t = None
+    @staticmethod
+    def alpha(cutoff, dt):
+        tau = 1 / (2 * math.pi * cutoff); return 1 / (1 + tau / dt)
+    def __call__(self, value, t):
+        if self.x is None or self.t is None or t <= self.t:
+            self.x, self.dx, self.t = value, 0., t; return value
+        dt = t - self.t; self.t = t
+        dx = (value - self.x) / dt
+        a_d = self.alpha(self.d_cutoff, dt); self.dx = a_d * dx + (1 - a_d) * self.dx
+        cutoff = self.min_cutoff + self.beta * abs(self.dx)
+        a = self.alpha(cutoff, dt); self.x = a * value + (1 - a) * self.x
+        return self.x
+
+
+class LandmarkSmoother:
+    """Per-player One-Euro smoothing of the 33 pose landmarks. Per-frame (IMAGE-mode) detection has no temporal
+    filter of its own, so without this the skeleton and the gesture rules see frame-to-frame jitter."""
+    def __init__(self, min_cutoff=1.5, beta=.3):
+        self.min_cutoff, self.beta = min_cutoff, beta; self.filters = {}
+    def reset(self, slot=None):
+        if slot is None: self.filters.clear()
+        else: self.filters.pop(slot, None)
+    def retain(self, slots):
+        for slot in list(self.filters):
+            if slot not in slots: del self.filters[slot]
+    def apply(self, slot, landmarks, t):
+        bank = self.filters.setdefault(slot, [[OneEuro(self.min_cutoff, self.beta) for _ in range(3)] for _ in range(33)])
+        if len(landmarks) != 33:
+            return landmarks
+        out = []
+        for i, l in enumerate(landmarks):
+            fx, fy, fz = bank[i]
+            out.append(types.SimpleNamespace(x=fx(l.x, t), y=fy(l.y, t), z=fz(l.z, t), visibility=l.visibility, presence=l.presence))
+        return out
+
+
+def performance_profile(name='auto'):
+    """'quality' on Apple Silicon (full pose model, 960 px, hands every frame), 'fast' elsewhere (lite, 640 px,
+    hands every other frame). Both run group detection in the background thread."""
+    if name == 'auto':
+        import platform
+        chip = ''
+        try:
+            import subprocess
+            chip = subprocess.run(['sysctl', '-n', 'machdep.cpu.brand_string'], capture_output=True, text=True, timeout=2).stdout
+        except Exception:
+            pass
+        name = 'quality' if (platform.machine() == 'arm64' and 'Apple' in chip) else 'fast'
+    if name == 'quality':
+        return dict(name='quality', lite=False, max_width=960, hands_every=1)
+    return dict(name='fast', lite=True, max_width=640, hands_every=2)
+
+
 class GroupPoseDetector:
-    """Smooth group tracking: a VIDEO-mode landmarker tracks the bodies it knows (temporal smoothing, cheap),
-    and every `search_interval` seconds an IMAGE-mode landmarker searches the whole frame for anyone it missed.
-    When the search sees a body the tracker does not have, the tracker is rebuilt: a fresh VIDEO landmarker runs
-    detection on its first frame and then tracks everyone, so late arrivals get picked up without giving up
-    smooth tracking. Solo mode never searches."""
-    def __init__(self, make_video, make_image, group, search_interval=.5, same_body=.12, min_quality=.4):
+    """Pose detection policy.
+
+    Solo: a VIDEO-mode landmarker on the main loop (detects once, then tracks: cheap and smooth).
+    Group (2+ people): an IMAGE-mode landmarker (the lite model when available) runs the full-frame detector on a
+    downscaled copy of every frame it can keep up with, in its own worker thread. The camera loop never waits for it:
+    it hands over the newest frame and carries on with the newest finished result, so sending to Unity, the preview
+    and the hand model keep their own pace while detection runs at whatever rate the machine manages. MediaPipe's
+    video tracking kept only the first body it found, and rebuilding it to catch late arrivals reloaded the model
+    over and over (laggy); per-frame detection finds everyone in the picture, and the thread keeps it from stalling."""
+    def __init__(self, make_video, make_image, group, max_width=640, threaded=True):
         self.make_video, self.make_image = make_video, make_image
-        self.group = group; self.search_interval = search_interval; self.same_body = same_body; self.min_quality = min_quality
-        self.video = make_video(); self.image = None
-        self.last_search = -1e9; self.rebuilds = 0; self.last_search_counts = (0, 0)
+        self.group = group; self.max_width = max_width; self.threaded = threaded
+        self.video = None if group else make_video(); self.image = make_image() if group else None
+        self.latest = None; self.last_cost = 0.0; self.detections = 0; self.dropped = 0
+        self._pending = None; self._lock = threading.Condition(); self._worker = None; self._stop = False
+        if group and threaded:
+            self._start_worker()
+
+    def _start_worker(self):
+        self._stop = False
+        self._worker = threading.Thread(target=self._run, name='pose-detect', daemon=True); self._worker.start()
+
+    def _run(self):
+        while True:
+            with self._lock:
+                while self._pending is None and not self._stop:
+                    self._lock.wait()
+                if self._stop:
+                    return
+                frame, self._pending = self._pending, None
+            self._detect_now(frame)
+
+    def _detect_now(self, rgb):
+        started = time.monotonic()
+        result = self.image.detect(self._mp_image(self._downscale(rgb)))
+        with self._lock:
+            self.latest = result; self.last_cost = time.monotonic() - started; self.detections += 1
+
+    def _downscale(self, rgb):
+        h, w = rgb.shape[:2]
+        if w <= self.max_width:
+            return rgb
+        import cv2
+        scale = self.max_width / w
+        return cv2.resize(rgb, (self.max_width, max(1, round(h * scale))), interpolation=cv2.INTER_AREA)
+
+    @staticmethod
+    def _mp_image(rgb):
+        import mediapipe as mp
+        return mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
     def set_group(self, group):
         if group == self.group:
             return
         self.group = group
-        if not group and self.image is not None:
-            self.image.close(); self.image = None
-        self.rebuild()
+        if group:
+            if self.video is not None: self.video.close(); self.video = None
+            if self.image is None: self.image = self.make_image()
+            if self.threaded and (self._worker is None or not self._worker.is_alive()): self._start_worker()
+        else:
+            self._stop_worker()
+            if self.image is not None: self.image.close(); self.image = None
+            if self.video is None: self.video = self.make_video()
+        self.latest = None
 
-    def rebuild(self):
-        self.video.close(); self.video = self.make_video(); self.rebuilds += 1
+    def _stop_worker(self):
+        if self._worker is None:
+            return
+        with self._lock:
+            self._stop = True; self._pending = None; self._lock.notify_all()
+        self._worker.join(timeout=2); self._worker = None
 
     def close(self):
-        self.video.close()
-        if self.image is not None:
-            self.image.close()
+        self._stop_worker()
+        if self.video is not None: self.video.close()
+        if self.image is not None: self.image.close()
 
-    def centers(self, result):
-        out = []
-        for l in result.pose_landmarks:
-            if min(min(l[i].visibility, l[i].presence) for i in (11, 12)) >= self.min_quality:
-                out.append(((l[11].x + l[12].x) / 2, (l[11].y + l[12].y) / 2))
-        return out
-
-    def detect(self, image, timestamp_ms, now):
-        result = self.video.detect_for_video(image, timestamp_ms)
-        if not self.group or now - self.last_search < self.search_interval:
-            return result
-        self.last_search = now
-        if self.image is None:
-            self.image = self.make_image()
-        found = self.image.detect(image)
-        tracked = self.centers(result)
-        extra = [c for c in self.centers(found) if all(math.dist(c, t) > self.same_body for t in tracked)]
-        self.last_search_counts = (len(tracked), len(extra))
-        if extra:
-            self.rebuild()
-            return found   # this frame: everyone the search found; from the next frame the new tracker follows them
-        return result
+    def detect(self, rgb, timestamp_ms):
+        """Landmarks for this frame (solo: tracked now; group: the newest finished detection)."""
+        if not self.group:
+            return self.video.detect_for_video(self._mp_image(rgb), timestamp_ms)
+        if not self.threaded:
+            self._detect_now(rgb)
+            return self.latest
+        with self._lock:
+            if self._pending is not None:
+                self.dropped += 1          # the worker is still busy: this frame is superseded by the newer one
+            self._pending = rgb
+            self._lock.notify()
+            if self.latest is not None:
+                return self.latest
+        # Very first frame: wait briefly for a result so Unity gets bodies right away.
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline:
+            with self._lock:
+                if self.latest is not None:
+                    return self.latest
+            time.sleep(.005)
+        return types.SimpleNamespace(pose_landmarks=[])
 
 
 class PerformerTracker:
@@ -296,6 +408,8 @@ def main():
     parser.add_argument('--diva-config', type=Path, default=Path(__file__).parent / 'diva_gestures.json')
     parser.add_argument('--hand-model', type=Path, default=Path(__file__).parent / 'hand_landmarker.task')
     parser.add_argument('--no-go-log', action='store_true', help='Do not write the walking (GO) diagnostics CSV in go_debug/')
+    parser.add_argument('--profile', choices=('auto', 'quality', 'fast'), default='auto',
+                        help='quality: full pose model, 960 px, hands every frame (Apple Silicon default); fast: lite model, 640 px')
     parser.add_argument('--gesture-model', type=Path, default=Path(__file__).parent / 'gesture_recognizer.task',
                         help="MediaPipe Gesture Recognizer: hands plus pretrained 'Thumb_Up' for the refill gesture")
     args = parser.parse_args()
@@ -333,17 +447,36 @@ def main():
     from mediapipe.tasks import python
     from mediapipe.tasks.python import vision
 
+    profile = performance_profile(args.profile)
+    print(f'Performance profile: {profile["name"]} ({"lite" if profile["lite"] else "full"} pose model, {profile["max_width"]} px, hands every {profile["hands_every"]} frame(s))', flush=True)
+    def group_model():
+        if not profile['lite']:
+            return args.model
+        # The lite model is 2-3x cheaper and plenty for three bodies at 640 px; fetch it once, fall back to full.
+        lite = args.model.parent / 'pose_landmarker_lite.task'
+        if not lite.exists():
+            try:
+                import urllib.request
+                temporary = lite.with_suffix('.download')
+                print('Downloading the MediaPipe lite pose model for group detection...', flush=True)
+                urllib.request.urlretrieve(LITE_MODEL_URL, temporary)
+                temporary.replace(lite)
+            except Exception as e:   # offline: the full model works too, just slower
+                print(f'Lite pose model not available ({e}); using the full model.', flush=True)
+                return args.model
+        return lite
     def pose_options(people, mode):
         # VIDEO mode tracks between detections (smooth, cheap) but tends to keep only the first body it found;
-        # for a group, GroupPoseDetector pairs it with a periodic IMAGE-mode full-frame search.
+        # for a group, GroupPoseDetector runs IMAGE-mode detection in a worker thread (see the class).
         group = people >= 2
         return vision.PoseLandmarkerOptions(
-            base_options=python.BaseOptions(model_asset_path=str(args.model)),
+            base_options=python.BaseOptions(model_asset_path=str(group_model() if mode == 'image' else args.model)),
             running_mode=vision.RunningMode.IMAGE if mode == 'image' else vision.RunningMode.VIDEO, num_poses=4,
             min_pose_detection_confidence=.35 if group else .5, min_pose_presence_confidence=.35 if group else .5,
             min_tracking_confidence=.4)
     tracker = PerformerTracker(args.people)
     last_seen, last_seen_at = None, 0.0
+    hand_frame, last_hand_rows = 0, None
     gestures = None
     if args.diva:
         from diva_gestures import DivaGestureDetector, associate_hands
@@ -394,7 +527,8 @@ def main():
         with ExitStack() as stack:
             poses = GroupPoseDetector(lambda: vision.PoseLandmarker.create_from_options(pose_options(args.people, 'video')),
                                       lambda: vision.PoseLandmarker.create_from_options(pose_options(args.people, 'image')),
-                                      group=args.people >= 2)
+                                      group=args.people >= 2, max_width=profile['max_width'])
+            smoother = LandmarkSmoother()
             stack.callback(poses.close)
             hand_detector = None
             gesture_recognizer = None
@@ -445,10 +579,11 @@ def main():
                         group_before = args.people >= 2
                         args.people = count
                         tracker = PerformerTracker(count)
+                        smoother.reset()
                         if gestures: gestures.reset()
                         if (count >= 2) != group_before:
                             poses.set_group(count >= 2)
-                            print(f'Pose detector switched to {"group tracking + periodic full-frame search" if count >= 2 else "single-person tracking"}.', flush=True)
+                            print(f'Pose detector switched to {"per-frame group detection" if count >= 2 else "single-person tracking"}.', flush=True)
                         print(f'Unity selected {count} people. Reassigning; set neutral pose in Unity.')
                 ok, frame, reopened = recovery.read(time.monotonic())
                 camera = recovery.camera
@@ -472,8 +607,7 @@ def main():
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 timestamp = max(previous_timestamp + 1, time.monotonic_ns() // 1_000_000)
                 previous_timestamp = timestamp
-                image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-                result = poses.detect(image, timestamp, time.monotonic())
+                result = poses.detect(rgb, timestamp)
                 observations = []
                 usable_quality = .5 if args.people == 1 else .4
                 for landmarks in result.pose_landmarks:
@@ -482,12 +616,23 @@ def main():
                     if confidence[4] >= usable_quality or (gestures and shoulder_quality >= usable_quality):
                         observations.append((center, values, confidence, landmarks))
                 assignments = tracker.assign([o[0] for o in observations])
+                # Which detected body is which player, keyed by the RAW landmarks the preview draws (smoothing below
+                # replaces each assigned player's landmarks with a new object).
+                raw_slots = {id(observations[i][3]): (slot, i) for slot, i in assignments.items()}
+                if args.people >= 2:
+                    # Per-frame detection jitters; smooth each assigned player's landmarks and recompute their features.
+                    smoother.retain(assignments)
+                    for slot, i in assignments.items():
+                        center, values, confidence, landmarks = observations[i]
+                        smoothed = smoother.apply(slot, landmarks, timestamp / 1000.)
+                        c2, v2, q2 = extract_features(smoothed, args.upper_body_only)
+                        observations[i] = (center, v2, q2, smoothed)
                 # Diagnostics for the group: how many bodies the model sees, how many are good enough, how many have a role.
-                seen = (len(result.pose_landmarks), len(observations), len(assignments), tracker.locked, poses.rebuilds)
+                seen = (len(result.pose_landmarks), len(observations), len(assignments), tracker.locked, poses.dropped // 100)
                 if seen != last_seen and time.monotonic() - last_seen_at > 1:
                     last_seen, last_seen_at = seen, time.monotonic()
                     print(f'Camera sees {seen[0]} bodies, {seen[1]} usable, {seen[2]}/{args.people} assigned' + (' (roles locked)' if seen[3] else '')
-                          + (f', tracker rebuilt {seen[4]}x' if seen[4] else ''), flush=True)
+                          + (f', pose {poses.last_cost * 1000:.0f} ms/detection in the background, {poses.detections} done' if poses.group else ''), flush=True)
                 packet = {'version': 1, 'performerCount': args.people, 'upperBodyOnly': args.upper_body_only,
                           'detected': len(result.pose_landmarks), 'usable': len(observations), 'rolesLocked': tracker.locked,
                           'people': [dict(slot=slot, values=observations[i][1], confidence=observations[i][2])
@@ -500,7 +645,8 @@ def main():
                     # Detect hands only while P3 is assigned. Match to ALL observed
                     # bodies first so another player's palm cannot fire P3's gun.
                     matched_hands = {}
-                    if p3_slot in bodies:
+                    hand_frame += 1
+                    if p3_slot in bodies and (args.people == 1 or hand_frame % profile['hands_every'] == 0 or last_hand_rows is None):
                         hand_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                         if gesture_recognizer is not None:
                             hand_result = gesture_recognizer.recognize_for_video(hand_image, timestamp)
@@ -510,6 +656,10 @@ def main():
                         else:
                             hand_result = hand_detector.detect_for_video(hand_image, timestamp)
                             hand_rows = [dict(landmarks=h) for h in hand_result.hand_landmarks]
+                        last_hand_rows = hand_rows
+                    elif p3_slot in bodies:
+                        hand_rows = last_hand_rows   # group mode, skipped frame: last hands (cheap, 15 fps is plenty for spray / refill)
+                    if p3_slot in bodies:
                         all_bodies = {f'observed-{i}': row[3] for i, row in enumerate(observations)}
                         associated = associate_hands(hand_rows, all_bodies, gestures.config, frame.shape[1] / frame.shape[0])
                         for slot, index in assignments.items():
@@ -529,11 +679,13 @@ def main():
                 h, w = frame.shape[:2]
                 # Draw every detection, even while waiting for the full group or
                 # rejecting an ambiguous identity. Only assigned bodies drive Unity.
-                slots = {id(observations[i][3]): slot for slot, i in assignments.items()}
                 thickness = max(2, round(max(w / 320, h / 240) * 2))
                 radius = max(3, round(thickness * 1.5))
                 for landmarks in result.pose_landmarks:
-                    slot = slots.get(id(landmarks))
+                    hit = raw_slots.get(id(landmarks))
+                    slot = hit[0] if hit else None
+                    if hit:
+                        landmarks = observations[hit[1]][3]   # assigned: draw the (smoothed) skeleton the rules use
                     color = colors[slot - 1] if slot is not None else (180, 180, 180)
                     points = {}
                     for index, landmark in enumerate(landmarks):

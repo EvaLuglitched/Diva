@@ -1,6 +1,7 @@
+import time
 import unittest
 from types import SimpleNamespace
-from bridge import GroupPoseDetector, PerformerTracker, extract_features, requested_count
+from bridge import GroupPoseDetector, LandmarkSmoother, OneEuro, PerformerTracker, extract_features, performance_profile, requested_count
 
 
 def fake_pose(x, y, q=.9):
@@ -19,39 +20,63 @@ class FakeLandmarker:
 
 
 class GroupDetectorTests(unittest.TestCase):
-    def test_search_finds_late_arrivals_and_rebuilds_the_tracker(self):
-        log = []; scene = {'all': [(.5, .5)]}; made = []
-        # The tracker only ever sees whoever was there when it was created; the search sees everyone.
-        def make_video():
-            snapshot = list(scene['all']); v = FakeLandmarker(lambda: snapshot, log, f'video{len(made)}'); made.append(v); return v
-        make_image = lambda: FakeLandmarker(lambda: scene['all'], log, 'image')
-        d = GroupPoseDetector(make_video, make_image, group=True, search_interval=.5)
-        self.assertEqual(len(d.detect(None, 0, 0.0).pose_landmarks), 1)        # search at t=0 finds nothing new
-        scene['all'] = [(.5, .5), (.2, .5), (.8, .5)]                          # two more people step in
-        self.assertEqual(len(d.detect(None, 33, 0.2).pose_landmarks), 1)       # no search yet: still the old tracker
-        found = d.detect(None, 66, 0.6)                                        # search runs: sees 3, rebuilds
-        self.assertEqual(len(found.pose_landmarks), 3)
-        self.assertEqual(d.rebuilds, 1); self.assertTrue(made[0].closed)
-        self.assertEqual(len(d.detect(None, 99, 0.7).pose_landmarks), 3)       # new tracker follows all three
-        self.assertEqual(d.last_search_counts, (1, 2))
+    def test_group_detects_every_frame_inline(self):
+        log = []; scene = {'all': [(.5, .5), (.2, .5), (.8, .5)]}
+        d = GroupPoseDetector(lambda: FakeLandmarker(lambda: [], log, 'v'), lambda: FakeLandmarker(lambda: scene['all'], log, 'i'), group=True, threaded=False)
+        d._mp_image = staticmethod(lambda rgb: rgb); d._downscale = lambda rgb: rgb
+        self.assertIsNone(d.video)
+        self.assertEqual(len(d.detect(None, 0).pose_landmarks), 3)
+        scene['all'] = scene['all'][:2]
+        self.assertEqual(len(d.detect(None, 33).pose_landmarks), 2)      # a fresh detection every frame
+        self.assertFalse(any(kind == 'video' for kind, _ in log))
 
-    def test_solo_never_searches_and_group_switch_rebuilds(self):
+    def test_group_worker_never_blocks_the_camera_loop(self):
+        log = []; scene = {'all': [(.5, .5), (.2, .5), (.8, .5)]}
+        class SlowImage(FakeLandmarker):
+            def detect(self, image):
+                time.sleep(.05); return super().detect(image)
+        d = GroupPoseDetector(lambda: FakeLandmarker(lambda: [], log, 'v'), lambda: SlowImage(lambda: scene['all'], log, 'i'), group=True, threaded=True)
+        d._mp_image = staticmethod(lambda rgb: rgb); d._downscale = lambda rgb: rgb
+        self.assertEqual(len(d.detect(object(), 0).pose_landmarks), 3)   # first frame waits for a result
+        started = time.monotonic()
+        for i in range(1, 20): d.detect(object(), i * 10)                  # 19 frames in ~0 ms: the loop is not blocked
+        self.assertLess(time.monotonic() - started, .03)
+        self.assertGreater(d.dropped, 5)                                   # superseded frames were skipped, not queued
+        time.sleep(.15)
+        self.assertGreaterEqual(d.detections, 2)
+        d.close()
+
+    def test_solo_tracks_and_group_switch_changes_detectors(self):
         log = []
-        d = GroupPoseDetector(lambda: FakeLandmarker(lambda: [(.5, .5)], log, 'v'), lambda: FakeLandmarker(lambda: [], log, 'i'), group=False)
-        for t in range(5): d.detect(None, t * 33, t * .3)
+        d = GroupPoseDetector(lambda: FakeLandmarker(lambda: [(.5, .5)], log, 'v'), lambda: FakeLandmarker(lambda: [(.5, .5), (.2, .5)], log, 'i'), group=False, threaded=False)
+        d._mp_image = staticmethod(lambda rgb: rgb); d._downscale = lambda rgb: rgb
+        for t in range(3): d.detect(None, t * 33)
         self.assertFalse(any(kind == 'image' for kind, _ in log))
-        d.set_group(True); self.assertEqual(d.rebuilds, 1)
-        d.detect(None, 200, 5.0); self.assertTrue(any(kind == 'image' for kind, _ in log))
-        d.set_group(False); self.assertIsNone(d.image)
+        d.set_group(True); self.assertIsNone(d.video); self.assertIsNotNone(d.image)
+        self.assertEqual(len(d.detect(None, 200).pose_landmarks), 2)
+        d.set_group(False); self.assertIsNone(d.image); self.assertIsNotNone(d.video)
+        self.assertEqual(len(d.detect(None, 233).pose_landmarks), 1)
 
-    def test_low_quality_bodies_do_not_trigger_rebuilds(self):
-        log = []
-        video = FakeLandmarker(lambda: [(.5, .5)], log, 'v')
-        ghost = [SimpleNamespace(x=.9, y=.5, z=0., visibility=.1, presence=.1) for _ in range(33)]
-        image = SimpleNamespace(detect=lambda img: SimpleNamespace(pose_landmarks=[fake_pose(.5, .5), ghost]), close=lambda: None)
-        d = GroupPoseDetector(lambda: video, lambda: image, group=True)
-        d.detect(None, 0, 0.0); d.detect(None, 33, 1.0)
-        self.assertEqual(d.rebuilds, 0)
+
+class SmoothingTests(unittest.TestCase):
+    def test_one_euro_removes_jitter_but_follows_motion(self):
+        import random
+        rng = random.Random(1); f = OneEuro()
+        still = [f(.5 + rng.uniform(-.01, .01), i / 30) for i in range(60)]
+        self.assertLess(max(still[30:]) - min(still[30:]), .011)            # jitter of ±0.01 (spread .02) at least halves when still
+        g = OneEuro(); moving = [g(.2 + i * .01, i / 30) for i in range(30)]  # 0.3 per second: a real move
+        self.assertLess(abs(moving[-1] - (.2 + 29 * .01)), .03)              # lags the motion by less than 3 frames
+
+    def test_landmark_smoother_keeps_slots_apart_and_forgets_dropped_ones(self):
+        sm = LandmarkSmoother()
+        a = sm.apply(1, fake_pose(.2, .5), 0.); b = sm.apply(2, fake_pose(.8, .5), 0.)
+        self.assertAlmostEqual(a[11].x, .2); self.assertAlmostEqual(b[11].x, .8)
+        sm.retain({1: 0}); self.assertNotIn(2, sm.filters); self.assertIn(1, sm.filters)
+
+    def test_profiles(self):
+        self.assertEqual(performance_profile('fast')['lite'], True)
+        self.assertEqual(performance_profile('quality')['hands_every'], 1)
+        self.assertIn(performance_profile('auto')['name'], ('fast', 'quality'))
 
 
 class TrackingTests(unittest.TestCase):

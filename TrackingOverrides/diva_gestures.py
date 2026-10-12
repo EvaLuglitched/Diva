@@ -223,7 +223,8 @@ class DivaGestureDetector:
         normalized=[(shoulder[1]-val(b[i],'y'))/width for i in (15,16)]
         history=self.history.setdefault(slot,deque())
         frame_gap=time-history[-1][0] if history else 0.
-        gap_reset=bool(history) and (time<=history[-1][0] or frame_gap>.3)
+        # Carl: a camera hiccup (group detection) under 0.6 s must not drop a pump in progress.
+        gap_reset=bool(history) and (time<=history[-1][0] or frame_gap>.6)
         if gap_reset:
             self.reset(slot,preserve_neutral=True);history=self.history.setdefault(slot,deque())
         if history and min(heights)>cfg['go_hand_min_height']:

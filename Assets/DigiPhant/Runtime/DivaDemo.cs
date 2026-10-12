@@ -95,7 +95,7 @@ namespace DigiPhant
         public bool AllVisible(float now)
         {
             State.MinimumConfidence = gestureConfidence;
-            State.Timeout = trackingTimeout;
+            State.Timeout = Mathf.Max(trackingTimeout, .8f);   // a laggy camera (group detection) must not flicker players in and out
             for (int i = 1; i <= (solo ? 1 : 3); i++) if (!State.Visible(i, now)) return false;
             return true;
         }
@@ -110,7 +110,7 @@ namespace DigiPhant
         {
             EnsureDependencies();
             State.MinimumConfidence = gestureConfidence;
-            State.Timeout = trackingTimeout;
+            State.Timeout = Mathf.Max(trackingTimeout, .8f);
             State.BurstInterval = sprayInterval;
             State.HoldDelay = heldSprayDelay;
             State.RefillPerSecond = refillRate;
