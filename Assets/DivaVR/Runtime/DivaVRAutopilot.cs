@@ -44,12 +44,15 @@ namespace Diva.VR
             float now = Time.unscaledTime;
             if (show.Phase != lastPhase) { lastPhase = show.Phase; phaseSeen = now; }
             float inPhase = now - phaseSeen;
+            // 暂停板开着：不开车不打靶，交给教学牌（按"继续"）
+            var guideAny = GetComponent<DivaVRGuide>();
+            if (guideAny && guideAny.isActiveAndEnabled && guideAny.Paused) return guideAny.Demo();
             switch (show.Phase)
             {
                 case ShowPhase.Select:
                 case ShowPhase.Results:
                     // 有教学牌：像人一样按教学走（看着按钮捏、学动作、举手出发）
-                    var guide = GetComponent<DivaVRGuide>();
+                    var guide = guideAny;
                     if (guide && guide.isActiveAndEnabled) return guide.Demo();
                     // 看一会儿再举手确认（结算页多停一会儿给人看分数）
                     f.ult = inPhase > (show.Phase == ShowPhase.Select ? 4 : 8) && inPhase % 3 < 1;

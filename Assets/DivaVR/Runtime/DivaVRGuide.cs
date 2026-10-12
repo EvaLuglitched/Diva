@@ -21,7 +21,7 @@ namespace Diva.VR
     /// </summary>
     public class DivaVRGuide : MonoBehaviour
     {
-        enum Step { Hidden, Watch, Pick, Learn, Ready, Results }
+        enum Step { Hidden, Watch, Pick, Learn, Ready, Results, Pause }
         enum Move { Lean, Turn, Pinch, Mouth }
 
         /// <summary>这次打开 app 已经学过开大象了（之后几局选完涂装直接到"出发"）；watched：演示已经看过一遍。</summary>
@@ -84,8 +84,45 @@ namespace Diva.VR
 
         /// <summary>"双手举高"现在能出发 / 再来一局吗（只在第 3 步和结算，免得学动作时不小心开始）。</summary>
         public bool AllowStart => step == Step.Ready || step == Step.Results;
-        /// <summary>这一阶段人的手势归这块牌子管（选涂装、结算）。</summary>
-        public bool Handles(ShowPhase p) => p == ShowPhase.Select || p == ShowPhase.Results;
+        /// <summary>这一阶段人的手势归这块牌子管（选涂装、结算、暂停中）。</summary>
+        public bool Handles(ShowPhase p) => p == ShowPhase.Select || p == ShowPhase.Results || step == Step.Pause;
+        /// <summary>头正对着仪表台上的 PAUSE 按钮（这时捏一下 = 暂停，不开炮）。</summary>
+        public bool PauseHover { get; private set; }
+        public bool Paused => step == Step.Pause;
+
+        // 仪表台上的 PAUSE 小牌（比赛里看着它捏一下）
+        RectTransform pausePlate; DivaSlant pauseBg; TextMeshProUGUI pauseText; float pauseHoverSince = -1, quitArmedAt = -10;
+
+        void BuildPausePlate()
+        {
+            var anchor = DivaVR.DashAnchor ? DivaVR.DashAnchor : transform;
+            var go = new GameObject("Pause Button", typeof(RectTransform), typeof(Canvas)) { layer = 5 };
+            pausePlate = (RectTransform)go.transform; pausePlate.SetParent(anchor, false);
+            pausePlate.sizeDelta = new Vector2(320, 120); pausePlate.localScale = Vector3.one * (.13f / 320);
+            pausePlate.localPosition = new Vector3(.34f, .12f, 0); pausePlate.localRotation = Quaternion.identity;
+            var c = go.GetComponent<Canvas>(); c.renderMode = RenderMode.WorldSpace; c.worldCamera = cam; c.sortingOrder = 60;
+            pauseBg = DivaUi.Panel(pausePlate, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(320, 120), new Color(.06f, .05f, .12f), new Color(.26f, .22f, .4f), 18);
+            pauseBg.stripe = new Color(.5f, .95f, 1f); pauseBg.stripeWidth = 10;
+            pauseText = DivaUi.Text(pausePlate, "Text", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 100), 56, Color.white);
+            pausePlate.gameObject.SetActive(false);
+        }
+
+        bool HitPausePlate(Vector3 origin, Vector3 dir)
+        {
+            if (!pausePlate || !pausePlate.gameObject.activeSelf) return false;
+            var plane = new Plane(pausePlate.forward, pausePlate.position);
+            var ray = new Ray(origin, dir.normalized);
+            if (!plane.Raycast(ray, out float d) || d > 1.5f) return false;
+            var local = (Vector2)pausePlate.InverseTransformPoint(ray.GetPoint(d));
+            return Mathf.Abs(local.x) < 200 && Mathf.Abs(local.y) < 90;   // 比牌子本身大一圈，好对准
+        }
+
+        /// <summary>打开暂停板（世界冻住）。</summary>
+        public void OpenPause() { if (step != Step.Hidden || show.Phase != ShowPhase.Play && show.Phase != ShowPhase.Ult) return; show.VrPause(true); Go(Step.Pause); }
+        void ClosePause() { show.VrPause(false); Go(Step.Hidden); }
+
+        /// <summary>按名字按一个按钮（自动驾驶 / 测试用）。</summary>
+        public bool PressButton(string key) { var b = buttons.Find(x => x.key == key); if (b == null) return false; Press(b); return true; }
 
         void Start()
         {
@@ -96,6 +133,7 @@ namespace Diva.VR
             cam = DivaVR.Head ? DivaVR.Head.GetComponent<Camera>() : Camera.main;
             if (!show || !rig) { enabled = false; return; }
             MakeSprites();
+            BuildPausePlate();
             var go = new GameObject("Next Step Guide", typeof(RectTransform), typeof(Canvas), typeof(CanvasGroup)) { layer = 5 };
             panel = (RectTransform)go.transform;
             panel.SetParent(transform, false);
@@ -167,7 +205,8 @@ namespace Diva.VR
             {
                 float x = -330 + i * 330;
                 var lbl = DivaUi.Text(sr, "Stat " + i, new Vector2(.5f, .5f), new Vector2(x, 16), new Vector2(300, 36), 26, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
-                DivaUi.Localize(lbl, () => DivaText.T(statKeys[i]));
+                int k = i;   // for 的循环变量是同一个，闭包里直接用 i 会在切换语言时越界（statKeys[3]）
+                DivaUi.Localize(lbl, () => DivaText.T(statKeys[k]));
                 var back = DivaUi.Image(sr, "Bar " + i, new Vector2(.5f, .5f), new Vector2(x, -12), new Vector2(240, 12), new Color(1, 1, 1, .15f));
                 var fillImg = DivaUi.Image(back.rectTransform, "Fill", new Vector2(0, .5f), Vector2.zero, new Vector2(240, 12), new Color(1f, .45f, .8f));
                 fillImg.rectTransform.pivot = new Vector2(0, .5f); fillImg.rectTransform.anchoredPosition = Vector2.zero;
@@ -281,7 +320,20 @@ namespace Diva.VR
                     AddButton("vr.guide.start", 140, 460, true, () => show.VrConfirm());
                     break;
                 case Step.Results:
-                    AddButton("vr.guide.again.btn", 0, 480, true, () => show.VrConfirm());
+                    AddButton("vr.guide.replay", -330, 420, false, () => { watched = learned = false; show.VrConfirm(); });
+                    AddButton("vr.guide.again.btn", 190, 480, true, () => show.VrConfirm());
+                    break;
+                case Step.Pause:
+                    // 两排：继续 / 回选涂装（两步确认）；重看教程 / EN 中文
+                    AddButton("vr.pause.continue", -250, 440, true, ClosePause);
+                    AddButton("vr.pause.quit", 250, 440, false, () =>
+                    {
+                        var b = buttons.Find(x => x.key == "vr.pause.quit" || x.key == "vr.pause.quit2");
+                        if (b != null && b.key == "vr.pause.quit2") { show.VrQuitToSelect(); return; }
+                        if (b != null) { b.key = "vr.pause.quit2"; b.label.text = DivaText.T(b.key); quitArmedAt = Time.unscaledTime; }
+                    });
+                    AddButton("vr.pause.replay", -250, 440, false, () => { watched = learned = false; show.VrQuitToSelect(); }, 200);
+                    AddButton("lang", 250, 440, false, () => { DivaText.Toggle(); Refresh(); }, 200);
                     break;
             }
             Fill();
@@ -483,7 +535,7 @@ namespace Diva.VR
                     break;
                 }
                 case 4:   // 手放到嘴边：手从前面抬到嘴边，半握，到位变蓝；水量表从 1/4 慢慢回满
-                    pos = Vector3.Lerp(lapR, mouth, move); rot = Quaternion.Euler(-55, 180, 0);
+                    pos = Vector3.Lerp(lapR, mouth, move); rot = Quaternion.Euler(30, 180, 0);   // 手指朝嘴、手背朝外：掌心对着眼睛会弹出系统的 Home 按钮
                     ghostR.Curl = .45f; ghostR.SetColour(move > .9f ? DivaVRGhostHand.Drink : DivaVRGhostHand.Idle);
                     if (cockpit) cockpit.DemoWater = Mathf.Lerp(.25f, 1f, act);
                     // 到嘴边以后冒小爱心，一个个往上飘
@@ -548,11 +600,12 @@ namespace Diva.VR
             title.gameObject.SetActive(!watch);
             stepLabel.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, -38); stepLabel.rectTransform.sizeDelta = new Vector2(watch ? 800 : 1100, 40);
             for (int i = 0; i < Clips; i++) dotsWatch[i].rectTransform.anchoredPosition = new Vector2(-90 + i * 36, 352);
-            lineA.rectTransform.sizeDelta = new Vector2(watch ? 760 : 1100, watch ? 100 : 64); lineA.fontSize = watch ? 38 : 46;
+            lineA.rectTransform.sizeDelta = new Vector2(watch ? 760 : 1100, watch ? 100 : 64); lineA.fontSize = watch ? 42 : 46;
             lineA.textWrappingMode = watch ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
             lineB.rectTransform.sizeDelta = new Vector2(watch ? 760 : 1100, 44);
-            lineA.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? 34 : watch ? 178 : 56);
-            lineB.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? -40 : watch ? 118 : 8);
+            bool pause = step == Step.Pause;   // 暂停板两排按钮，两行字往上挪
+            lineA.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? 34 : watch ? 178 : pause ? 110 : 56);
+            lineB.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? -40 : watch ? 118 : pause ? 62 : 8);
             lineA.gameObject.SetActive(step != Step.Learn);
             lineB.gameObject.SetActive(step != Step.Learn && step != Step.Results);
             switch (step)
@@ -585,6 +638,12 @@ namespace Diva.VR
                     lineA.text = DivaText.T("vr.guide.ready.a");
                     lineB.text = DivaText.T("vr.guide.ready.b");
                     break;
+                case Step.Pause:
+                    stepLabel.text = "";
+                    title.text = DivaText.T("vr.pause");
+                    lineA.text = DivaText.T("vr.pause.a");
+                    lineB.text = DivaText.T("vr.pause.b");
+                    break;
                 case Step.Results:
                     stepLabel.text = "";
                     title.text = DivaText.T("vr.guide.results");
@@ -610,6 +669,28 @@ namespace Diva.VR
             var f = input ? input.Current : default;
             bool pinch = f.shoot && !lastShoot;
             lastShoot = f.shoot;
+            // 仪表台 PAUSE：只在比赛里、牌子收起时露出来；头对着它 0.25 秒后才算悬停（扫一眼不算），捏一下暂停
+            if (pausePlate)
+            {
+                bool showPause = (phase == ShowPhase.Play || phase == ShowPhase.Ult) && step == Step.Hidden && !show.VrPaused;
+                if (pausePlate.gameObject.activeSelf != showPause) pausePlate.gameObject.SetActive(showPause);
+                var ht = DivaVR.Head;
+                bool over = showPause && ht && HitPausePlate(ht.position, ht.forward);
+                if (over && pauseHoverSince < 0) pauseHoverSince = Time.unscaledTime; if (!over) pauseHoverSince = -1;
+                PauseHover = over && Time.unscaledTime - pauseHoverSince > .25f;
+                if (showPause)
+                {
+                    pauseText.text = DivaText.T("vr.pause.btn");
+                    pausePlate.localScale = Vector3.one * (.13f / 320) * (PauseHover ? 1.15f : 1f);
+                    pauseBg.Set(Color.Lerp(new Color(.06f, .05f, .12f), Color.white, PauseHover ? .35f : 0), Color.Lerp(new Color(.26f, .22f, .4f), Color.white, PauseHover ? .2f : 0));
+                    if (pinch && PauseHover) { OpenPause(); if (show.Sound != null) show.Sound.Play("confirm", .6f); return; }
+                }
+            }
+            if (step == Step.Pause && quitArmedAt > 0 && Time.unscaledTime - quitArmedAt > 4f)
+            {
+                // 4 秒没按第二下，"确定退出？"退回"回选涂装"
+                quitArmedAt = -10; var b = buttons.Find(x => x.key == "vr.pause.quit2"); if (b != null) { b.key = "vr.pause.quit"; b.label.text = DivaText.T(b.key); }
+            }
             if (step == Step.Hidden) return;
             // 第 0 步：演示一段一段自动往下走，放完盖个"该你试试了"的章再进选涂装
             if (step == Step.Watch && clip < Clips) AnimateClip(Time.unscaledTime - clipAt);
@@ -834,6 +915,9 @@ namespace Diva.VR
             {
                 case Step.Watch:
                     break;   // 看着就行
+                case Step.Pause:
+                    if (inStep > 1.5f) PinchAt(Find("vr.pause.continue"));
+                    break;
                 case Step.Pick:
                     if (inStep > 1.5f && inStep < 2.2f) PinchAt(Find("vr.guide.next"));
                     else if (inStep > 3.2f) PinchAt(Find("vr.guide.choose"));

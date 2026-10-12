@@ -873,7 +873,7 @@ namespace Diva.VR
                 promptSub.text = DivaText.T("vr.menu.sub");
                 menuStart.text = DivaText.T("vr.menu.start");
                 menuLangText = DivaText.T("lang"); menuLang.text = menuLangText;
-                menuHint.text = DivaText.T("vr.menu.hint");
+                menuHint.text = DivaText.T("vr.menu.hint") + "\n<size=70%>" + DivaText.T("vr.menu.exit") + "</size>";
             }
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, key != null ? 1 : 0, dt * (key != null ? 3 : 4));
             // 头朝向的按钮高亮

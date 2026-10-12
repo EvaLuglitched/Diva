@@ -53,7 +53,9 @@ namespace Diva.VR
             // 冲刺中：自动全速往前，把手只管转弯
             if (dash && dash.Active && show && show.Phase == Diva.Show.ShowPhase.Play) frame.go = 1;
             // 辅助瞄准：捏的时候，看的方向 12° 以内、35 米以内最近的靶子就当作看准了它（眼睛的方向有一两度误差，远处的靶子很难正好看中）
-            if (frame.shoot && head) frame.look = AimAssist(frame.look.sqrMagnitude > .01f ? frame.look : head.forward, head.position);
+            // 牌子在管手势的时候（选涂装、结算、暂停）不做辅助瞄准：那会把看向按钮的视线拐到旁边的靶子上，按错按钮
+            bool guideOwns = guide && guide.isActiveAndEnabled && show && (guide.Handles(show.Phase) || guide.PauseHover);
+            if (frame.shoot && head && !guideOwns) frame.look = AimAssist(frame.look.sqrMagnitude > .01f ? frame.look : head.forward, head.position);
             // 只有"捏"的时候才用看的方向瞄准：选涂装时随便转头看不会切换涂装，捏住再看左 / 右才切
             frame.aim = frame.shoot ? LookAim(frame.look) : 0;
             // 捏合的确认音（参考 Meta / Ultraleap 的手势设计：手势被识别要立刻有声音或画面反馈）
@@ -64,6 +66,8 @@ namespace Diva.VR
             // 选涂装、结算：捏和身体动作归教学牌（DivaVRGuide 按按钮、教动作），游戏只拿到"双手举高"，而且只在可以出发的那一步
             else if (guide && guide.isActiveAndEnabled && show && guide.Handles(show.Phase))
                 frame = new DivaVRFrame { ult = frame.ult && guide.AllowStart };
+            // 比赛里看着仪表台的 PAUSE 捏一下 = 暂停，这一下不能同时开炮；杆照常
+            else if (guide && guide.isActiveAndEnabled && guide.PauseHover) { frame.shoot = false; frame.look = default; frame.aim = 0; }
             demo.State.ClearPeople();
             demo.State.Accept(1, frame.go, frame.steer, frame.aim, frame.shoot, frame.drink, 1, Time.realtimeSinceStartup, frame.ult);
         }

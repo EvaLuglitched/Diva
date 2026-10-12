@@ -534,6 +534,21 @@ namespace Diva.Show
         /// <summary>Eva 的开场可以在结束时调用它（不用 PlayableDirector 时）。</summary>
         public void IntroFinished() { if (Phase == ShowPhase.Intro) Enter(ShowPhase.Select); }
 
+        /// <summary>VR 暂停：把世界冻住（timeScale 0）；UI 和手都走 unscaled 时间，不受影响。</summary>
+        public bool VrPaused { get; private set; }
+        public void VrPause(bool on)
+        {
+            if (VrPaused == on) return;
+            VrPaused = on; Time.timeScale = on ? 0 : 1;
+            Debug.Log("DIVA_VR pause " + (on ? "on" : "off"));
+        }
+        /// <summary>VR 暂停板上的"回选涂装"：这局作废，直接回到选涂装。</summary>
+        public void VrQuitToSelect()
+        {
+            VrPause(false);
+            if (Phase != ShowPhase.Select) { Debug.Log("DIVA_VR quit to select from " + Phase); Enter(ShowPhase.Select); }
+        }
+
         // ------------------------------------------------------------------ elephant helpers
         void ResetElephant()
         {
