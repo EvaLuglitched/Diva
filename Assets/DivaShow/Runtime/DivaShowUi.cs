@@ -115,6 +115,8 @@ namespace Diva.Show
         readonly TextMeshProUGUI[] vrRowA = new TextMeshProUGUI[5], vrRowB = new TextMeshProUGUI[5];
         /// <summary>VR：没推杆之前卡片多留一会儿（DivaVRHowTo 管）。</summary>
         public bool VrCardHold;
+        /// <summary>VR：教学演示时把选涂装的横幅藏起来（DivaVRGuide 管）。</summary>
+        public bool VrSelectHidden;
         public RectTransform VrCardRect => vrCardRect;
         void BuildVrCard(RectTransform parent)
         {
@@ -168,7 +170,7 @@ namespace Diva.Show
         void ShowRoots()
         {
             if (!canvas) return;
-            Show(selectRoot, Phase == ShowPhase.Select);
+            Show(selectRoot, Phase == ShowPhase.Select && !VrSelectHidden);
             Show(hudRoot, Phase == ShowPhase.Play || Phase == ShowPhase.Countdown);
             countdownRoot.gameObject.SetActive(Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 1);
             highlightRoot.gameObject.SetActive(Phase == ShowPhase.Highlight);

@@ -23,6 +23,11 @@ namespace Diva.VR
         bool hero;
         /// <summary>英雄时刻（冲线）：机甲全息在正前方升起、放大、快转，像奖杯。</summary>
         public void HeroMoment(bool on) { hero = on; }
+        /// <summary>教学演示：额外的朝向（度）和"弹一下"。</summary>
+        [System.NonSerialized] public float DemoYaw;
+        /// <summary>教学演示时整个藏起来（底座、涂装名都不要挡着演示）。</summary>
+        [System.NonSerialized] public bool Hidden;
+        public void Bump() => bump = 1;
         readonly List<(Renderer source, Renderer copy)> parts = new List<(Renderer, Renderer)>();
         float height = 1, eye;
 
@@ -127,7 +132,8 @@ namespace Diva.VR
             float k = snap ? 1 : 1 - Mathf.Exp(-Time.unscaledDeltaTime * 3);
             holo.localPosition = Vector3.Lerp(holo.localPosition, target, k);
             holo.localScale = Vector3.one * Mathf.Lerp(holo.localScale.x, size, k);
-            spin.localRotation = Quaternion.Euler(0, Time.unscaledTime * (hero ? 70 : select ? 25 : 12), 0);
+            if (holo && holo.gameObject.activeSelf == Hidden) holo.gameObject.SetActive(!Hidden);
+            spin.localRotation = Quaternion.Euler(0, Time.unscaledTime * (hero ? 70 : select ? 25 : 12) + DemoYaw, 0);
             bump = Mathf.MoveTowards(bump, 0, Time.unscaledDeltaTime * 2.5f);
             // 模型先归一化成 1 米高（norm），再乘弹一下的幅度（之前漏了 norm，大象按真实大小显示，巨大）
             spin.localScale = Vector3.one * norm * (1 + .18f * Mathf.Sin(bump * Mathf.PI));

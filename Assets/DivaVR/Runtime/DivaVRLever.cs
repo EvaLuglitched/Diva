@@ -19,6 +19,12 @@ namespace Diva.VR
         [Tooltip("拇指尖和食指尖小于这个距离算捏住。")]
         public float pinchDistance = .025f;
 
+        /// <summary>杆头的休息位置（驾驶舱坐标）。</summary>
+        public Vector3 Rest => rest;
+        /// <summary>教学演示：没人握的时候让杆按这个偏移倾斜、杆头猛亮（DivaVRGuide 的"怎么玩"用）。</summary>
+        [System.NonSerialized] public Vector3 DemoOffset;
+        [System.NonSerialized] public bool Highlight;
+
         public float Go { get; private set; }
         public float Steer { get; private set; }
         /// <summary>正在握杆的手：0 左 1 右，-1 没有。</summary>
@@ -139,15 +145,19 @@ namespace Diva.VR
             }
             Go = Mathf.MoveTowards(Go, goT, dt * (goT > Go ? 4f : 2.5f));
             Steer = Mathf.MoveTowards(Steer, steerT, dt * 3f);
-            // 杆子的样子：底座在休息位置，杆往推的方向倾；手靠近时杆头亮起来，抓住时更亮
-            if (leverRoot)
-            {
-                var tilt = new Vector3(lastOffset.x, 0, lastOffset.z);
-                stick.localRotation = Quaternion.Euler(Mathf.Clamp(tilt.z / pushFull, -1, 1) * 28, 0, -Mathf.Clamp(tilt.x / sideFull, -1, 1) * 28);
-                stick.localPosition = new Vector3(0, .05f, 0);
-                float glowK = Hand >= 0 ? 2.2f + .8f * Go : near ? 1.8f + .3f * Mathf.Sin(now * 8) : .9f + .2f * Mathf.Sin(now * 2);
-                Tint(baseMat, new Color(.5f, .95f, 1f) * glowK);
-            }
+        }
+
+        // 杆子的样子：底座在休息位置，杆往推的方向倾；手靠近时杆头亮起来，抓住时更亮；演示时按 DemoOffset 倾
+        void LateUpdate()
+        {
+            if (!leverRoot) return;
+            float now = Time.unscaledTime;
+            var off = Hand >= 0 ? lastOffset : DemoOffset;
+            var tilt = new Vector3(off.x, 0, off.z);
+            stick.localRotation = Quaternion.Euler(Mathf.Clamp(tilt.z / pushFull, -1, 1) * 28, 0, -Mathf.Clamp(tilt.x / sideFull, -1, 1) * 28);
+            stick.localPosition = new Vector3(0, .05f, 0);
+            float glowK = Hand >= 0 ? 2.2f + .8f * Go : Highlight ? 2.4f + .7f * Mathf.Sin(now * 7) : near ? 1.8f + .3f * Mathf.Sin(now * 8) : .9f + .2f * Mathf.Sin(now * 2);
+            Tint(baseMat, new Color(.5f, .95f, 1f) * glowK);
         }
 
         void Release()

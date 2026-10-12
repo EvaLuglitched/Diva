@@ -68,6 +68,8 @@ namespace Diva.VR
         /// <summary>燃烧状态：灯条烧成橙红；FireLevel（0–1）是火焰条，越满灯条越暖。</summary>
         public void SetFire(bool on) => onFire = on;
         public float FireLevel { get; set; }
+        /// <summary>教学演示接管表盘（速度 / 能量 / 水量，0–1；null = 按游戏状态）。</summary>
+        [System.NonSerialized] public float? DemoSpeed, DemoCharge, DemoWater;
         /// <summary>驾驶舱抖一下（大招、冲刺、命中）：只抖驾驶舱的壳，不抖人的视角。</summary>
         public void Rumble(float amount) => rumble = Mathf.Max(rumble, amount);
         // 仪表台两块侧屏：左边速度，右边水量和连击
@@ -229,7 +231,7 @@ namespace Diva.VR
             if (cabinLight) cabinLight.color = rgb;
             // 表盘指针：速度、能量、水量（-60° 空 → +60° 满）；状态灯慢慢闪
             float water = demo ? demo.State.Water : 1, charge = show ? show.Charge / 100f : 0;
-            float[] vals = { speed, charge, water };
+            float[] vals = { DemoSpeed ?? speed, DemoCharge ?? charge, DemoWater ?? water };
             for (int i = 0; i < 3; i++) if (needles[i]) needles[i].localRotation = Quaternion.Euler(0, Mathf.Lerp(-60, 60, Mathf.Clamp01(vals[i])), 0);
             foreach (var (m, c, phase) in blinkers) { var cc = c * (.55f + .45f * Mathf.Max(0, Mathf.Sin(Time.unscaledTime * 1.7f + phase))); m.color = cc; m.SetColor("_BaseColor", cc); }
             if (glowA) { glowA.color = baseA * k * f; glowA.SetColor("_BaseColor", glowA.color); }
