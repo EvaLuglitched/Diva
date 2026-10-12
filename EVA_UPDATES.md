@@ -117,6 +117,8 @@ DivaLook、机甲皮肤），再在上面重建 `Diva Game Layer`。之后每次
 - **竖拇指改用 MediaPipe Gesture Recognizer**（预训练 `Thumb_Up`，这是我们的"额外 MediaPipe 视觉任务"），原来的几何规则作为备用；
   第一次运行自动下载模型，下载失败就退回原来的方法。`test_thumb_model.py` 测试。
 - 摄像头画面里**识别到的玩家骨架都是绿色**，没分配的是灰色，P1/P2/P3 标签表示角色。
+- 摄像头预览改成约 960×540、15 帧/秒（拆成多个 UDP 包，Unity 拼回），识别页清晰很多；主页不再显示小摄像头窗口；
+  游戏中摄像头画面移到右上角按钮下方并放大到 0.8 倍（原来左下角 0.6 倍），技能提示条移到它左边（`DivaShowUi.cs` / `DivaShowHud.cs`）。
 - **新开始流程**（`Assets/DivaShow/Runtime/DivaShowCameraCheck.cs`）：主页选颜色和人数 → START（不再需要先校准）→
   大屏摄像头识别页（每个玩家识别到就变绿）→ 全员绿色保持 5 秒自动保存站姿 → Eva 的开场。回车跳过（键盘玩），Esc 返回；Test controls 直接进开场。
 - **给 Carl / Vicky：** 改了 `DivaShowDirector.cs`（新阶段 `CameraCheck`，各加一行）、`DivaShowSelect.cs`（START 不再拦、主页不再自动校准）、

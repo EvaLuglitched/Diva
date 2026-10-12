@@ -226,7 +226,7 @@ namespace Diva.Show
         void Feed(string text, Color color)
         {
             var right = new Vector2(1, 1);
-            var plate = DivaUi.Panel(hudRoot, "Feed", right, new Vector2(-30, -110), new Vector2(560, 46), DivaUi.WithAlpha(Ink, .7f), DivaUi.WithAlpha(Ink, .3f), 14);
+            var plate = DivaUi.Panel(hudRoot, "Feed", right, new Vector2(FeedRight, -110), new Vector2(560, 46), DivaUi.WithAlpha(Ink, .7f), DivaUi.WithAlpha(Ink, .3f), 14);
             plate.stripe = color; plate.stripeWidth = 6;
             var t = DivaUi.Text(plate.transform, "Text", new Vector2(1, .5f), new Vector2(-18, 0), new Vector2(530, 44), 28, Color.white, TextAlignmentOptions.Right, false);
             t.text = text;
@@ -242,7 +242,7 @@ namespace Diva.Show
                 float age = DivaClock.Time - born;
                 if (age > 5 || !plate) { if (plate) Destroy(plate.gameObject); feed.RemoveAt(i); continue; }
                 var rt = plate.rectTransform;
-                rt.anchoredPosition = Vector2.Lerp(rt.anchoredPosition, new Vector2(-30, -110 - 52 * i), 1 - Mathf.Exp(-DivaClock.DeltaTime * 12));
+                rt.anchoredPosition = Vector2.Lerp(rt.anchoredPosition, new Vector2(FeedRight, -110 - 52 * i), 1 - Mathf.Exp(-DivaClock.DeltaTime * 12));
                 float a = Mathf.Clamp01(age / .15f) * (1 - DivaUi.Smooth((age - 4.4f) / .6f));
                 plate.color = DivaUi.WithAlpha(plate.color, .7f * a); t.alpha = a;
                 rt.localScale = new Vector3(Mathf.Lerp(.6f, 1, DivaUi.EaseOut(age / .2f)), 1, 1);
