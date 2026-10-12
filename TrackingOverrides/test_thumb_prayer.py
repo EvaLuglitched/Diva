@@ -82,7 +82,7 @@ class ThumbPrayerTests(unittest.TestCase):
         self.assertEqual(len(matched[3]),1)
         self.assertEqual(matched[1],[])
 
-    def test_prayer_gate_both_lean_directions_zero_go_and_upright_stop(self):
+    def test_lean_with_centered_hands_both_directions_zero_go_and_upright_stop(self):
         d=DivaGestureDetector();d.update(2,prayer(),0);d.calibrate()
         for t,lean in ((.1,.3),(.2,-.3)):
             g=d.update(2,prayer(lean),t)
@@ -90,15 +90,11 @@ class ThumbPrayerTests(unittest.TestCase):
             for key in ('go','shoot','aim','drink','ult'):self.assertFalse(g[key])
         self.assertEqual(d.update(2,prayer(),.3)['steer'],0)
 
-    def test_free_arms_separated_offcenter_or_missing_prayer_stops_turn(self):
-        for kind in ('free','separated','offcenter','wrist','hips'):
-            d=DivaGestureDetector();d.update(2,prayer(.3),0)
-            p=prayer(.3)
-            if kind=='free':p=body(lean=.3,height=-1.2)
-            elif kind=='separated':p[15]['x']+=.2
-            elif kind=='offcenter':
-                for i in (15,16):p[i]['x']+=.3
-            else:p[15 if kind=='wrist' else 23]['visibility']=.01
-            self.assertEqual(d.update(2,p,.1)['steer'],0,kind)
+    def test_steering_no_longer_requires_prayer_hands(self):
+        for p in (body(lean=.3,height=-1.2),body(lean=.3,separate=1.8),body(lean=.3,handshift=.8)):
+            self.assertLess(DivaGestureDetector().update(2,p,0)['steer'],0)
+        d=DivaGestureDetector();d.update(2,body(lean=.3),0)
+        p=body(lean=.3);p[23]['visibility']=.01
+        self.assertEqual(d.update(2,p,.1)['steer'],0)
 
 if __name__=='__main__':unittest.main()

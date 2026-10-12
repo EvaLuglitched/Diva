@@ -3,10 +3,10 @@
 ## Current gestures — October 12, 2026
 
 - **P3 refill:** show either hand with the thumb upright and the other four fingers curled for **0.4 seconds**. Release/lost hand stops refill; a gap over **0.6 seconds** resets the hold. Recognition uses actual hand joints, associated to that performer's wrist. That wrist and shoulders must be visible; the other wrist may be missing. This replaces both mouth and chest-hold refill and also triggers the course eating/drinking actions.
-- **P2 turn:** bring both hands together around chest height as if praying, then lean the torso left/right. Both wrists, shoulders and hips must be visible. Upright, separating hands or losing tracking stops turning. Existing calibrated lean thresholds remain 0.12 start / 0.07 release / 0.35 full; GO need not be active. The pose-wrist gate approximates prayer hands; it does not verify palm contact.
+- **P2 turn:** lean the torso left/right with relaxed arms; no prayer or side-arm pose. Shoulders and hips must be visible, wrists may be hidden. Upright or lost torso tracking stops turning. Calibrated thresholds remain 0.12 start / 0.07 release / 0.35 full; GO need not be active.
 - P1 GO/STOP remains arm pumping; its walking/cadence limitation is unchanged. Calibrate upright with hips visible, then test **Try alone > All > Camera** before group play.
 
-All **61 Python tests** passed (58 override tests plus three starter recording tests), including nine new thumbs-up/prayer tests. Final independent review passed. Unity compiled and native Validate Gestures passed (`DIVA_GESTURES_VALIDATION_OK` in `Logs/Unity-open-20261012.log`); new physical thumbs-up/prayer testing remains pending. Backup: `UpdateBackups/ThumbPrayer-20261012-130002/docsbefore/`. Earlier gesture descriptions and verification below are historical, not instructions for these current controls.
+All **65 Python tests** passed (62 override + three starter recording tests). Optional MediaPipe confidence `None` is handled without crashing; explicit low/invalid values remain rejected. Independent review passed. Fresh native Unity and physical verification of this restoration and merged keyboard/finish-line checkout remain pending. Earlier checks below are historical.
 
 
 Uses pretrained MediaPipe pose and hand landmark models plus configurable rules.
