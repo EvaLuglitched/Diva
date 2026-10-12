@@ -1,6 +1,6 @@
 # Trying Diva in Unity
 
-Open Assets/DigiPhant/Scenes/Diva.unity in JIVE_Digiphant and press Play.
+Open Assets/DigiPhant/Scenes/Diva.unity in this restored Unity project and press Play.
 The scene has the Savannah track inside the candy-town game layer, the D.Va mech elephant,
 a third-person camera, 16 targets, the score HUD and the course tasks.
 The original DigiPhant scene is preserved (game layer only, no Diva gestures).
@@ -21,8 +21,8 @@ Click Get ready (10 seconds), then stand naturally with arms down until ready.
 Changing roles resets calibration, so use Get ready again after changing roles.
 
 - P1: repeatedly pump raised elbows/arms up and down to go. Stop the movement to stop.
-- P2: move both hands and lean your body left to turn left, or right to turn right.
-  Stand upright for straight. Keep your hips visible. Once turning, a smaller lean keeps it going.
+- P2: lean your torso left/right to turn while stationary or moving; arms can stay relaxed.
+  Stand upright to stop. Lost torso tracking stops turning too. Keep shoulders and hips visible.
 - P3: raise one arm to aim that way. Push both hands forward and open them to shoot;
   while shooting, push both hands toward one side to aim there.
   A quick opening gives one burst; holding them extended and open keeps spraying.
@@ -59,10 +59,17 @@ DigiPhantStarter/Tracking on Play when they differ).
 The bridge sends local messages to Unity on port 5055, preview on 5057 and receives
 commands on 5056. Roles track positions; this does not identify faces or names.
 
-Dataset:
-E:\UCB Gradschool\Classes\TDF\Projects\diva data
-Includes labeled raw recordings/photos, landmarks and segment annotations.
+The local dataset is excluded from Git. It includes labeled raw recordings/photos,
+landmarks and segment annotations.
 The new neutral photo is shared as P1 STOP, P2 STRAIGHT and P3 IDLE.
 
 Live performance needs testing with the intended camera, lighting and three people.
 Keep shoulders, wrists, hands and P2 hips in frame; avoid covering the mouth for refill.
+
+## Calibration, recording and trial files
+
+Camera-mode START waits until calibration completes; Test controls can start without it. Keep hips visible while upright during the ten-second countdown. Without valid hips, calibration retains an earlier valid torso baseline or uses zero; Ready alone does not confirm a fresh baseline. Wrists must be visible for GO even when torso-only turning works. For a stationary-turn check, use Try alone > All > Camera, calibrate, START, keep arms still and lean: expect P1 STOP with P2 LEFT/RIGHT. The following camera can make the scenery rotate around an apparently stationary elephant.
+
+In F1, **Record performance** sits below the preview. It requires calibrated Camera mode and a live preview. Click **Stop recording and save**, then inspect `Recordings/<session>/performance.mp4` (no audio). Started runs save `route.csv`, `events.json` and `summary.json` under `TrialData/<session>/` on finish or interruption. These outputs stay local. See [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md) for sampling and recovery limits.
+
+Current validation: 49 Python tests (46 repository + three starter recording tests) and native Unity validators passed. Weak/intermittent walking remains unresolved; a fresh physical trial after the steering update and full group performance remain unverified. Historical successful recordings do not establish those later checks.

@@ -5,9 +5,6 @@
   "go_stop_delay": 0.28,
   "go_step": 0.045,
   "go_hand_min_height": -0.85,
-  "steer_hand_offset": 0.12,
-  "steer_joint_distance": 0.8,
-  "steer_full_offset": 0.45,
   "steer_direction": -1.0,
   "aim_height": 0.65,
   "hand_match_distance": 0.55,
@@ -22,12 +19,12 @@
   "drink_separation": 1.45,
   "drink_mouth_distance": 0.38,
   "drink_below_mouth": 0.22,
-  "steer_opposing_lean": 0.12,
-  "steer_release_offset": 0.07,
-  "steer_hold": 0.25,
   "shoot_aim_full_offset": 0.35,
   "shoot_aim_deadzone": 0.06,
   "mouth_memory": 3.0,
   "ult_height": 0.85,
-  "ult_hold": 0.8
+  "ult_hold": 0.8,
+  "steer_lean_start": 0.12,
+  "steer_lean_release": 0.07,
+  "steer_lean_full": 0.35
 }
