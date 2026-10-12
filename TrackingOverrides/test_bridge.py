@@ -1,6 +1,57 @@
 import unittest
 from types import SimpleNamespace
-from bridge import PerformerTracker, extract_features, requested_count
+from bridge import GroupPoseDetector, PerformerTracker, extract_features, requested_count
+
+
+def fake_pose(x, y, q=.9):
+    return [SimpleNamespace(x=x, y=y, z=0., visibility=q, presence=q) for _ in range(33)]
+
+
+class FakeLandmarker:
+    """Returns the bodies it is told to see; a fresh VIDEO instance 'detects' everything on its first frame."""
+    def __init__(self, bodies, log, name):
+        self.bodies, self.log, self.name, self.closed = bodies, log, name, False
+    def detect_for_video(self, image, ts):
+        self.log.append(('video', self.name)); return SimpleNamespace(pose_landmarks=[fake_pose(*b) for b in self.bodies()])
+    def detect(self, image):
+        self.log.append(('image', self.name)); return SimpleNamespace(pose_landmarks=[fake_pose(*b) for b in self.bodies()])
+    def close(self): self.closed = True
+
+
+class GroupDetectorTests(unittest.TestCase):
+    def test_search_finds_late_arrivals_and_rebuilds_the_tracker(self):
+        log = []; scene = {'all': [(.5, .5)]}; made = []
+        # The tracker only ever sees whoever was there when it was created; the search sees everyone.
+        def make_video():
+            snapshot = list(scene['all']); v = FakeLandmarker(lambda: snapshot, log, f'video{len(made)}'); made.append(v); return v
+        make_image = lambda: FakeLandmarker(lambda: scene['all'], log, 'image')
+        d = GroupPoseDetector(make_video, make_image, group=True, search_interval=.5)
+        self.assertEqual(len(d.detect(None, 0, 0.0).pose_landmarks), 1)        # search at t=0 finds nothing new
+        scene['all'] = [(.5, .5), (.2, .5), (.8, .5)]                          # two more people step in
+        self.assertEqual(len(d.detect(None, 33, 0.2).pose_landmarks), 1)       # no search yet: still the old tracker
+        found = d.detect(None, 66, 0.6)                                        # search runs: sees 3, rebuilds
+        self.assertEqual(len(found.pose_landmarks), 3)
+        self.assertEqual(d.rebuilds, 1); self.assertTrue(made[0].closed)
+        self.assertEqual(len(d.detect(None, 99, 0.7).pose_landmarks), 3)       # new tracker follows all three
+        self.assertEqual(d.last_search_counts, (1, 2))
+
+    def test_solo_never_searches_and_group_switch_rebuilds(self):
+        log = []
+        d = GroupPoseDetector(lambda: FakeLandmarker(lambda: [(.5, .5)], log, 'v'), lambda: FakeLandmarker(lambda: [], log, 'i'), group=False)
+        for t in range(5): d.detect(None, t * 33, t * .3)
+        self.assertFalse(any(kind == 'image' for kind, _ in log))
+        d.set_group(True); self.assertEqual(d.rebuilds, 1)
+        d.detect(None, 200, 5.0); self.assertTrue(any(kind == 'image' for kind, _ in log))
+        d.set_group(False); self.assertIsNone(d.image)
+
+    def test_low_quality_bodies_do_not_trigger_rebuilds(self):
+        log = []
+        video = FakeLandmarker(lambda: [(.5, .5)], log, 'v')
+        ghost = [SimpleNamespace(x=.9, y=.5, z=0., visibility=.1, presence=.1) for _ in range(33)]
+        image = SimpleNamespace(detect=lambda img: SimpleNamespace(pose_landmarks=[fake_pose(.5, .5), ghost]), close=lambda: None)
+        d = GroupPoseDetector(lambda: video, lambda: image, group=True)
+        d.detect(None, 0, 0.0); d.detect(None, 33, 1.0)
+        self.assertEqual(d.rebuilds, 0)
 
 
 class TrackingTests(unittest.TestCase):

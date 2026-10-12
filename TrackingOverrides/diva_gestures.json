@@ -1,8 +1,8 @@
 {
   "min_quality": 0.3,
-  "go_window": 0.65,
-  "go_range": 0.16,
-  "go_stop_delay": 0.28,
+  "go_window": 0.8,
+  "go_range": 0.14,
+  "go_stop_delay": 0.35,
   "go_step": 0.045,
   "go_hand_min_height": -0.85,
   "steer_direction": -1.0,
