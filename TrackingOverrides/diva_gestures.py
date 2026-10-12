@@ -1,4 +1,7 @@
-"""Diva gesture rules on pretrained MediaPipe landmarks (no action network training).
+"""🔒 LOCKED (2026-10-12): single-player and three-player gesture controls are final. Do not change rules or
+thresholds without the double check in GESTURES_LOCKED.md (team + Eva approval, PR, all tests, live test).
+
+Diva gesture rules on pretrained MediaPipe landmarks (no action network training).
 
 Coordinates are UNMIRRORED. Recorded LEFT reaches camera-right; RIGHT reaches
 camera-left. Thresholds are in torso/shoulder units and configurable in JSON.

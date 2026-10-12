@@ -24,6 +24,7 @@ Eva 的代码都在 **`Assets/DivaGame/`**，场景物体都在 `Diva.unity` 的
 | 13 | 摄像头修复、竖拇指用 Gesture Recognizer、新开始流程（主页 → 大屏摄像头识别 → 自动开始） | 见下方第 13 条 |
 | 14 | 走路（摆臂 GO）放宽 + 每帧诊断记录 | 见下方第 14 条 |
 | 15 | 镜像摄像头画面、转弯改为压肩/歪头（不需要髋部）、遮挡不再全员中断 | 见下方第 15 条 |
+| 16 | 🔒 **单人和三人动作识别锁定**（`GESTURES_LOCKED.md`，修改前必须 double check） | 见下方第 16 条 |
 
 ## 1. 路线图（`029748d`）
 `ROADMAP.md`：大象射击游戏的玩法和分工计划。
@@ -147,6 +148,12 @@ DivaLook、机甲皮肤），再在上面重建 `Diva Game Layer`。之后每次
 - **给 Vicky：** 你的倾身转弯测试改成了压肩/歪头：测试里的 `body(lean=…)` 现在也会让肩线和头倾斜；
   "看不到髋部就停止转弯"的 3 个测试改成了新规则（髋部不影响、肩膀短暂遮挡保持 0.3 秒）；新增 `test_tilt_steer.py`。
   Carl 的分配歧义测试改成"只暂停有歧义的人"。
+
+## 16. 🔒 动作识别锁定
+- 单人和三人模式的动作、参数、角色分配从 2026-10-12 起**锁定，不允许随意修改**。完整规格和修改流程见根目录 **`GESTURES_LOCKED.md`**。
+- 要改必须：群里说明并得到 Eva 同意 → 新分支 + Pull Request → 全部 Python 测试和 4 个 Unity 检查通过 → 单人和三人真人测试 → 更新文档。
+- 保护措施：`TrackingOverrides/test_gesture_lock.py`（参数或关键规则一改就失败）、根目录 `CLAUDE.md`（组员的 Claude 会读到，
+  不会擅自修改）、锁定文件开头的注释、`.github/CODEOWNERS`（这些文件的 PR 需要 Eva review；需要在 GitHub 分支保护里开启才强制）。
 
 ## 回复 Carl 的 NOTE_FOR_EVA.md
 

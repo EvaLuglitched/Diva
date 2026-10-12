@@ -1,3 +1,5 @@
+// 🔒 LOCKED (2026-10-12): single-player and three-player gesture controls are final. Do not change the role,
+// mode or input rules without the double check in GESTURES_LOCKED.md (team + Eva approval, PR, all tests, live test).
 using System;
 
 namespace DigiPhant

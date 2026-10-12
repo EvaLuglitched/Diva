@@ -1,4 +1,7 @@
-"""DigiPhant camera -> local Unity UDP bridge. Run with --help for setup options."""
+"""🔒 LOCKED (2026-10-12): single-player and three-player gesture controls are final. Do not change rules or
+thresholds without the double check in GESTURES_LOCKED.md (team + Eva approval, PR, all tests, live test).
+
+DigiPhant camera -> local Unity UDP bridge. Run with --help for setup options."""
 import argparse
 import errno
 import itertools

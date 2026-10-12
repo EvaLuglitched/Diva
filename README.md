@@ -2,6 +2,9 @@
 
 Three people control one elephant on the Savannah course using pretrained MediaPipe pose and hand landmarks plus gesture rules. This is a playable prototype; a custom neural action model has not been trained.
 
+> 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read **GESTURES_LOCKED.md** before
+> changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
+
 ## Open and try the newest scene
 
 Use Unity **6000.6.3f1** with Universal Render Pipeline **17.6.0**. Open **Assets/DigiPhant/Scenes/Diva.unity** and press Play. It now holds everything: the three-player gestures, Eva's candy-town game layer (targets, trunk shots, HUD, course tasks) and the D.Va mech elephant. The original DigiPhant scene remains available with the game layer only (no Diva gestures).
