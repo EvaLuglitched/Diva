@@ -18,6 +18,8 @@ DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
                 shoot_forward_z=.20, shoot_elbow_angle=140.,
                 thumb_hold=.4, thumb_max_gap=.6, thumb_angle_min=150.,
                 thumb_up_cos=.70, thumb_extension=.5, curled_angle_max=135.,
+                # MediaPipe Gesture Recognizer's pretrained 'Thumb_Up' (when the bridge runs it) also counts.
+                thumb_model_score=.5,
                 prayer_separation_max=.45, prayer_center_max=.25,
                 prayer_depth_min=-.10, prayer_depth_max=.50,
                 # Aim while spraying: both hands pushed toward one side (shooting keeps hands below aim_height).
@@ -69,6 +71,12 @@ def thumbs_up(points,config):
                and angle(points[base],points[base+1],points[base+3])<=config['curled_angle_max']
                and math.dist(xyz(points[0]),xyz(points[base+3]))<=1.1*math.dist(xyz(points[0]),xyz(points[base+1]))
                for base in (5,9,13,17))
+
+def model_thumbs_up(hand,config):
+    """The pretrained MediaPipe Gesture Recognizer says this hand is a thumbs-up (bridge adds gesture/gesture_score)."""
+    if not isinstance(hand,dict) or hand.get('gesture')!='Thumb_Up':return False
+    score=hand.get('gesture_score')
+    return isinstance(score,(int,float)) and math.isfinite(score) and score>=config['thumb_model_score']
 
 def associate_hands(hands,bodies,config=None,aspect=1.):
     """Match each hand to its nearest visible BODY wrist; reject close ties.
@@ -142,7 +150,8 @@ class DivaGestureDetector:
         thumb_quality=0.
         for hand in hands or []:
             points=scale_body(hand['landmarks'],aspect)
-            if not thumbs_up(points,cfg):continue
+            if len(points)!=21 or not all(math.isfinite(c) for c in xyz(points[0])):continue
+            if not (model_thumbs_up(hand,cfg) or thumbs_up(points,cfg)):continue
             matches=sorted((math.dist(xy(points[0]),xy(b[i]))/width,i) for i in (15,16)
                            if quality(b[i])>=cfg['min_quality'] and all(math.isfinite(c) for c in xyz(b[i])))
             if (not matches or matches[0][0]>cfg['hand_match_distance']

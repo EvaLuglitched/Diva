@@ -12,6 +12,7 @@ from contextlib import ExitStack
 FEATURES = ('LeftHandHeight', 'RightHandHeight', 'LeftFootLift', 'RightFootLift', 'Lean', 'ArmSpread')
 MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task'
 HAND_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task'
+GESTURE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task'
 
 class CameraRecovery:
     """Bounded recovery of intermittent reads without changing camera backend."""
@@ -234,6 +235,8 @@ def main():
     parser.add_argument('--diva', action='store_true', help='Enable Diva GO/prayer-hands lean steer/open-palm shoot/thumbs-up refill gesture rules')
     parser.add_argument('--diva-config', type=Path, default=Path(__file__).parent / 'diva_gestures.json')
     parser.add_argument('--hand-model', type=Path, default=Path(__file__).parent / 'hand_landmarker.task')
+    parser.add_argument('--gesture-model', type=Path, default=Path(__file__).parent / 'gesture_recognizer.task',
+                        help="MediaPipe Gesture Recognizer: hands plus pretrained 'Thumb_Up' for the refill gesture")
     args = parser.parse_args()
     if not 1024 <= args.port <= 65533:
         parser.error('--port must be between 1024 and 65533')
@@ -254,6 +257,16 @@ def main():
         temporary = args.hand_model.with_suffix('.download')
         urllib.request.urlretrieve(HAND_MODEL_URL, temporary)
         temporary.replace(args.hand_model)
+    if args.diva and not args.gesture_model.exists() and args.download_model:
+        # Optional: without it the hand landmarker and the geometric thumbs-up rule are used, as before.
+        try:
+            import urllib.request
+            temporary = args.gesture_model.with_suffix('.download')
+            print('Downloading the official MediaPipe gesture recognizer model...', flush=True)
+            urllib.request.urlretrieve(GESTURE_MODEL_URL, temporary)
+            temporary.replace(args.gesture_model)
+        except OSError as error:
+            print(f'Gesture recognizer download failed ({error}); using the hand landmarker.', flush=True)
     import cv2
     import mediapipe as mp
     from mediapipe.tasks import python
@@ -298,7 +311,8 @@ def main():
              (12, 14), (14, 16), (23, 25), (25, 27), (24, 26), (26, 28),
              (27, 29), (29, 31), (27, 31), (28, 30), (30, 32), (28, 32),
              (0, 7), (0, 8), (7, 11), (8, 12)]
-    colors = [(100, 230, 100), (255, 180, 80), (100, 160, 255), (220, 100, 230)]
+    # Every recognised (assigned) player is drawn green, unassigned bodies grey; the P1/P2/P3 label shows the role.
+    colors = [(100, 230, 100)] * 4
     previous_timestamp = -1
     last_preview = 0.0
     print('Stand side by side, all visible. IDs start left-to-right in the unmirrored preview.')
@@ -310,7 +324,17 @@ def main():
                                       group=args.people >= 2)
             stack.callback(poses.close)
             hand_detector = None
-            if args.diva:
+            gesture_recognizer = None
+            if args.diva and args.gesture_model.exists():
+                # Gesture Recognizer = hand landmarks + pretrained gestures; its 'Thumb_Up' drives the refill.
+                gesture_options = vision.GestureRecognizerOptions(
+                    base_options=python.BaseOptions(model_asset_path=str(args.gesture_model)),
+                    running_mode=vision.RunningMode.VIDEO, num_hands=6,
+                    min_hand_detection_confidence=.4, min_hand_presence_confidence=.4,
+                    min_tracking_confidence=.4)
+                gesture_recognizer = stack.enter_context(vision.GestureRecognizer.create_from_options(gesture_options))
+                print('Hands: MediaPipe Gesture Recognizer (pretrained Thumb_Up).', flush=True)
+            elif args.diva:
                 hand_options = vision.HandLandmarkerOptions(
                     base_options=python.BaseOptions(model_asset_path=str(args.hand_model)),
                     running_mode=vision.RunningMode.VIDEO, num_hands=6,
@@ -404,8 +428,15 @@ def main():
                     # bodies first so another player's palm cannot fire P3's gun.
                     matched_hands = {}
                     if p3_slot in bodies:
-                        hand_result = hand_detector.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), timestamp)
-                        hand_rows = [dict(landmarks=h) for h in hand_result.hand_landmarks]
+                        hand_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                        if gesture_recognizer is not None:
+                            hand_result = gesture_recognizer.recognize_for_video(hand_image, timestamp)
+                            hand_rows = [dict(landmarks=h, gesture=g[0].category_name if g else None,
+                                              gesture_score=float(g[0].score) if g else 0.)
+                                         for h, g in zip(hand_result.hand_landmarks, hand_result.gestures)]
+                        else:
+                            hand_result = hand_detector.detect_for_video(hand_image, timestamp)
+                            hand_rows = [dict(landmarks=h) for h in hand_result.hand_landmarks]
                         all_bodies = {f'observed-{i}': row[3] for i, row in enumerate(observations)}
                         associated = associate_hands(hand_rows, all_bodies, gestures.config, frame.shape[1] / frame.shape[0])
                         for slot, index in assignments.items():

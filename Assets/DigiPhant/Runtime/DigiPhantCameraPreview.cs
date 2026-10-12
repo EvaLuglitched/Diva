@@ -107,7 +107,10 @@ namespace DigiPhant
             // Copy TrackingOverrides in when they are missing or out of date, so a forgotten or stale copy cannot
             // make the bridge reject --diva; let the bridge download the hand model on first use.
             if (divaMode && !SyncTrackingOverrides(folder)) return;
-            bool needHandModel = divaMode && !File.Exists(Path.Combine(folder, "hand_landmarker.task"));
+            // The hand model is required; the Gesture Recognizer (pretrained thumbs-up) is optional and the bridge
+            // falls back to the hand model if its download fails.
+            bool needHandModel = divaMode && (!File.Exists(Path.Combine(folder, "hand_landmarker.task"))
+                                              || !File.Exists(Path.Combine(folder, "gesture_recognizer.task")));
             try
             {
                 lock (outputLock) bridgeOutput = "";
@@ -127,7 +130,7 @@ namespace DigiPhant
                 ownedBridge.Start();
                 ownedBridge.BeginOutputReadLine();
                 ownedBridge.BeginErrorReadLine();
-                Status = needHandModel ? "Downloading the hand model (first run, needs internet), then opening the webcam"
+                Status = needHandModel ? "Downloading the hand / gesture models (first run, needs internet), then opening the webcam"
                                        : "Opening webcam — allow camera access if prompted";
             }
             catch (Exception e)

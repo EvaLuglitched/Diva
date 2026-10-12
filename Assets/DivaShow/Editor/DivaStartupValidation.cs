@@ -16,12 +16,14 @@ namespace Diva.Editor
         public static void Validate()
         {
             if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play before startup validation.");
-            Check(InputMode.Camera, false, false, ShowPhase.Select, "uncalibrated camera");
-            Check(InputMode.Camera, false, true, ShowPhase.Select, "pending calibration");
-            Check(InputMode.Camera, true, true, ShowPhase.Select, "recalibration in progress");
-            Check(InputMode.Camera, true, false, ShowPhase.RaceIntro, "calibrated camera");
+            // Camera mode: START always opens the camera check, which recognises the players and saves the neutral
+            // pose itself (5 s all green) before the race intro; it never jumps straight into the game.
+            Check(InputMode.Camera, false, false, ShowPhase.CameraCheck, "uncalibrated camera");
+            Check(InputMode.Camera, false, true, ShowPhase.CameraCheck, "pending calibration");
+            Check(InputMode.Camera, true, true, ShowPhase.CameraCheck, "recalibration in progress");
+            Check(InputMode.Camera, true, false, ShowPhase.CameraCheck, "calibrated camera (recalibrates on the check)");
             Check(InputMode.TestSliders, false, false, ShowPhase.RaceIntro, "manual controls");
-            Debug.Log("DIVA_STARTUP_VALIDATION_OK: camera readiness blocks START; calibrated and manual controls advance.");
+            Debug.Log("DIVA_STARTUP_VALIDATION_OK: camera START opens the camera check; manual controls go straight to the intro.");
         }
 
         static void Check(InputMode mode, bool calibrated, bool pending, ShowPhase expected, string label)

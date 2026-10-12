@@ -52,13 +52,14 @@ namespace Diva.Show
             countdownRoot = DivaUi.Stretch(root, "Countdown");
             bannerRoot = DivaUi.Stretch(root, "Banner");
             topRoot = DivaUi.Stretch(root, "Top");
-            BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildCameraFeed();
+            BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildCameraFeed(); BuildCameraCheck();
         }
 
         void ShowRoots()
         {
             if (!canvas) return;
             selectRoot.gameObject.SetActive(Phase == ShowPhase.Select);
+            if (checkRoot) checkRoot.gameObject.SetActive(Phase == ShowPhase.CameraCheck);
             hudRoot.gameObject.SetActive(Phase == ShowPhase.Play || Phase == ShowPhase.Countdown);
             countdownRoot.gameObject.SetActive(Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 1);
             highlightRoot.gameObject.SetActive(Phase == ShowPhase.Highlight);

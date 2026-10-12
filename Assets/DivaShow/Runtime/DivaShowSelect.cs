@@ -94,17 +94,11 @@ namespace Diva.Show
         void ConfirmSelect()
         {
             if (Phase != ShowPhase.Select) return;
-            if (controller && controller.inputMode == DigiPhant.InputMode.Camera &&
-                (!controller.IsCalibrated || controller.CalibrationPending))
-            {
-                if (statusText)
-                    statusText.text = controller.CalibrationPending
-                        ? DivaText.F("status.calibrating", Mathf.CeilToInt(controller.CalibrationSecondsRemaining(Time.realtimeSinceStartup)))
-                        : CameraProblem() ?? DivaText.T("status.waiting");
-                return;
-            }
             sound.Play("confirm");
-            Enter(raceIntro ? ShowPhase.RaceIntro : ShowPhase.PowerUp);
+            // Eva: START always works. Camera mode goes to the big camera check (players recognised, green for 5 s,
+            // neutral saved automatically); Test controls / keyboard go straight to the race intro.
+            if (controller && controller.inputMode == DigiPhant.InputMode.Camera) Enter(ShowPhase.CameraCheck);
+            else StartAfterSelect();
         }
 
         /// <summary>
@@ -137,14 +131,10 @@ namespace Diva.Show
                 if (Phase != ShowPhase.Select) return;
             }
 
-            // 摄像头模式：所有人入镜后自动开始 10 秒校准（就是原来的 Get ready）
-            float now = Time.realtimeSinceStartup;
+            // Eva: no calibration on the home page any more; it happens on the camera check after START.
             string status;
             if (!controller || controller.inputMode != DigiPhant.InputMode.Camera) status = DivaText.T("status.test");
-            else if (controller.CalibrationPending) status = DivaText.F("status.calibrating", Mathf.CeilToInt(controller.CalibrationSecondsRemaining(now)));
-            else if (controller.IsCalibrated) status = "<color=#7CFC9A>" + DivaText.T("status.ready") + "</color>";
-            else if (demo.AllVisible(now)) { controller.BeginCalibrationCountdown(now); status = DivaText.F("status.calibrating", 10); }
-            else status = CameraProblem() ?? (singlePlayer ? DivaText.T("status.waiting") : DivaText.F("status.waiting3", MissingPlayers(now)));
+            else status = CameraProblem() ?? DivaText.T("status.start");
             statusText.text = status;
 
             var mouse = UnityEngine.InputSystem.Mouse.current;

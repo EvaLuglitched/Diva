@@ -10,7 +10,7 @@ Open **Assets/DigiPhant/Scenes/Diva.unity**. `Assets/StudentWork/DigiPhantStuden
 
 ## Controls
 
-Play → F1 → **Try alone > All > Camera**. Keep shoulders, hips and wrists visible; stand upright through **Get ready (10 seconds)**, then START. Camera START is blocked before calibration; manual Test controls can start immediately. Reassign after changing positions and recalibrate.
+Play → F1 → **Try alone > All > Camera**. Keep shoulders, hips and wrists visible; pick colour and players, START, then stand upright on the camera check: after 5 seconds with everyone recognised (green) the neutral pose is saved and the intro starts. Manual Test controls start immediately. Reassign after changing positions and recalibrate.
 
 - Pump both arms for GO; stop pumping for STOP. Holding hands high overhead triggers confirmation/ultimate instead.
 - Hold both hands together at chest height like praying and lean the torso to turn even with GO zero. Upright, separating hands or lost tracking stops turning. Thresholds relative to valid neutral: start 0.12, release 0.07, full turn 0.35. The following camera can make scenery rotate while the elephant stays centered.
@@ -41,6 +41,6 @@ Recordings, raw datasets, trial outputs, local logs/backups, environments, cache
 
 ### Latest gesture update verification
 
-P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 requires prayer-like hands at chest height plus calibrated torso lean, with both wrists and hips visible; upright, separate hands or tracking loss stops turning. Wrist geometry approximates prayer hands, not confirmed palm contact.
+P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumbs-up is recognised by MediaPipe's pretrained Gesture Recognizer (`Thumb_Up`, `gesture_recognizer.task`, downloaded on first use) or, as a fallback, the geometric rule. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 requires prayer-like hands at chest height plus calibrated torso lean, with both wrists and hips visible; upright, separate hands or tracking loss stops turning. Wrist geometry approximates prayer hands, not confirmed palm contact.
 
 The active project's 61 Python tests passed (58 override tests + three starter recording tests), and native Unity gesture validation passed. The live camera preview reopened; physical accuracy of the new thumbs-up/prayer gestures remains unverified. Newly merged upstream keyboard controls are preserved; the combined publication checkout has not received fresh native Unity or live keyboard-plus-gesture validation. Existing walking sensitivity limitations remain unresolved.
