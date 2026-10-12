@@ -326,9 +326,9 @@ namespace Diva.VR
                 dial.SetParent(root, false);
                 dial.localPosition = new Vector3(Mathf.Sin(a * Mathf.Deg2Rad) * .60f, eye - .352f, Mathf.Cos(a * Mathf.Deg2Rad) * .60f);
                 dial.localRotation = Quaternion.Euler(-58, a, 0);
-                Disc(dial, "Bezel", .046f, .006f, metal);
+                Disc(dial, "Bezel", .048f, .006f, metal);
                 Disc(dial, "Face", .040f, .007f, screen);
-                Disc(dial, "Ring", .049f, .003f, glowC, .004f);
+                Disc(dial, "Ring", .043f, .002f, glowC, .0045f);   // 细细一圈发光，外面露出金属表圈
                 for (int t = 0; t < 7; t++)
                 {
                     float ta = -60 + t * 20;
