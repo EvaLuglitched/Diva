@@ -119,6 +119,7 @@ namespace Diva.VR
             gameObject.AddComponent<DivaVRCelebration>();
             gameObject.AddComponent<DivaVRFeedback>();
             gameObject.AddComponent<DivaVRCulling>();
+            gameObject.AddComponent<DivaVRMeta>();
             gameObject.AddComponent<DivaVRPickups>();
             // 大时刻（倒数、技能横幅）的空中面板：前方 3.2 米、比眼睛高一点
             var moments = new GameObject("Moments").transform;

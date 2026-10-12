@@ -150,6 +150,11 @@ namespace Diva.Show
         public int RunHits => stats.hits;
 
         int candyCombo; float lastCandyAt = -10;
+        /// <summary>VR 的"燃烧"状态：得分倍率（糖果和靶子）。</summary>
+        public float ScoreMultiplier = 1;
+
+        /// <summary>VR 用的大横幅。</summary>
+        public void VrBanner(string title, string sub, Color colour, float seconds = 2f, string sfx = "skill") => Banner(title, sub, colour, seconds, sfx);
 
         /// <summary>VR 冲刺（大招后、火箭道具）：推进器喷火、横幅。</summary>
         public void VrDash(bool on)
@@ -169,7 +174,7 @@ namespace Diva.Show
         public void Collect(int points, Vector3 at)
         {
             if (Phase != ShowPhase.Play) return;
-            bonus += points;
+            bonus += Mathf.RoundToInt(points * ScoreMultiplier);
             charge = Mathf.Min(100, charge + 4);
             stats.candies++;
             // 连着吃音越来越高
@@ -191,6 +196,7 @@ namespace Diva.Show
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }
             charge = Mathf.Min(100, charge + chargePerHit);
+            if (ScoreMultiplier > 1) bonus += Mathf.RoundToInt(target.points * (ScoreMultiplier - 1));
             combo = DivaClock.Time - lastHitTime <= ComboWindow ? combo + 1 : 1;
             lastHitTime = DivaClock.Time;
             stats.bestCombo = Mathf.Max(stats.bestCombo, combo);

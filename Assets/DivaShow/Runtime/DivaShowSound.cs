@@ -252,6 +252,9 @@ namespace Diva.Show
         readonly System.Collections.Generic.List<AudioSource> pitched = new System.Collections.Generic.List<AudioSource>();
         int nextPitched;
 
+        /// <summary>背景乐的强度（燃烧状态时更响、更快一点）。</summary>
+        public void MusicBoost(float gain, float pitch) { if (!music) return; music.volume = volume * gain; music.pitch = pitch; }
+
         /// <summary>循环播放一段合成的曲子（比赛的背景乐），走音乐声道，FadeMusic 停。</summary>
         public void PlayLoop(string name, float gain = 1)
         {

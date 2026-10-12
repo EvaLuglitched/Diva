@@ -118,6 +118,8 @@ namespace Diva.VR
             if (arrow) arrow.gameObject.SetActive(on);
         }
 
+        public void TipNow(string key, float seconds) { if (Time.unscaledTime > tipUntil - 1f) Tip(key, seconds); }
+
         void Tip(string key, float seconds = 4.5f)
         {
             tipKey = key; tipShownAt = Time.unscaledTime; tipUntil = tipShownAt + seconds;

@@ -13,6 +13,7 @@ namespace Diva.VR
     public class DivaVRPickups : MonoBehaviour
     {
         public int points = 15;
+        public int Taken { get; private set; }
         public float spacing = 3f, height = 1.7f, reach = 2.8f;
 
         class Candy { public Transform t; public Vector3 at; public bool taken, rocket; public float phase; public Material mat; }
@@ -44,6 +45,7 @@ namespace Diva.VR
         {
             if (p != ShowPhase.Countdown) return;
             foreach (var c in candies) { c.taken = false; c.t.gameObject.SetActive(true); }
+            Taken = 0;
         }
 
         void Spawn()
@@ -136,7 +138,7 @@ namespace Diva.VR
                 var d = c.at - e; d.y = 0;
                 if (d.magnitude < reach)
                 {
-                    c.taken = true;
+                    c.taken = true; Taken++;
                     c.t.gameObject.SetActive(false);
                     fx.Flash(c.t.position, c.mat.color, 1.6f, .3f);
                     fx.Pop(c.t.position, c.mat.color, .5f);

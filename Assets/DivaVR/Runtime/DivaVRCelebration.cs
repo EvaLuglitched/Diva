@@ -47,7 +47,7 @@ namespace Diva.VR
             title = DivaUi.Text(card, "Title", new Vector2(.5f, 1), new Vector2(0, -70), new Vector2(1200, 90), 64, Color.white);
             sub = DivaUi.Text(card, "Sub", new Vector2(.5f, 1), new Vector2(0, -150), new Vector2(1200, 60), 44, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
             score = DivaUi.Text(card, "Score", new Vector2(.5f, 0), new Vector2(0, 60), new Vector2(1200, 150), 140, Color.white);
-            stamp = DivaUi.Text(card, "Stamp", new Vector2(1, 1), new Vector2(-180, -175), new Vector2(560, 110), 80, new Color(1f, .9f, .4f));   // 右上角，不压分数
+            stamp = DivaUi.Text(card, "Stamp", new Vector2(1, 1), new Vector2(-250, -250), new Vector2(560, 110), 80, new Color(1f, .9f, .4f));   // 右侧，副标题和分数之间的空档，不压字
             DivaUi.Glow(score, new Color(1f, .85f, .3f, .95f));
             DivaUi.Glow(title, new Color(1, .3f, .7f, .8f));
             DivaUi.Glow(stamp, new Color(1f, .5f, .1f, .9f), .7f, .5f, .18f);
@@ -133,8 +133,10 @@ namespace Diva.VR
                 if (fx != null) fx.Firework(head + Quaternion.Euler(0, i * 60 + 30, 0) * fwd * 8 + Vector3.up * 4, colours[i % colours.Length] * 1.3f);
                 if (i % 2 == 1) yield return Wait(.35f);
             }
-            // 3.4 图章
-            stamp.text = DivaText.T("vr.finish.champion"); stamp.gameObject.SetActive(true); stampAt = Time.unscaledTime;
+            // 3.4 图章：圈速奖牌（没有就"冠军"）
+            var meta = GetComponent<DivaVRMeta>();
+            stamp.text = DivaText.T(meta && meta.Medal != "" ? meta.Medal : "vr.finish.champion"); stamp.gameObject.SetActive(true); stampAt = Time.unscaledTime;
+            if (meta && meta.Medal == "vr.medal.gold") stamp.color = new Color(1f, .85f, .25f); else if (meta && meta.Medal == "vr.medal.silver") stamp.color = new Color(.85f, .9f, 1f); else if (meta && meta.Medal == "vr.medal.bronze") stamp.color = new Color(1f, .65f, .4f);
             if (snd != null) snd.Play("powerup", .6f, 1.4f);
         }
 
