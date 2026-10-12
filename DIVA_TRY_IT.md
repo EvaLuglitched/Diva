@@ -40,6 +40,39 @@ P1 movement, P2 turning, P3 water. Keep other people out of the camera view.
 Click Get ready and hold a natural resting pose. Avoid crossing positions.
 Use Reassign players if assignments are lost or people exchange places, then calibrate.
 
+### If only one player turns green (3 players)
+
+The camera bridge now detects the whole frame on every frame in group mode (MediaPipe's video tracking tended to keep
+only the first body it found), players are assigned as they arrive (left to right; roles re-sort until all three are
+in, then lock when the neutral pose is saved), and the status line says what the camera sees, for example
+`Waiting for P3 ... (camera sees 2 bodies, 2 usable)`:
+- **sees 2 bodies** — the third person is not detected at all: step back so all three are fully in frame, more light,
+  no one half-hidden behind another.
+- **sees 3 bodies, 2 usable** — one body is too cut off or too far: shoulders and hips must be inside the frame.
+- **sees 3, 3 usable but still waiting** — that player's gesture confidence is low (wrists or hips barely visible);
+  lower `gestureConfidence` on `DivaDemo` (default 0.3) if it keeps happening.
+The bridge console (Unity's camera panel shows its lines) prints the same counts whenever they change.
+
+Group tracking is now hybrid: a VIDEO-mode landmarker tracks the bodies it knows (smooth), and every 0.5 s an
+IMAGE-mode search looks over the whole frame; when it sees someone the tracker missed, the tracker is rebuilt and
+picks everyone up (`tracker rebuilt Nx` in the console). Solo play keeps plain tracking.
+
+### Tuning the gesture rules on your own recordings
+
+The gestures are rules on landmarks (there is no trained action model), and every threshold is in
+`TrackingOverrides/diva_gestures.json`. `TrackingOverrides/replay_gestures.py` replays a recording through the same
+models and rules and prints when each action fires, so thresholds can be tuned against real footage:
+
+```bash
+DigiPhantStarter/Tracking/.venv/bin/python TrackingOverrides/replay_gestures.py Recordings/<session>/performance.mp4 --people 1
+DigiPhantStarter/Tracking/.venv/bin/python TrackingOverrides/replay_gestures.py walk.mp4 --labels walk.json --grid "go_window=0.65,0.8,1.0;go_range=0.12,0.14,0.16"
+```
+
+`walk.json` marks when the action was really performed, e.g. `{"go": [[2.0, 6.5]], "shoot": [[14, 16]]}`; with labels the
+tool prints the hit rate inside each range and the false-fire rate outside it for every threshold combination.
+The GO rule now accepts slower arm pumps (window 0.8 s, range 0.14, stop delay 0.35 — the old 0.65 / 0.16 / 0.28 can be
+restored in the JSON if your recordings prefer them).
+
 ## If something does not respond
 - Camera stopped: … — the words after the colon are the tracker's own error
   (missing model, missing file, camera not opening). Fix that, then Retry.

@@ -86,7 +86,10 @@ namespace DigiPhant
             var missing = new List<string>();
             for (int i = 1; i <= count; i++) if (!State.Visible(i, now)) missing.Add(solo ? "you" : "P" + i);
             if (missing.Count == 0) return "Keep every player visible, standing naturally";
-            return "Waiting for " + string.Join(", ", missing) + " to be visible, standing naturally" +
+            // Group mode: say how many bodies the camera actually sees, so a missing player can tell whether they are
+            // out of frame (seen < 3), too far / cut off (seen 3, usable < 3) or just not assigned yet.
+            string seen = solo || controller == null ? "" : $" (camera sees {controller.LastDetected} bodies, {controller.LastUsable} usable)";
+            return "Waiting for " + string.Join(", ", missing) + " to be visible, standing naturally" + seen +
                    (solo ? "" : ". Testing alone? Choose Try alone.");
         }
         public bool AllVisible(float now)

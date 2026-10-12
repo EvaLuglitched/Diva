@@ -8,8 +8,8 @@ import json
 import math
 from pathlib import Path
 
-DEFAULTS = dict(min_quality=.30, go_window=.65, go_range=.16,
-                go_stop_delay=.28, go_step=.045, go_hand_min_height=-.85,
+DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
+                go_stop_delay=.35, go_step=.045, go_hand_min_height=-.85,
                 steer_lean_start=.12, steer_lean_release=.07,
                 steer_lean_full=.35, steer_direction=-1.,
                 aim_height=.65, hand_match_distance=.55,

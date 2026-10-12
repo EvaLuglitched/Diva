@@ -71,6 +71,58 @@ def extract_features(landmarks, upper_body_only=False):
     return hip, [max(-3, min(3, v)) for v in raw], [quality(g) for g in groups]
 
 
+class GroupPoseDetector:
+    """Smooth group tracking: a VIDEO-mode landmarker tracks the bodies it knows (temporal smoothing, cheap),
+    and every `search_interval` seconds an IMAGE-mode landmarker searches the whole frame for anyone it missed.
+    When the search sees a body the tracker does not have, the tracker is rebuilt: a fresh VIDEO landmarker runs
+    detection on its first frame and then tracks everyone, so late arrivals get picked up without giving up
+    smooth tracking. Solo mode never searches."""
+    def __init__(self, make_video, make_image, group, search_interval=.5, same_body=.12, min_quality=.4):
+        self.make_video, self.make_image = make_video, make_image
+        self.group = group; self.search_interval = search_interval; self.same_body = same_body; self.min_quality = min_quality
+        self.video = make_video(); self.image = None
+        self.last_search = -1e9; self.rebuilds = 0; self.last_search_counts = (0, 0)
+
+    def set_group(self, group):
+        if group == self.group:
+            return
+        self.group = group
+        if not group and self.image is not None:
+            self.image.close(); self.image = None
+        self.rebuild()
+
+    def rebuild(self):
+        self.video.close(); self.video = self.make_video(); self.rebuilds += 1
+
+    def close(self):
+        self.video.close()
+        if self.image is not None:
+            self.image.close()
+
+    def centers(self, result):
+        out = []
+        for l in result.pose_landmarks:
+            if min(min(l[i].visibility, l[i].presence) for i in (11, 12)) >= self.min_quality:
+                out.append(((l[11].x + l[12].x) / 2, (l[11].y + l[12].y) / 2))
+        return out
+
+    def detect(self, image, timestamp_ms, now):
+        result = self.video.detect_for_video(image, timestamp_ms)
+        if not self.group or now - self.last_search < self.search_interval:
+            return result
+        self.last_search = now
+        if self.image is None:
+            self.image = self.make_image()
+        found = self.image.detect(image)
+        tracked = self.centers(result)
+        extra = [c for c in self.centers(found) if all(math.dist(c, t) > self.same_body for t in tracked)]
+        self.last_search_counts = (len(tracked), len(extra))
+        if extra:
+            self.rebuild()
+            return found   # this frame: everyone the search found; from the next frame the new tracker follows them
+        return result
+
+
 class PerformerTracker:
     """Small-group nearest-position assignment with ambiguity rejection.
 
@@ -82,16 +134,43 @@ class PerformerTracker:
         self.count = count
         self.max_distance = max_distance
         self.positions = None
+        # Before the group is complete, people are assigned as they arrive (left to right) and roles may
+        # re-sort when someone new steps in. Once every slot is filled, or Unity saves the neutral pose,
+        # roles lock and only nearest-position tracking moves them.
+        self.locked = False
 
     def reset(self):
         self.positions = None
+        self.locked = False
+
+    def lock(self):
+        if self.positions is not None and all(p is not None for p in self.positions):
+            self.locked = True
+
+    @property
+    def filled(self):
+        return 0 if self.positions is None else sum(1 for p in self.positions if p is not None)
 
     def assign(self, centers):
-        if self.positions is None:
-            if len(centers) < self.count:
-                return {}
-            order = sorted(range(len(centers)), key=lambda i: centers[i][0])[:self.count]
-            self.positions = [centers[i] for i in order]
+        if not self.locked:
+            # Gather everyone: already-known positions matched to their nearest current body, plus unknown bodies.
+            known = []
+            if self.positions is not None:
+                taken = set()
+                for p in self.positions:
+                    if p is None:
+                        continue
+                    best = min(((math.dist(p, centers[i]), i) for i in range(len(centers)) if i not in taken), default=None)
+                    if best is not None and best[0] <= self.max_distance:
+                        known.append(best[1]); taken.add(best[1])
+                unknown = [i for i in range(len(centers)) if i not in taken]
+                present = known + unknown
+            else:
+                present = list(range(len(centers)))
+            order = sorted(present, key=lambda i: centers[i][0])[:self.count]
+            self.positions = [centers[i] for i in order] + [None] * (self.count - len(order))
+            if len(order) >= self.count:
+                self.locked = True
             return {slot + 1: index for slot, index in enumerate(order)}
         candidates = []
         for assignment in itertools.product(range(-1, len(centers)), repeat=self.count):
@@ -180,12 +259,17 @@ def main():
     from mediapipe.tasks import python
     from mediapipe.tasks.python import vision
 
-    options = vision.PoseLandmarkerOptions(
-        base_options=python.BaseOptions(model_asset_path=str(args.model)),
-        running_mode=vision.RunningMode.VIDEO, num_poses=4,
-        min_pose_detection_confidence=.5, min_pose_presence_confidence=.5,
-        min_tracking_confidence=.5)
+    def pose_options(people, mode):
+        # VIDEO mode tracks between detections (smooth, cheap) but tends to keep only the first body it found;
+        # for a group, GroupPoseDetector pairs it with a periodic IMAGE-mode full-frame search.
+        group = people >= 2
+        return vision.PoseLandmarkerOptions(
+            base_options=python.BaseOptions(model_asset_path=str(args.model)),
+            running_mode=vision.RunningMode.IMAGE if mode == 'image' else vision.RunningMode.VIDEO, num_poses=4,
+            min_pose_detection_confidence=.35 if group else .5, min_pose_presence_confidence=.35 if group else .5,
+            min_tracking_confidence=.4)
     tracker = PerformerTracker(args.people)
+    last_seen, last_seen_at = None, 0.0
     gestures = None
     if args.diva:
         from diva_gestures import DivaGestureDetector, associate_hands
@@ -218,7 +302,10 @@ def main():
     print('R: reset identities (then recalibrate in Unity). Q: quit.')
     try:
         with ExitStack() as stack:
-            detector = stack.enter_context(vision.PoseLandmarker.create_from_options(options))
+            poses = GroupPoseDetector(lambda: vision.PoseLandmarker.create_from_options(pose_options(args.people, 'video')),
+                                      lambda: vision.PoseLandmarker.create_from_options(pose_options(args.people, 'image')),
+                                      group=args.people >= 2)
+            stack.callback(poses.close)
             hand_detector = None
             if args.diva:
                 hand_options = vision.HandLandmarkerOptions(
@@ -239,6 +326,7 @@ def main():
                             if isinstance(command, dict) and command.get('version') == 1:
                                 if gestures and command.get('divaCalibrate') is True:
                                     gestures.calibrate()
+                                    tracker.lock()
                                     needs_diva_neutral=False
                                     print('Diva neutral stance saved. Return upright to stop turning.')
                                 upper = command.get('upperBodyOnly')
@@ -254,9 +342,13 @@ def main():
                             pass
                     count = requested_count(data) if address == ('127.0.0.1', args.port) else None
                     if count is not None and count != args.people:
+                        group_before = args.people >= 2
                         args.people = count
                         tracker = PerformerTracker(count)
                         if gestures: gestures.reset()
+                        if (count >= 2) != group_before:
+                            poses.set_group(count >= 2)
+                            print(f'Pose detector switched to {"group tracking + periodic full-frame search" if count >= 2 else "single-person tracking"}.', flush=True)
                         print(f'Unity selected {count} people. Reassigning; set neutral pose in Unity.')
                 ok, frame, reopened = recovery.read(time.monotonic())
                 camera = recovery.camera
@@ -279,15 +371,25 @@ def main():
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 timestamp = max(previous_timestamp + 1, time.monotonic_ns() // 1_000_000)
                 previous_timestamp = timestamp
-                result = detector.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), timestamp)
+                image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                result = poses.detect(image, timestamp, time.monotonic())
                 observations = []
+                usable_quality = .5 if args.people == 1 else .4
                 for landmarks in result.pose_landmarks:
                     center, values, confidence = extract_features(landmarks, args.upper_body_only)
                     shoulder_quality = min(min(landmarks[j].visibility, landmarks[j].presence) for j in (11, 12))
-                    if confidence[4] >= .5 or (gestures and shoulder_quality >= .5):
+                    if confidence[4] >= usable_quality or (gestures and shoulder_quality >= usable_quality):
                         observations.append((center, values, confidence, landmarks))
                 assignments = tracker.assign([o[0] for o in observations])
-                packet = {'version': 1, 'performerCount': args.people, 'upperBodyOnly': args.upper_body_only, 'people': [dict(slot=slot, values=observations[i][1], confidence=observations[i][2])
+                # Diagnostics for the group: how many bodies the model sees, how many are good enough, how many have a role.
+                seen = (len(result.pose_landmarks), len(observations), len(assignments), tracker.locked, poses.rebuilds)
+                if seen != last_seen and time.monotonic() - last_seen_at > 1:
+                    last_seen, last_seen_at = seen, time.monotonic()
+                    print(f'Camera sees {seen[0]} bodies, {seen[1]} usable, {seen[2]}/{args.people} assigned' + (' (roles locked)' if seen[3] else '')
+                          + (f', tracker rebuilt {seen[4]}x' if seen[4] else ''), flush=True)
+                packet = {'version': 1, 'performerCount': args.people, 'upperBodyOnly': args.upper_body_only,
+                          'detected': len(result.pose_landmarks), 'usable': len(observations), 'rolesLocked': tracker.locked,
+                          'people': [dict(slot=slot, values=observations[i][1], confidence=observations[i][2])
                                                  for slot, i in assignments.items()]}
                 if gestures:
                     packet['divaGestures'] = True

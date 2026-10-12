@@ -23,6 +23,8 @@ namespace DigiPhant
         public int performerCount;
         public bool upperBodyOnly;
         public bool divaGestures;
+        public int detected, usable;   // bridge diagnostics: bodies the model saw / bodies good enough to get a role
+        public bool rolesLocked;
         public PerformerFrame[] people;
     }
     [Serializable] public class BoneControl
@@ -58,6 +60,10 @@ namespace DigiPhant
         public string Status { get; private set; } = "Test sliders ready";
         public int ReceivedFrames { get; private set; }
         public bool IsCalibrated { get; private set; }
+        /// <summary>From the last camera packet: bodies the model saw, bodies good enough for a role, roles locked.</summary>
+        public int LastDetected { get; private set; }
+        public int LastUsable { get; private set; }
+        public bool RolesLocked { get; private set; }
         float calibrationDeadline = -1;
         public bool CalibrationPending => calibrationDeadline >= 0;
         public float CalibrationSecondsRemaining(float now) => Mathf.Max(0, calibrationDeadline - now);
@@ -165,6 +171,7 @@ namespace DigiPhant
             try { frame = JsonUtility.FromJson<PoseFrame>(json); }
             catch (ArgumentException) { return false; }
             if (frame == null || frame.version != 1 || frame.people == null || frame.people.Length > 4) return false;
+            LastDetected = frame.detected; LastUsable = frame.usable; RolesLocked = frame.rolesLocked;
             if (frame.performerCount != 0 && frame.performerCount != performerCount)
             {
                 Array.Clear(confidence, 0, confidence.Length);
