@@ -108,6 +108,7 @@ namespace Diva.VR
                 var lamp = new GameObject("Cabin RGB Light");
                 lamp.transform.SetParent(root, false); lamp.transform.localPosition = new Vector3(0, eye - .25f, .45f);
                 cabinLight = lamp.AddComponent<Light>(); cabinLight.type = LightType.Point; cabinLight.range = 1.8f; cabinLight.intensity = 1.1f; cabinLight.shadows = LightShadows.None;
+                BuildDetails(root, eye);
                 if (skins) { skins.Changed += OnSkin; OnSkin(skins.Current); }
                 BuildVignette(); return;
             }
@@ -221,6 +222,11 @@ namespace Diva.VR
             var rgb = Color.HSVToRGB(hue, .75f, 1f);
             if (glowC) { var cc = rgb * (1.8f + .3f * Mathf.Sin(Time.unscaledTime * 2.1f)); glowC.color = cc; glowC.SetColor("_BaseColor", cc); }
             if (cabinLight) cabinLight.color = rgb;
+            // 表盘指针：速度、能量、水量（-60° 空 → +60° 满）；状态灯慢慢闪
+            float water = demo ? demo.State.Water : 1, charge = show ? show.Charge / 100f : 0;
+            float[] vals = { speed, charge, water };
+            for (int i = 0; i < 3; i++) if (needles[i]) needles[i].localRotation = Quaternion.Euler(0, Mathf.Lerp(-60, 60, Mathf.Clamp01(vals[i])), 0);
+            foreach (var (m, c, phase) in blinkers) { var cc = c * (.55f + .45f * Mathf.Max(0, Mathf.Sin(Time.unscaledTime * 1.7f + phase))); m.color = cc; m.SetColor("_BaseColor", cc); }
             if (glowA) { glowA.color = baseA * k * f; glowA.SetColor("_BaseColor", glowA.color); }
             if (glowB) { glowB.color = baseB * k * f; glowB.SetColor("_BaseColor", glowB.color); }
             if (screen) screen.SetColor("_BaseColor", Color.Lerp(new Color(.05f, .22f, .28f), new Color(.2f, .5f, .6f), Mathf.Clamp01(flash)));
@@ -301,6 +307,104 @@ namespace Diva.VR
             }
             return best;
         }
+
+        // ---------- 细节：表盘、按钮、拨杆、舱底板、踏板、安全带、铆钉
+        Transform[] needles = new Transform[3];
+        readonly System.Collections.Generic.List<(Material m, Color c, float phase)> blinkers = new System.Collections.Generic.List<(Material, Color, float)>();
+        Material metal;
+
+        void BuildDetails(Transform root, float eye)
+        {
+            metal = Lit(new Color(.78f, .78f, .88f));
+            metal.SetFloat("_Metallic", .85f); metal.SetFloat("_Smoothness", .72f);
+            var dark = Lit(new Color(.08f, .07f, .12f));
+            // 三个表盘：仪表台顶面上，斜着对着眼睛。左：速度，中：能量，右：水量
+            for (int i = 0; i < 3; i++)
+            {
+                float a = (i - 1) * 21f;
+                var dial = new GameObject("Dial " + i).transform;
+                dial.SetParent(root, false);
+                dial.localPosition = new Vector3(Mathf.Sin(a * Mathf.Deg2Rad) * .60f, eye - .352f, Mathf.Cos(a * Mathf.Deg2Rad) * .60f);
+                dial.localRotation = Quaternion.Euler(-58, a, 0);
+                Disc(dial, "Bezel", .046f, .006f, metal);
+                Disc(dial, "Face", .040f, .007f, screen);
+                Disc(dial, "Ring", .049f, .003f, glowC, .004f);
+                for (int t = 0; t < 7; t++)
+                {
+                    float ta = -60 + t * 20;
+                    var tick = Box(dial, "Tick", new Vector3(Mathf.Sin(ta * Mathf.Deg2Rad) * .032f, .008f, Mathf.Cos(ta * Mathf.Deg2Rad) * .032f), new Vector3(.003f, .002f, .007f), t % 3 == 0 ? glowA : metal);
+                    tick.localRotation = Quaternion.Euler(0, ta, 0);
+                }
+                var pivot = new GameObject("Needle").transform; pivot.SetParent(dial, false); pivot.localPosition = new Vector3(0, .009f, 0);
+                Box(pivot, "Hand", new Vector3(0, 0, .016f), new Vector3(.004f, .002f, .034f), glowA);
+                Disc(pivot, "Cap", .007f, .004f, metal);
+                needles[i] = pivot;
+            }
+            // 状态按钮（左边一排，三个会慢慢闪）和拨杆开关（右边）
+            for (int i = 0; i < 6; i++)
+            {
+                float a = -42 + i * 4.5f;
+                var m = new Material(i % 2 == 0 ? glowA : glowB);
+                var btn = Box(root, "Button " + i, new Vector3(Mathf.Sin(a * Mathf.Deg2Rad) * .62f, eye - .352f, Mathf.Cos(a * Mathf.Deg2Rad) * .62f), new Vector3(.016f, .008f, .016f), m);
+                btn.localRotation = Quaternion.Euler(0, a, 0);
+                if (i < 3) blinkers.Add((m, m.color, i * 1.3f));
+            }
+            for (int i = 0; i < 3; i++)
+            {
+                float a = 34 + i * 5f;
+                var basePos = new Vector3(Mathf.Sin(a * Mathf.Deg2Rad) * .62f, eye - .352f, Mathf.Cos(a * Mathf.Deg2Rad) * .62f);
+                Disc(root, "Switch Base", .009f, .004f, metal).localPosition = basePos;
+                var sw = Tube2(root, "Switch", basePos, basePos + Quaternion.Euler(0, a, 0) * new Vector3(0, .02f, i == 1 ? -.012f : .012f), .003f, metal);
+                Disc(root, "Switch Tip", .0045f, .0045f, i == 1 ? glowA : glowB).localPosition = basePos + Quaternion.Euler(0, a, 0) * new Vector3(0, .022f, i == 1 ? -.013f : .013f);
+            }
+            // 舱底板（座位高度，脚下）+ 两条 RGB 条 + 踏板
+            Part(root, "Floor", Sector(.18f, .62f, -70, 70, -.025f, -.005f, 16), dark);
+            Part(root, "Floor Strip L", Sector(.20f, .60f, -66, -62, -.004f, .000f, 3), glowC);
+            Part(root, "Floor Strip R", Sector(.20f, .60f, 62, 66, -.004f, .000f, 3), glowC);
+            foreach (int s in new[] { -1, 1 })
+            {
+                var pedal = Box(root, s < 0 ? "Pedal L" : "Pedal R", new Vector3(s * .13f, .03f, .46f), new Vector3(.08f, .012f, .12f), metal);
+                pedal.localRotation = Quaternion.Euler(-25, 0, 0);
+            }
+            // 安全带：肩后到腿前两根带子
+            foreach (int s in new[] { -1, 1 })
+            {
+                Tube2(root, "Harness", new Vector3(s * .16f, eye - .08f, -.14f), new Vector3(s * .13f, eye - .46f, .16f), .014f, dark);
+                Disc(root, "Harness Buckle", .02f, .01f, metal).localPosition = new Vector3(s * .13f, eye - .46f, .16f);
+            }
+            // 肋骨上的铆钉
+            Vector3 RibPoint(int sign, float t) => new Vector3(sign * Mathf.Lerp(.42f, .30f, t), eye + .40f + .55f * Mathf.Sin(Mathf.PI * t * .92f), Mathf.Lerp(.60f, -.50f, t));
+            foreach (int sign in new[] { -1, 1 })
+                for (int i = 1; i < 10; i += 2)
+                {
+                    var b = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    var c = b.GetComponent<Collider>(); if (c) Destroy(c);
+                    b.name = "Rivet"; b.transform.SetParent(root, false); b.transform.localPosition = RibPoint(sign, i / 10f); b.transform.localScale = Vector3.one * .028f;
+                    var r = b.GetComponent<MeshRenderer>(); r.sharedMaterial = metal; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
+        }
+
+        static Transform Disc(Transform parent, string name, float radius, float height, Material m, float y = 0)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var c = go.GetComponent<Collider>(); if (c) Destroy(c);
+            go.name = name; go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(0, y, 0); go.transform.localScale = new Vector3(radius * 2, height * .5f, radius * 2);
+            var r = go.GetComponent<MeshRenderer>(); r.sharedMaterial = m; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+            return go.transform;
+        }
+
+        static Transform Box(Transform parent, string name, Vector3 pos, Vector3 size, Material m)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var c = go.GetComponent<Collider>(); if (c) Destroy(c);
+            go.name = name; go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos; go.transform.localScale = size;
+            var r = go.GetComponent<MeshRenderer>(); r.sharedMaterial = m; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+            return go.transform;
+        }
+
+        static Transform Tube2(Transform parent, string name, Vector3 a, Vector3 b, float radius, Material m) { Tube(parent, name, a, b, radius, m); return parent.GetChild(parent.childCount - 1); }
 
         /// <summary>两点之间一根圆管。</summary>
         static void Tube(Transform parent, string name, Vector3 a, Vector3 b, float radius, Material m)
