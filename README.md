@@ -14,7 +14,7 @@ Choose **Try alone** and **All** for the single-player game (one person has ever
 
 For group play, start left-to-right in the unmirrored preview: P1 movement, P2 turning, P3 water. Keep background people out of view and avoid crossing. Use Reassign players and recalibrate if roles are lost.
 
-The demo includes a third-person camera, the game layer's 16 targets, scoring, a water tank and the course tasks. Course tasks follow the Diva gestures: drink/eat by bringing hands to the mouth near the bush or basin, step over the log by pumping (P1) next to it. Refill currently works anywhere. See **DIVA_TRY_IT.md** for details.
+The demo includes a third-person camera, the game layer's 16 targets, scoring, a water tank and the course tasks. Course tasks follow the Diva gestures: drink/eat by bringing hands to the mouth near the bush or basin, step over the log by pumping (P1) next to it. Refill currently works anywhere. See **DIVA_TRY_IT.md** for details. A first-person **Apple Vision Pro** version lives on branch `carl/diva-vr` (needs a Unity Pro licence; not merged into main) — controls in **DIVA_TRY_IT.md** → "Vision Pro version", code and build notes in **Assets/DivaVR/README.md**.
 
 If the camera panel says **Camera stopped: …**, the text after the colon is the tracker's own error (for example a missing model or file). **Waiting for P2, P3 …** names the players the camera cannot see; for one person choose **Try alone**.
 

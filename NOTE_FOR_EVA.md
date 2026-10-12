@@ -63,3 +63,38 @@ keep your scene, then run **Diva > Rebuild D.Va Mech Skins** and **Diva > Show >
    Pro, they need uGUI/TMP. TMP is now in the project, and `Assets/DivaShow/Runtime/DivaUi.cs` has helpers.
 
 Real-device test list: `PLAYTEST_TODO.md`. Show details (Chinese): `Assets/DivaShow/README.md`.
+
+## 2026-10-11 — the Vision Pro branch (`carl/diva-vr`)
+
+Hi Eva, Carl here again. I pushed the Vision Pro version as its own branch. **Please don't merge it into `main`**:
+it adds `com.unity.xr.visionos` 3.3.1 + `com.unity.xr.hands` 1.9.0 to `Packages/manifest.json`, and visionOS
+support needs a Unity Pro licence (a Personal licence refuses to open the project with that package). Nothing on
+`main` changes; you don't have to do anything after pulling unless you want to look at the branch.
+
+How it plays (controls, menu, tutorial) is in `DIVA_TRY_IT.md` → "Vision Pro version"; the code map, build chain and
+the gotchas are in `Assets/DivaVR/README.md`.
+
+**It borrows your intro idea.** The VR opening is a first-person version of your lap around the town: three still
+shots (overview with the task beacons → behind the elephant → low hero shot) joined by dusk fades, then you land in
+the cockpit. Your `DivaIntro` itself is not used in VR (a moving camera makes people dizzy in a headset), and your
+scene objects are untouched.
+
+**Shared files the branch edits** (all small, all behind VR-only checks, so the PC game behaves the same):
+
+- `Assets/DivaGame/Runtime/DivaGameManager.cs` — new `ForceFinish()` (VR counts the run as finished at the finish
+  arch even with tasks left).
+- `Assets/DivaGame/Models/Town/*.fbx.meta` (18 files) — `generateMeshLods: 1` (Unity 6 mesh LODs for the
+  headset's triangle budget). Unity will reimport those 18 models once after you pull; the town looks the same.
+- `Assets/DigiPhant/Runtime/DigiPhantLocomotion.cs` — the animation blend is critically damped (the old exponential
+  blend jolted when the elephant started/stopped right in front of a VR player) and the input dead-zone snap only
+  applies when stopping (at 90 fps the tiny per-frame steps never got past the snap).
+- `Assets/DigiPhant/Runtime/DivaControlState.cs` — `IndependentHands` (in VR spraying does not stop the run);
+  `Assets/DigiPhant/Runtime/DivaDemo.cs` — `externalInput` so the VR rig can feed the control state.
+- `Assets/DivaShow/*` — my own show code: VR branches in the director/HUD/UI, a VR text shader hook, synthesized
+  sounds (race loop, candy, boom, cheer, …), a Chinese font subset in `DivaShow/Resources/DivaCJK.ttf`.
+- `Assets/link.xml`, `ProjectSettings/ProjectSettings.asset` (a visionOS icon entry), `Packages/*`.
+
+**Known / untested:** the headset runs at a locked 45 fps (your town has no LODs; see the README); the latest build
+with the demo reel and the console joystick is still waiting for a headset test. The scene also references
+`stylized_clouds_pack_vol_07` (10 instances) and `Stylized Rocket` prefabs that are not in the repo (not on `main`
+either) — if those are from a Fab pack you have locally, the fallbacks you added cover it; just flagging it.
