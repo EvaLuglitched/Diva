@@ -87,7 +87,7 @@ namespace Diva
             controller && controller.controls.Any(c => c.label != null && label(c.label) && Mathf.Abs(c.current) >= controlThreshold);
 
         // In the Diva three-player mode the body controls are not driven (DivaDemo owns the input), so the
-        // tasks use its gestures instead: hands to mouth curls the trunk (eat / drink), pumping arms walks the legs.
+        // tasks use its gestures instead: holding a thumbs-up curls the trunk (eat / drink), pumping arms walks the legs.
         DivaDemo diva;
         bool DivaActive => (diva || controller && (diva = controller.GetComponent<DivaDemo>())) && diva.isActiveAndEnabled;
         bool TrunkCurled => DivaActive ? diva.State.Drink : ControlActive(l => l.StartsWith("Trunk"));

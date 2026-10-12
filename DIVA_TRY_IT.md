@@ -21,17 +21,17 @@ Click Get ready (10 seconds), then stand naturally with arms down until ready.
 Changing roles resets calibration, so use Get ready again after changing roles.
 
 - P1: repeatedly pump raised elbows/arms up and down to go. Stop the movement to stop.
-- P2: lean your torso left/right to turn while stationary or moving; arms can stay relaxed.
-  Stand upright to stop. Lost torso tracking stops turning too. Keep shoulders and hips visible.
+- P2: hold hands together at chest height like praying and lean your torso left/right, stationary or moving.
+  Upright, separated hands or lost tracking stops turning. Keep both wrists, shoulders and hips visible.
 - P3: raise one arm to aim that way. Push both hands forward and open them to shoot;
   while shooting, push both hands toward one side to aim there.
   A quick opening gives one burst; holding them extended and open keeps spraying.
   Each burst fires at the best target in that direction (water jet + score).
-  Curl your hands together near your mouth to drink/refill; release to stop.
-  Hands may cover the mouth for a few seconds once your face has been seen.
+  Show either hand thumbs-up for 0.4 seconds to refill; release to stop.
+  Keep that hand, its wrist and shoulders visible; the other wrist may be hidden.
 
 Refill currently works anywhere. Water and target hits appear in the panel; the
-score and tasks appear in the HUD (eat/drink: hands to mouth near the bush or basin;
+score and tasks appear in the HUD (eat/drink: thumbs-up near the bush or basin;
 step over the log: P1 pumping next to it).
 
 ## Three people
@@ -64,12 +64,18 @@ landmarks and segment annotations.
 The new neutral photo is shared as P1 STOP, P2 STRAIGHT and P3 IDLE.
 
 Live performance needs testing with the intended camera, lighting and three people.
-Keep shoulders, wrists, hands and P2 hips in frame; avoid covering the mouth for refill.
+Keep shoulders, wrists, hands and P2 hips in frame; keep the thumbs-up hand clearly visible for refill.
 
 ## Calibration, recording and trial files
 
-Camera-mode START waits until calibration completes; Test controls can start without it. Keep hips visible while upright during the ten-second countdown. Without valid hips, calibration retains an earlier valid torso baseline or uses zero; Ready alone does not confirm a fresh baseline. Wrists must be visible for GO even when torso-only turning works. For a stationary-turn check, use Try alone > All > Camera, calibrate, START, keep arms still and lean: expect P1 STOP with P2 LEFT/RIGHT. The following camera can make the scenery rotate around an apparently stationary elephant.
+Camera-mode START waits until calibration completes; Test controls can start without it. Keep hips visible while upright during the ten-second countdown. Without valid hips, calibration retains an earlier valid torso baseline or uses zero; Ready alone does not confirm a fresh baseline. Both wrists must be visible for GO and prayer turning. For a stationary-turn check, use Try alone > All > Camera, calibrate, START, keep hands together at chest height and lean: expect P1 STOP with P2 LEFT/RIGHT. The following camera can make the scenery rotate around an apparently stationary elephant.
 
 In F1, **Record performance** sits below the preview. It requires calibrated Camera mode and a live preview. Click **Stop recording and save**, then inspect `Recordings/<session>/performance.mp4` (no audio). Started runs save `route.csv`, `events.json` and `summary.json` under `TrialData/<session>/` on finish or interruption. These outputs stay local. See [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md) for sampling and recovery limits.
 
-Current validation: 49 Python tests (46 repository + three starter recording tests) and native Unity validators passed. Weak/intermittent walking remains unresolved; a fresh physical trial after the steering update and full group performance remain unverified. Historical successful recordings do not establish those later checks.
+Current validation: 61 Python tests (58 repository + three starter recording tests) and native Unity validators passed. Weak/intermittent walking remains unresolved; a fresh physical trial after the steering update and full group performance remain unverified. Historical successful recordings do not establish those later checks.
+
+### Latest gesture update verification
+
+P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 requires prayer-like hands at chest height plus calibrated torso lean, with both wrists and hips visible; upright, separate hands or tracking loss stops turning. Wrist geometry approximates prayer hands, not confirmed palm contact.
+
+The active project's 61 Python tests passed (58 override tests + three starter recording tests), and native Unity gesture validation passed. The live camera preview reopened; physical accuracy of the new thumbs-up/prayer gestures remains unverified. Newly merged upstream keyboard controls are preserved; the combined publication checkout has not received fresh native Unity or live keyboard-plus-gesture validation. Existing walking sensitivity limitations remain unresolved.
