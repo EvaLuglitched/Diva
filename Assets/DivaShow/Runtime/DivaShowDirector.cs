@@ -505,7 +505,8 @@ namespace Diva.Show
             bool panel = controller && controller.showControls;
             bool inIntro = raceIntro && raceIntro.Playing;
             if (!inIntro) cameraPreview.showPreview = panel;   // 面板打开时照常画在面板里；Eva 的开场自己管
-            ShowCameraFeed(!panel && !inIntro && (Phase == ShowPhase.Select || Phase == ShowPhase.Play));
+            // Eva: not on the home page any more (the camera check after START shows the camera full size); small in play.
+            ShowCameraFeed(!panel && !inIntro && Phase == ShowPhase.Play);
         }
 
         // ------------------------------------------------------------------ intro (Timeline, optional)

@@ -41,6 +41,7 @@ namespace DigiPhant
             {
                 receiver = new UdpClient(new IPEndPoint(IPAddress.Loopback, controller.port + 2));
                 receiver.Client.Blocking = false;
+                try { receiver.Client.ReceiveBufferSize = 4 << 20; } catch (SocketException) { }   // HD preview frames arrive in pieces
                 nextRead = 0;
                 startAfter = Time.realtimeSinceStartup + 1;
                 startAttempted = false;
@@ -51,12 +52,38 @@ namespace DigiPhant
         }
         public bool AcceptJpeg(byte[] bytes, float now)
         {
-            if (bytes == null || bytes.Length < 4 || bytes.Length > 60000 || bytes[0] != 0xff || bytes[1] != 0xd8) return false;
+            if (bytes == null || bytes.Length < 4 || bytes.Length > 2_000_000 || bytes[0] != 0xff || bytes[1] != 0xd8) return false;
             if (texture == null) texture = new Texture2D(2, 2, TextureFormat.RGB24, false);
             if (!ImageConversion.LoadImage(texture, bytes, false)) return false;
             lastFrame = now;
             Status = "Live camera · unmirrored";
             return true;
+        }
+        // A sharp preview arrives split into datagrams: "DVP1" + frame id (uint32) + index (uint16) + count (uint16) + bytes.
+        uint chunkFrame;
+        byte[][] chunks;
+        int chunkHave;
+        byte[] AddPreviewChunk(byte[] d)
+        {
+            if (d.Length <= 12 || d[0] != (byte)'D' || d[1] != (byte)'V' || d[2] != (byte)'P' || d[3] != (byte)'1') return null;
+            uint id = BitConverter.ToUInt32(d, 4);
+            int index = BitConverter.ToUInt16(d, 8), count = BitConverter.ToUInt16(d, 10);
+            if (count == 0 || count > 512 || index >= count) return null;
+            if (chunks == null || id != chunkFrame || chunks.Length != count) { chunkFrame = id; chunks = new byte[count][]; chunkHave = 0; }
+            if (chunks[index] == null)
+            {
+                chunks[index] = new byte[d.Length - 12];
+                Buffer.BlockCopy(d, 12, chunks[index], 0, d.Length - 12);
+                chunkHave++;
+            }
+            if (chunkHave < count) return null;
+            int total = 0;
+            foreach (var c in chunks) total += c.Length;
+            var whole = new byte[total];
+            int at = 0;
+            foreach (var c in chunks) { Buffer.BlockCopy(c, 0, whole, at, c.Length); at += c.Length; }
+            chunks = null;
+            return whole;
         }
         public void PollPreview(float now)
         {
@@ -65,7 +92,12 @@ namespace DigiPhant
             {
                 byte[] latest = null;
                 var sender = new IPEndPoint(IPAddress.Loopback, 0);
-                for (int i = 0; i < 32 && receiver.Available > 0; i++) latest = receiver.Receive(ref sender);
+                for (int i = 0; i < 512 && receiver.Available > 0; i++)
+                {
+                    var data = receiver.Receive(ref sender);
+                    if (data.Length >= 2 && data[0] == 0xff && data[1] == 0xd8) latest = data;   // a whole small JPEG
+                    else { var whole = AddPreviewChunk(data); if (whole != null) latest = whole; }
+                }
                 if (latest != null) AcceptJpeg(latest, now);
             }
             catch (SocketException e) { Status = "Preview connection: " + e.Message; }

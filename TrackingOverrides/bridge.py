@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 import socket
+import struct
 import time
 from contextlib import ExitStack
 
@@ -223,6 +224,30 @@ def encode_preview(frame, cv2):
     return None
 
 
+PREVIEW_MAGIC = b'DVP1'
+PREVIEW_CHUNK = 8000   # payload per datagram: under macOS's 9216-byte UDP limit with the 12-byte header
+
+
+def encode_preview_hd(frame, cv2, max_width=960, max_height=540, quality=72):
+    """A sharp preview for Unity's camera check (sent split over several datagrams, see preview_datagrams)."""
+    height, width = frame.shape[:2]
+    scale = min(1., max_width / width, max_height / height)
+    preview = frame if scale >= 1 else cv2.resize(frame, (max(1, round(width * scale)), max(1, round(height * scale))),
+                                                  interpolation=cv2.INTER_AREA)
+    ok, encoded = cv2.imencode('.jpg', preview, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    return encoded.tobytes() if ok else None
+
+
+def preview_datagrams(jpeg, frame_id, chunk=PREVIEW_CHUNK):
+    """Split one JPEG into datagrams: 'DVP1' + frame id (uint32) + index (uint16) + count (uint16) + bytes.
+    Unity reassembles a frame once every piece has arrived and drops incomplete ones."""
+    count = max(1, -(-len(jpeg) // chunk))
+    if count > 0xFFFF:
+        return []
+    return [PREVIEW_MAGIC + struct.pack('<IHH', frame_id & 0xFFFFFFFF, i, count) + jpeg[i * chunk:(i + 1) * chunk]
+            for i in range(count)]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--people', type=int, choices=(1, 2, 3, 4), default=3)
@@ -303,6 +328,10 @@ def main():
     try:
         sender.bind(('127.0.0.1', args.port + 1))
         sender.setblocking(False)
+        try:
+            sender.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1 << 21)   # room for a split HD preview frame
+        except OSError:
+            pass
     except OSError:
         camera.release()
         sender.close()
@@ -315,6 +344,7 @@ def main():
     colors = [(100, 230, 100)] * 4
     previous_timestamp = -1
     last_preview = 0.0
+    preview_id = 0
     print('Stand side by side, all visible. IDs start left-to-right in the unmirrored preview.')
     print('R: reset identities (then recalibrate in Unity). Q: quit.')
     try:
@@ -496,15 +526,20 @@ def main():
                     message = f'Waiting for {args.people} visible people' if args.no_window else f'Stand side by side: waiting for {args.people} visible people | Q: quit'
                 cv2.putText(frame, message, (12, 26), cv2.FONT_HERSHEY_SIMPLEX, .55, (255, 255, 255), 2)
                 now = time.monotonic()
-                if now - last_preview >= .1:
-                    jpeg = encode_preview(frame, cv2)
+                if now - last_preview >= 1 / 15:
+                    # HD preview split across datagrams (Unity reassembles); about 960x540 at 15 fps instead of
+                    # the old single-datagram 320x240 at low quality, which looked blurry on the large camera check.
+                    jpeg = encode_preview_hd(frame, cv2)
                     if jpeg is not None:
-                        try:
-                            sender.sendto(jpeg, ('127.0.0.1', args.port + 2))
-                        except OSError as error:
-                            # A dropped preview must not stop performer tracking.
-                            if error.errno not in (errno.EMSGSIZE, errno.EAGAIN, errno.EWOULDBLOCK, errno.ENOBUFS):
-                                raise
+                        preview_id += 1
+                        for datagram in preview_datagrams(jpeg, preview_id):
+                            try:
+                                sender.sendto(datagram, ('127.0.0.1', args.port + 2))
+                            except OSError as error:
+                                # A dropped preview must not stop performer tracking (Unity skips the incomplete frame).
+                                if error.errno not in (errno.EMSGSIZE, errno.EAGAIN, errno.EWOULDBLOCK, errno.ENOBUFS):
+                                    raise
+                                break
                     last_preview = now
                 if not args.no_window:
                     cv2.imshow('DigiPhant tracking (unmirrored)', frame)
