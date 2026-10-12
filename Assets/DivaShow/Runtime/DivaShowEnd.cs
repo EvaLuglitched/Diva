@@ -17,6 +17,7 @@ namespace Diva.Show
         {
             finishedTime = Time.time - runStart;
             replay.Mark(finishedTime, "finish", 50, timeUp ? "timeup" : "finish");
+            FlushTrial(trialEndReason ?? "finished");
             if (waterGun) waterGun.StopSpray();
             if (boosters) boosters.SetBoost(1);
             sound.Play("fanfare");

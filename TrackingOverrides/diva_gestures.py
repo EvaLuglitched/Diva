@@ -10,18 +10,15 @@ from pathlib import Path
 
 DEFAULTS = dict(min_quality=.30, go_window=.65, go_range=.16,
                 go_stop_delay=.28, go_step=.045, go_hand_min_height=-.85,
-                steer_hand_offset=.12, steer_joint_distance=.80,
-                steer_full_offset=.45, steer_direction=-1.,
+                steer_lean_start=.12, steer_lean_release=.07,
+                steer_lean_full=.35, steer_direction=-1.,
                 aim_height=.65, hand_match_distance=.55,
                 finger_angle=145., finger_extension=1.2,
                 shoot_min_height=-.55, shoot_max_height=.65,
                 shoot_forward_z=.20, shoot_elbow_angle=140.,
                 drink_min_height=-.03, drink_max_height=.65,
                 drink_separation=1.45, drink_mouth_distance=.38,
-                drink_below_mouth=.22, steer_opposing_lean=.12,
-                # Steering hysteresis: once turning, keep turning while the hands stay offset by the
-                # smaller release distance, and ride through tracking blips up to steer_hold seconds.
-                steer_release_offset=.07, steer_hold=.25,
+                drink_below_mouth=.22,
                 # Aim while spraying: both hands pushed toward one side (shooting keeps hands below aim_height).
                 shoot_aim_full_offset=.35, shoot_aim_deadzone=.06,
                 # Hands in front of the face hide the mouth landmarks; reuse its last seen place for a while.
@@ -92,7 +89,9 @@ class DivaGestureDetector:
         self.steering={}; self.mouth={}; self.ult_since={}
     def calibrate(self):
         """Capture the last valid upright stance; camera must be unmirrored."""
-        self.neutral={slot:dict(g) for slot,g in self.latest_geometry.items()}
+        # A missing torso cannot establish a new lean baseline. Keep that slot's
+        # previous valid lean while allowing independently valid hand geometry.
+        self.neutral={slot:{**self.neutral.get(slot,{}),**g} for slot,g in self.latest_geometry.items()}
         self.history.clear();self.last_motion.clear();self.steering.clear();self.ult_since.clear()
     def reset(self,slot=None,preserve_neutral=False):
         if slot is None:
@@ -103,7 +102,7 @@ class DivaGestureDetector:
             if not preserve_neutral:self.neutral.pop(slot,None);self.mouth.pop(slot,None)
             self.latest_geometry.pop(slot,None)
     def retain(self,slots):
-        for slot in list(self.history):
+        for slot in set(self.history) | set(self.steering) | set(self.latest_geometry):
             if slot not in slots:self.reset(slot,preserve_neutral=True)
     def update(self,slot,body,time,hands=None,aspect=1.,allow_estimated_mouth=False):
         out=dict(go=0.,steer=0.,aim=0.,shoot=False,drink=False,ult=False,confidence=0.)
@@ -111,10 +110,10 @@ class DivaGestureDetector:
         if body is None or len(body)<25:
             self.reset(slot,preserve_neutral=True);return out
         b=scale_body(body,aspect)
-        required=[11,12,13,14,15,16,23,24]
+        required=[11,12,23,24]
         if any(not all(math.isfinite(c) for c in xyz(b[i])) for i in required):
             self.reset(slot,preserve_neutral=True);return out
-        q=min(quality(b[i]) for i in [11,12,15,16])
+        q=min(quality(b[i]) for i in [11,12])
         if q<cfg['min_quality']:
             self.reset(slot,preserve_neutral=True);return out
         out['confidence']=q
@@ -122,6 +121,28 @@ class DivaGestureDetector:
         width=max(.03,math.dist(xy(b[11]),xy(b[12])))
         torso_quality=min(quality(b[i]) for i in [23,24])
         torso=max(.03,math.dist(shoulder[:2],hip[:2])) if torso_quality>=cfg['min_quality'] else width*1.7
+        lean=(shoulder[0]-hip[0])/torso
+        self.latest_geometry[slot]={}
+        if torso_quality>=cfg['min_quality']:
+            self.latest_geometry[slot]['lean']=lean
+        lean-=self.neutral.get(slot,{}).get('lean',0.)
+        previous=self.steering.get(slot)
+        same_side=(previous is not None and 0 < time-previous[1] <= .3
+                   and previous[0]*cfg['steer_direction']*lean>0)
+        threshold=cfg['steer_lean_release'] if same_side else cfg['steer_lean_start']
+        if torso_quality>=cfg['min_quality'] and abs(lean)>threshold:
+            out['steer']=cfg['steer_direction']*max(-1.,min(1.,lean/cfg['steer_lean_full']))
+            self.steering[slot]=(out['steer'],time)
+        else:
+            self.steering.pop(slot,None)  # Upright or lost hips stops immediately; no stale turn hold.
+        # Steering only needs shoulders + hips. Invalid arms must not emit other actions.
+        hand_valid=(all(all(math.isfinite(c) for c in xyz(b[i])) for i in (13,14,15,16))
+                    and min(quality(b[i]) for i in (15,16))>=cfg['min_quality'])
+        if not hand_valid:
+            self.history.pop(slot,None);self.last_motion.pop(slot,None);self.ult_since.pop(slot,None)
+            out['confidence']=min(q,torso_quality)
+            return out
+        out['confidence']=min(q,quality(b[15]),quality(b[16]))
         heights=[(shoulder[1]-val(b[i],'y'))/torso for i in (15,16)]
         normalized=[(shoulder[1]-val(b[i],'y'))/width for i in (15,16)]
         history=self.history.setdefault(slot,deque())
@@ -143,25 +164,12 @@ class DivaGestureDetector:
         hand_offset=(wrists[0]-shoulder[0])/torso
         sep=math.dist(xy(b[15]),xy(b[16]))/torso
         lean=(shoulder[0]-hip[0])/torso
-        self.latest_geometry[slot]=dict(hand_offset=hand_offset,lean=lean)
+        self.latest_geometry[slot]=dict(hand_offset=hand_offset)
+        if torso_quality>=cfg['min_quality']:
+            self.latest_geometry[slot]['lean']=lean
         neutral=self.neutral.get(slot,{})
         hand_offset-=neutral.get('hand_offset',0.)
         lean-=neutral.get('lean',0.)
-        steer_pose=(torso_quality>=cfg['min_quality'] and sep<cfg['steer_joint_distance'] and max(heights)<.4
-                    and not(abs(lean)>cfg['steer_opposing_lean'] and lean*hand_offset<0))
-        steer_value=cfg['steer_direction']*max(-1.,min(1.,hand_offset/cfg['steer_full_offset']))
-        previous=self.steering.get(slot)  # (steer value, time it was last produced)
-        same_side=previous is not None and previous[0]*steer_value>0
-        if steer_pose and abs(hand_offset)>cfg['steer_hand_offset'] and abs(lean+hand_offset*.5)>.08:
-            out['steer']=steer_value                                     # start (or keep) turning
-        elif steer_pose and same_side and abs(hand_offset)>cfg['steer_release_offset']:
-            out['steer']=steer_value                                     # hysteresis: still leaning that way
-        elif previous is not None and not steer_pose and time-previous[1]<=cfg['steer_hold']:
-            out['steer']=previous[0]                                     # brief tracking blip: hold the turn
-        if out['steer']!=0 and (previous is None or out['steer']!=previous[0] or steer_pose):
-            self.steering[slot]=(out['steer'],time)
-        elif out['steer']==0:
-            self.steering.pop(slot,None)
         raised=[h>cfg['aim_height'] for h in heights]
         if raised[0]!=raised[1]:out['aim']=-1. if raised[0] else 1.
         # Ultimate: both hands above the head and held there. Pumping (go) passes through this height

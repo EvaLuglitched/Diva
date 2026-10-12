@@ -33,10 +33,10 @@ class GestureTests(unittest.TestCase):
         d=DivaGestureDetector()
         self.assertLess(d.update(1,body(lean=.2,handshift=.7),0)['steer'],0)
         self.assertGreater(d.update(1,body(lean=-.2,handshift=-.7),.1)['steer'],0)
-    def test_neutral_and_spread_hands_straight(self):
+    def test_neutral_straight_but_lean_turns_with_spread_hands(self):
         d=DivaGestureDetector()
         self.assertEqual(d.update(1,body(),0)['steer'],0)
-        self.assertEqual(d.update(1,body(lean=.4,handshift=.6,separate=1.8),.1)['steer'],0)
+        self.assertLess(d.update(1,body(lean=.4,handshift=.6,separate=1.8),.1)['steer'],0)
     def test_missing_and_bad_tracking_stop_everything(self):
         d=DivaGestureDetector()
         d.update(1,body(lean=.3,handshift=.7),0)
@@ -90,9 +90,9 @@ class GestureTests(unittest.TestCase):
         d=DivaGestureDetector(); b=body(lean=.2,handshift=.6)
         d.update(1,b,0);d.calibrate();d.update(1,None,.1)
         self.assertEqual(d.update(1,b,1.)['steer'],0.)
-    def test_opposed_body_and_hands_do_not_turn(self):
+    def test_body_direction_wins_over_opposed_hand_offset(self):
         d=DivaGestureDetector()
-        self.assertEqual(d.update(1,body(lean=-.2,handshift=.9),0)['steer'],0.)
+        self.assertGreater(d.update(1,body(lean=-.2,handshift=.9),0)['steer'],0.)
     def test_curled_fists_at_shoulders_below_face_do_not_drink(self):
         d=DivaGestureDetector(); b=body(height=0,separate=.5)
         b[9]['y']=b[10]['y']=.13
@@ -109,20 +109,21 @@ class GestureTests(unittest.TestCase):
         hands=[hand(b[15]),hand(b[16])];b[13]['visibility']=.1
         self.assertFalse(d.update(3,b,.1,hands)['shoot'])
 
-    def test_steering_hysteresis_keeps_turning_until_hands_return(self):
+    def test_steering_hysteresis_keeps_turning_until_torso_returns(self):
         d=DivaGestureDetector()
         self.assertLess(d.update(2,body(lean=.2,handshift=.7),0)['steer'],0)
-        # Smaller offset, no lean: too little to start a turn, enough to keep one going.
-        self.assertLess(d.update(2,body(handshift=.1),.1)['steer'],0)
-        self.assertEqual(DivaGestureDetector().update(2,body(handshift=.1),0)['steer'],0)
-        # Hands back in the middle: stop at once.
-        self.assertEqual(d.update(2,body(handshift=.02),.2)['steer'],0)
-    def test_steering_rides_through_a_brief_tracking_blip(self):
+        # Smaller torso lean cannot start a turn, but keeps an existing same-side turn.
+        self.assertLess(d.update(2,body(lean=.1),.1)['steer'],0)
+        self.assertEqual(DivaGestureDetector().update(2,body(lean=.1),0)['steer'],0)
+        # Torso upright: stop even if hands remain offset.
+        self.assertEqual(d.update(2,body(handshift=.8),.2)['steer'],0)
+    def test_steering_stops_on_hip_tracking_loss(self):
         d=DivaGestureDetector()
         turning=d.update(2,body(lean=.2,handshift=.7),0)['steer']
         b=body(lean=.2,handshift=.7)
         for i in [23,24]: b[i]['visibility']=b[i]['presence']=.1
-        self.assertEqual(d.update(2,b,.15)['steer'],turning)
+        self.assertLess(turning,0)
+        self.assertEqual(d.update(2,b,.15)['steer'],0)
         self.assertEqual(d.update(2,b,.4)['steer'],0)
     def test_aim_while_spraying_by_pushing_both_hands_sideways(self):
         d=DivaGestureDetector()

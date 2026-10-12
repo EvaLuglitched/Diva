@@ -10,6 +10,7 @@ namespace Diva.Show
 
         void EnterSelect()
         {
+            FlushTrial("reset");
             Time.timeScale = 1;
             ResetElephant();
             if (game) game.ResetRun();
@@ -93,6 +94,15 @@ namespace Diva.Show
         void ConfirmSelect()
         {
             if (Phase != ShowPhase.Select) return;
+            if (controller && controller.inputMode == DigiPhant.InputMode.Camera &&
+                (!controller.IsCalibrated || controller.CalibrationPending))
+            {
+                if (statusText)
+                    statusText.text = controller.CalibrationPending
+                        ? DivaText.F("status.calibrating", Mathf.CeilToInt(controller.CalibrationSecondsRemaining(Time.realtimeSinceStartup)))
+                        : DivaText.T("status.waiting");
+                return;
+            }
             sound.Play("confirm");
             Enter(raceIntro ? ShowPhase.RaceIntro : ShowPhase.PowerUp);
         }
@@ -110,7 +120,11 @@ namespace Diva.Show
             UpdateEntrance();
             int step = AimStep();
             if (step != 0) SwitchSkin(step);
-            if (confirmEdge || ultEdge) { ConfirmSelect(); return; }
+            if (confirmEdge || ultEdge)
+            {
+                ConfirmSelect();
+                if (Phase != ShowPhase.Select) return;
+            }
 
             // 摄像头模式：所有人入镜后自动开始 10 秒校准（就是原来的 Get ready）
             float now = Time.realtimeSinceStartup;

@@ -235,6 +235,7 @@ namespace DigiPhant
             GUI.DrawTexture(new Rect(0, 0, width + 20, Screen.height), Texture2D.blackTexture, ScaleMode.StretchToFill, false);
             GUILayout.BeginArea(new Rect(10, 10, width, Screen.height - 20), GUI.skin.box);
             GetComponent<DigiPhantCameraPreview>()?.DrawInline(width - 20);
+            GetComponent<DigiPhantRecording>()?.DrawControls(Mathf.Max(1, width - 32));
             scroll = GUILayout.BeginScrollView(scroll);
             var style = new GUIStyle(GUI.skin.label) { wordWrap = true };
             void Label(string text) => GUILayout.Label(text, style, GUILayout.Width(width - 30));
@@ -248,7 +249,7 @@ namespace DigiPhant
             bool upper = GUILayout.Toggle(controller.upperBodyOnly, "Upper body only");
             if (upper != controller.upperBodyOnly) controller.SetUpperBodyOnly(upper);
             Label("P1: pump raised arms to go; stop pumping to stop.");
-            Label("P2: lean hands and body left or right; stand upright to go straight.");
+            Label("P2: lean your torso left or right to turn, even while stopped. Keep hips visible; stand upright to stop turning. Arms can stay relaxed.");
             Label("P3: raise left/right arm to aim. Push both open hands out to spray; hands near mouth to refill.");
             float now = Time.realtimeSinceStartup;
             if (!solo) Label("Start left to right in the unmirrored preview: P1, P2, P3. Avoid crossing.");

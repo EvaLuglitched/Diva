@@ -176,6 +176,7 @@ namespace Diva.Show
 
         void OnDisable()
         {
+            FlushTrial("interrupted");
             DivaTarget.Hit -= OnTargetHit;
             DivaText.Changed -= OnLanguage;
             if (skins) skins.Changed -= OnSkinChanged;
@@ -227,6 +228,7 @@ namespace Diva.Show
         void Update()
         {
             DivaClock.Tick();
+            CacheTrialState();
             ReadInputs();
             if (raceIntro && raceIntro.Playing && raceIntro.Time < DivaIntro.Go && Phase != ShowPhase.RaceIntro)
             {
@@ -255,6 +257,7 @@ namespace Diva.Show
             }
             UpdateHud();
             UpdateBanners();
+            CacheTrialState();
         }
 
         float shake;
@@ -284,6 +287,8 @@ namespace Diva.Show
             }
             UpdatePip();
             UpdateLook();
+            // Runs after DivaDemo (order 200), including its LateUpdate target hits.
+            CacheTrialState();
         }
 
         void SetCamera(Vector3 position, Vector3 lookAt, float fov)
