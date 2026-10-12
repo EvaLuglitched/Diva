@@ -92,6 +92,7 @@ namespace Diva.VR
             DivaVR.Head = cam ? cam.transform : null;
             DivaVR.HudAnchor = hud;
             DivaVR.HudWidth = hudWidth;
+            gameObject.AddComponent<DivaVRLever>();   // 中控台操纵杆（编辑器里也建出来，截图能看到；前倾那套太晕，固定把手够不到）
             if (DivaVR.Simulated) gameObject.AddComponent<DivaVRSimulator>();
             else
             {
@@ -104,7 +105,6 @@ namespace Diva.VR
                     Debug.Log("DIVA_VR AR session created");
                 }
                 if (cam) { headPose = cam.gameObject.AddComponent<DivaVRHeadPose>(); headPose.head = cam.transform; }
-                gameObject.AddComponent<DivaVRLever>();   // 握拳拉杆；前倾那套太晕，固定把手够不到
                 hands = gameObject.AddComponent<DivaVRHands>();
                 gameObject.AddComponent<DivaVRHandGhost>();
             }
