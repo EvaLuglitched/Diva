@@ -1,7 +1,7 @@
 import time
 import unittest
 from types import SimpleNamespace
-from bridge import GroupPoseDetector, PerformerTracker, extract_features, requested_count
+from bridge import GroupPoseDetector, LandmarkSmoother, OneEuro, PerformerTracker, extract_features, performance_profile, requested_count
 
 
 def fake_pose(x, y, q=.9):
@@ -56,6 +56,27 @@ class GroupDetectorTests(unittest.TestCase):
         self.assertEqual(len(d.detect(None, 200).pose_landmarks), 2)
         d.set_group(False); self.assertIsNone(d.image); self.assertIsNotNone(d.video)
         self.assertEqual(len(d.detect(None, 233).pose_landmarks), 1)
+
+
+class SmoothingTests(unittest.TestCase):
+    def test_one_euro_removes_jitter_but_follows_motion(self):
+        import random
+        rng = random.Random(1); f = OneEuro()
+        still = [f(.5 + rng.uniform(-.01, .01), i / 30) for i in range(60)]
+        self.assertLess(max(still[30:]) - min(still[30:]), .011)            # jitter of ±0.01 (spread .02) at least halves when still
+        g = OneEuro(); moving = [g(.2 + i * .01, i / 30) for i in range(30)]  # 0.3 per second: a real move
+        self.assertLess(abs(moving[-1] - (.2 + 29 * .01)), .03)              # lags the motion by less than 3 frames
+
+    def test_landmark_smoother_keeps_slots_apart_and_forgets_dropped_ones(self):
+        sm = LandmarkSmoother()
+        a = sm.apply(1, fake_pose(.2, .5), 0.); b = sm.apply(2, fake_pose(.8, .5), 0.)
+        self.assertAlmostEqual(a[11].x, .2); self.assertAlmostEqual(b[11].x, .8)
+        sm.retain({1: 0}); self.assertNotIn(2, sm.filters); self.assertIn(1, sm.filters)
+
+    def test_profiles(self):
+        self.assertEqual(performance_profile('fast')['lite'], True)
+        self.assertEqual(performance_profile('quality')['hands_every'], 1)
+        self.assertIn(performance_profile('auto')['name'], ('fast', 'quality'))
 
 
 class TrackingTests(unittest.TestCase):

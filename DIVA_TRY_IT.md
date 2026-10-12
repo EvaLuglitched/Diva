@@ -53,9 +53,10 @@ in, then lock when the neutral pose is saved), and the status line says what the
   lower `gestureConfidence` on `DivaDemo` (default 0.3) if it keeps happening.
 The bridge console (Unity's camera panel shows its lines) prints the same counts whenever they change.
 
-Group tracking is now hybrid: a VIDEO-mode landmarker tracks the bodies it knows (smooth), and every 0.5 s an
-IMAGE-mode search looks over the whole frame; when it sees someone the tracker missed, the tracker is rebuilt and
-picks everyone up (`tracker rebuilt Nx` in the console). Solo play keeps plain tracking.
+Group tracking detects the whole frame on every frame in a background thread (the camera loop never waits for it)
+and smooths each player's landmarks; solo play keeps MediaPipe's own tracking. The bridge picks a performance profile
+by itself (`--profile quality` on Apple Silicon: full pose model, 960 px, hands every frame; `fast` elsewhere: lite
+model, 640 px, hands every other frame). The console line `pose NN ms/detection in the background` shows the cost.
 
 ### Tuning the gesture rules on your own recordings
 

@@ -76,6 +76,65 @@ def extract_features(landmarks, upper_body_only=False):
     return hip, [max(-3, min(3, v)) for v in raw], [quality(g) for g in groups]
 
 
+class OneEuro:
+    """One-Euro filter (Casiez 2012): heavy smoothing when still, light smoothing when moving. One per channel."""
+    __slots__ = ('min_cutoff', 'beta', 'd_cutoff', 'x', 'dx', 't')
+    def __init__(self, min_cutoff=1.5, beta=.3, d_cutoff=1.0):   # beta .3: a 2 Hz arm pump keeps ~80% of its amplitude (GO rule), stillness is filtered at 1.5 Hz
+        self.min_cutoff, self.beta, self.d_cutoff = min_cutoff, beta, d_cutoff
+        self.x = self.dx = None; self.t = None
+    @staticmethod
+    def alpha(cutoff, dt):
+        tau = 1 / (2 * math.pi * cutoff); return 1 / (1 + tau / dt)
+    def __call__(self, value, t):
+        if self.x is None or self.t is None or t <= self.t:
+            self.x, self.dx, self.t = value, 0., t; return value
+        dt = t - self.t; self.t = t
+        dx = (value - self.x) / dt
+        a_d = self.alpha(self.d_cutoff, dt); self.dx = a_d * dx + (1 - a_d) * self.dx
+        cutoff = self.min_cutoff + self.beta * abs(self.dx)
+        a = self.alpha(cutoff, dt); self.x = a * value + (1 - a) * self.x
+        return self.x
+
+
+class LandmarkSmoother:
+    """Per-player One-Euro smoothing of the 33 pose landmarks. Per-frame (IMAGE-mode) detection has no temporal
+    filter of its own, so without this the skeleton and the gesture rules see frame-to-frame jitter."""
+    def __init__(self, min_cutoff=1.5, beta=.3):
+        self.min_cutoff, self.beta = min_cutoff, beta; self.filters = {}
+    def reset(self, slot=None):
+        if slot is None: self.filters.clear()
+        else: self.filters.pop(slot, None)
+    def retain(self, slots):
+        for slot in list(self.filters):
+            if slot not in slots: del self.filters[slot]
+    def apply(self, slot, landmarks, t):
+        bank = self.filters.setdefault(slot, [[OneEuro(self.min_cutoff, self.beta) for _ in range(3)] for _ in range(33)])
+        if len(landmarks) != 33:
+            return landmarks
+        out = []
+        for i, l in enumerate(landmarks):
+            fx, fy, fz = bank[i]
+            out.append(types.SimpleNamespace(x=fx(l.x, t), y=fy(l.y, t), z=fz(l.z, t), visibility=l.visibility, presence=l.presence))
+        return out
+
+
+def performance_profile(name='auto'):
+    """'quality' on Apple Silicon (full pose model, 960 px, hands every frame), 'fast' elsewhere (lite, 640 px,
+    hands every other frame). Both run group detection in the background thread."""
+    if name == 'auto':
+        import platform
+        chip = ''
+        try:
+            import subprocess
+            chip = subprocess.run(['sysctl', '-n', 'machdep.cpu.brand_string'], capture_output=True, text=True, timeout=2).stdout
+        except Exception:
+            pass
+        name = 'quality' if (platform.machine() == 'arm64' and 'Apple' in chip) else 'fast'
+    if name == 'quality':
+        return dict(name='quality', lite=False, max_width=960, hands_every=1)
+    return dict(name='fast', lite=True, max_width=640, hands_every=2)
+
+
 class GroupPoseDetector:
     """Pose detection policy.
 
@@ -313,6 +372,8 @@ def main():
     parser.add_argument('--diva', action='store_true', help='Enable Diva GO/body-lean steer/open-palm shoot/thumbs-up refill gesture rules')
     parser.add_argument('--diva-config', type=Path, default=Path(__file__).parent / 'diva_gestures.json')
     parser.add_argument('--hand-model', type=Path, default=Path(__file__).parent / 'hand_landmarker.task')
+    parser.add_argument('--profile', choices=('auto', 'quality', 'fast'), default='auto',
+                        help='quality: full pose model, 960 px, hands every frame (Apple Silicon default); fast: lite model, 640 px')
     parser.add_argument('--gesture-model', type=Path, default=Path(__file__).parent / 'gesture_recognizer.task',
                         help="MediaPipe Gesture Recognizer: hands plus pretrained 'Thumb_Up' for the refill gesture")
     args = parser.parse_args()
@@ -350,7 +411,11 @@ def main():
     from mediapipe.tasks import python
     from mediapipe.tasks.python import vision
 
+    profile = performance_profile(args.profile)
+    print(f'Performance profile: {profile["name"]} ({"lite" if profile["lite"] else "full"} pose model, {profile["max_width"]} px, hands every {profile["hands_every"]} frame(s))', flush=True)
     def group_model():
+        if not profile['lite']:
+            return args.model
         # The lite model is 2-3x cheaper and plenty for three bodies at 640 px; fetch it once, fall back to full.
         lite = args.model.parent / 'pose_landmarker_lite.task'
         if not lite.exists():
@@ -419,7 +484,8 @@ def main():
         with ExitStack() as stack:
             poses = GroupPoseDetector(lambda: vision.PoseLandmarker.create_from_options(pose_options(args.people, 'video')),
                                       lambda: vision.PoseLandmarker.create_from_options(pose_options(args.people, 'image')),
-                                      group=args.people >= 2)
+                                      group=args.people >= 2, max_width=profile['max_width'])
+            smoother = LandmarkSmoother()
             stack.callback(poses.close)
             hand_detector = None
             gesture_recognizer = None
@@ -470,6 +536,7 @@ def main():
                         group_before = args.people >= 2
                         args.people = count
                         tracker = PerformerTracker(count)
+                        smoother.reset()
                         if gestures: gestures.reset()
                         if (count >= 2) != group_before:
                             poses.set_group(count >= 2)
@@ -506,6 +573,14 @@ def main():
                     if confidence[4] >= usable_quality or (gestures and shoulder_quality >= usable_quality):
                         observations.append((center, values, confidence, landmarks))
                 assignments = tracker.assign([o[0] for o in observations])
+                if args.people >= 2:
+                    # Per-frame detection jitters; smooth each assigned player's landmarks and recompute their features.
+                    smoother.retain(assignments)
+                    for slot, i in assignments.items():
+                        center, values, confidence, landmarks = observations[i]
+                        smoothed = smoother.apply(slot, landmarks, timestamp / 1000.)
+                        c2, v2, q2 = extract_features(smoothed, args.upper_body_only)
+                        observations[i] = (center, v2, q2, smoothed)
                 # Diagnostics for the group: how many bodies the model sees, how many are good enough, how many have a role.
                 seen = (len(result.pose_landmarks), len(observations), len(assignments), tracker.locked, poses.dropped // 100)
                 if seen != last_seen and time.monotonic() - last_seen_at > 1:
@@ -525,7 +600,7 @@ def main():
                     # bodies first so another player's palm cannot fire P3's gun.
                     matched_hands = {}
                     hand_frame += 1
-                    if p3_slot in bodies and (args.people == 1 or hand_frame % 2 == 0 or last_hand_rows is None):
+                    if p3_slot in bodies and (args.people == 1 or hand_frame % profile['hands_every'] == 0 or last_hand_rows is None):
                         hand_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                         if gesture_recognizer is not None:
                             hand_result = gesture_recognizer.recognize_for_video(hand_image, timestamp)
