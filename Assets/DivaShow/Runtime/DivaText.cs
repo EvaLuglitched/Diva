@@ -111,6 +111,7 @@ namespace Diva.Show
             ["finish"] = ("COURSE COMPLETE", "完成赛道"),
             ["timeup"] = ("TIME UP", "时间到"),
             ["finish.sub"] = ("{0}   ·   {1} PTS", "{0}   ·   {1} 分"),
+            ["finish.tasks"] = ("TASKS {0}/{1}", "完成任务 {0}/{1}"),
 
             ["highlight"] = ("HIGHLIGHT", "本局高光"),
             ["highlight.skip"] = ("Enter / both hands up to skip", "回车或双手举高跳过"),

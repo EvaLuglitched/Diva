@@ -31,10 +31,16 @@ namespace Diva
         [Tooltip("A leg or trunk control beyond this (of its -1..1 range) counts as lifting the leg / curling the trunk.")]
         [Range(.1f, 1)] public float controlThreshold = .35f;
         public bool showHud = true;
+        [Tooltip("The finish line (at the finish arch), facing the direction of travel. Crossing it ends the run, " +
+                 "whether or not every task is done; Reach tasks complete there. Empty: the run ends when all tasks are done.")]
+        public Transform finishLine;
+        [Min(1)] public float finishHalfWidth = 4.5f;
         public int Score { get; private set; }
         public int TargetsHit { get; private set; }
         public float RunSeconds => startTime < 0 ? 0 : (finishTime >= 0 ? finishTime : Time.time) - startTime;
         public bool Finished => finishTime >= 0;
+        public int TasksDone => tasks.Count(t => t.Done);
+        public bool AllTasksDone => tasks.Length > 0 && tasks.All(t => t.Done);
 
         Transform elephant;
         Vector3 startPosition;
@@ -78,6 +84,7 @@ namespace Diva
         {
             Score = TargetsHit = 0;
             startTime = finishTime = -1;
+            beforeLine = false;
             foreach (var task in tasks) task.doneAt = -1;
             foreach (var target in DivaTarget.All) target.ResetTarget();
             if (elephant) startPosition = elephant.position;
@@ -101,6 +108,7 @@ namespace Diva
             if (startTime < 0 || Finished) return;
             foreach (var task in tasks)
             {
+                if (finishLine && task.check == TaskCheck.Reach) continue;   // completed by crossing the line below
                 if (task.Done || !task.landmark || Flat(position - task.landmark.position).magnitude > task.radius) continue;
                 bool ok = task.check == TaskCheck.Reach
                     || task.check == TaskCheck.LiftLegs && LegsLifted
@@ -108,7 +116,27 @@ namespace Diva
                     || !string.IsNullOrEmpty(task.action) && locomotion.CurrentAction.StartsWith("Action: " + task.action);
                 if (ok) task.doneAt = Time.time - startTime;
             }
-            if (tasks.Length > 0 && tasks.All(t => t.Done)) finishTime = Time.time;
+            if (finishLine ? CrossedFinish(position) : AllTasksDone)
+            {
+                foreach (var task in tasks) if (!task.Done && task.check == TaskCheck.Reach) task.doneAt = Time.time - startTime;
+                finishTime = Time.time;
+            }
+        }
+
+        bool beforeLine;
+
+        /// <summary>
+        /// True on the frame the elephant passes through the arch: it was just in front of the line, within the arch's
+        /// width, and is now past it. Walking into the area beyond from the side does not count.
+        /// </summary>
+        bool CrossedFinish(Vector3 position)
+        {
+            Vector3 forward = Flat(finishLine.forward).normalized, offset = Flat(position - finishLine.position);
+            float along = Vector3.Dot(offset, forward), across = Vector3.Dot(offset, Vector3.Cross(Vector3.up, forward));
+            bool inArch = Mathf.Abs(across) <= finishHalfWidth;
+            bool crossed = beforeLine && inArch && along >= 0;
+            beforeLine = inArch && along < 0 && along > -6;
+            return crossed;
         }
 
         static Vector3 Flat(Vector3 v) { v.y = 0; return v; }
@@ -140,7 +168,7 @@ namespace Diva
             GUILayout.EndHorizontal();
             GUILayout.EndArea();
             if (Finished)
-                GUI.Label(new Rect(0, Screen.height * .18f, Screen.width, 60), $"COURSE COMPLETE · {RunSeconds:0.0}s · {Score} pts", big);
+                GUI.Label(new Rect(0, Screen.height * .18f, Screen.width, 60), $"COURSE COMPLETE · {RunSeconds:0.0}s · {Score} pts · tasks {TasksDone}/{tasks.Length}", big);
         }
     }
 }

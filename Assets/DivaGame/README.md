@@ -58,6 +58,17 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 | Purple-blue procedural sky, trilight ambient, linear fog, warm soft-shadow sun (colour 1/.9/.78, intensity 1.5) | Lighting settings, Key Light |
 | Post-processing on the main camera; far clip ≥ 400 | Main Camera |
 
+## Finish and ending
+
+The last neon arch stands on the course's finish point, in place of the course's small finish gate (its renderers
+are hidden, its position kept; **Restore Course Colours** shows it again). Under the arch is a candy checkered line, and
+just past it a round **finish pad** like the start pad (lemon rim, mint centre, pink dashes) where the elephant stops.
+
+**Crossing the line through the arch ends the run, whether or not the other tasks are done** (`DivaGameManager.finishLine`;
+walking into the area past the line from the side does not count). The finish banner shows time, points and
+"TASKS x/4"; the results cards already showed the task count. Trial exports end with reason `finish_line`, or
+`tasks_completed` when every task was done first.
+
 ## Keyboard play (`Runtime/DivaKeyboardControls.cs`)
 
 The keyboard works at the same time as the gestures, with or without a camera (no calibration needed). The keys act as one
@@ -130,7 +141,7 @@ by you, not analysed or imitated by an AI tool.
 - This project's render pipeline uses the **GPU Resident Drawer**. After large asset changes the
   editor can keep showing deleted objects or magenta materials; reopen the scene or restart Unity.
 - **Diva > Game > Render Preview Shots** saves stills to `Recordings/preview/` (git-ignored).
-- Press Play: HUD at the top right (score, time, four tasks); hold **Space** to spray (see Keyboard play).
+- Press Play: HUD at the top right (score, time, four tasks; crossing the finish arch ends the run); hold **Space** to spray (see Keyboard play).
 
 ## Files
 
