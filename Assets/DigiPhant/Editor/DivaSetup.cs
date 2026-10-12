@@ -80,7 +80,8 @@ namespace DigiPhant.Editor
                 Check(c.AcceptPacket(Packet(Person(1), Person(2)), 10.45f), "Missing-player packet rejected");
                 diva.State.Step(10.45f, .02f, 3, 1, true); Check(!diva.State.Shoot && diva.State.Aim == 0, "Missing P3 kept spraying");
                 Check(c.AcceptPacket(Packet(Person(1, 1), Person(2, steer: 1), Person(3)), 11), "Packet rejected");
-                diva.State.Step(11.6f, .02f, 3, 1, true); Check(diva.State.Forward == 0 && diva.State.Turn == 0, "Stale people kept moving");
+                // Carl: the visibility timeout is at least 0.8 s now (a laggy group camera must not flicker players), so check past it.
+                diva.State.Step(11.9f, .02f, 3, 1, true); Check(diva.State.Forward == 0 && diva.State.Turn == 0, "Stale people kept moving");
                 Check(c.AcceptPacket(Packet(Person(1), Person(2), Person(3)), 12), "Neutral packet rejected");
                 Check(c.CalibrateAt(12), "Neutral calibration still required legacy foot mappings");
                 Check(c.IsCalibrated, "Calibration did not become ready");
