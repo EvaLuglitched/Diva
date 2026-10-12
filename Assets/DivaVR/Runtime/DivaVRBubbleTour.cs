@@ -94,7 +94,8 @@ namespace Diva.VR
         CanvasGroup promptGroup;
         TextMeshProUGUI promptTitle, promptSub, menuHint, menuStart, menuLang;
         // 糖果招牌的 3D 部件：吊着牌子的气球和绳子（跟着 prompt 走），头正对着的气球可以捏爆
-        DivaSlant signFace, signBand; Transform signRoot; readonly List<Transform> balloons = new List<Transform>(), strings = new List<Transform>(); int balloonHover = -1;
+        DivaSlant signFace, signBand; Transform signRoot; readonly List<Transform> balloons = new List<Transform>(); readonly List<Transform[]> strings = new List<Transform[]>(); int balloonHover = -1;
+        readonly float[] balloonBorn = new float[5]; float signJolt, signDrop, regrowAt = -1;
         RectTransform btnStart, btnLang, menuHovered;
         DivaSlant plateStart, plateLang;
         string promptKey, menuLangText;
@@ -899,23 +900,51 @@ namespace Diva.VR
                 prompt.position = Vector3.Lerp(prompt.position, want, promptGroup.alpha < .05f ? 1 : 1 - Mathf.Exp(-dt * 3));
             prompt.rotation = Quaternion.LookRotation(prompt.position - h.position);
             if (btnStart) btnStart.localScale = Vector3.one * (menuHovered == btnStart ? 1.06f : 1f);
-            // 气球：吊在牌子顶边上，各自慢慢摇；头正对着哪个哪个鼓起来
+            // 气球：吊在牌子顶边上，各自慢慢摇、微微转；头正对着的那个会扭来扭去；爆完的 2.5 秒后从牌子后面长回来
             if (signRoot)
             {
                 signRoot.gameObject.SetActive(promptGroup.alpha > .05f);
-                signRoot.position = prompt.position; signRoot.rotation = prompt.rotation; signRoot.localScale = Vector3.one * Mathf.Max(.01f, pop);
                 float tt = Time.unscaledTime; balloonHover = -1;
+                signJolt = Mathf.MoveTowards(signJolt, 0, dt * 1.6f);
+                signDrop = Mathf.MoveTowards(signDrop, 0, dt * .25f);
+                // 牌子被爆掉气球晃一下、全爆了往下沉一点
+                prompt.rotation = Quaternion.LookRotation(prompt.position - h.position) * Quaternion.Euler(0, 0, Mathf.Sin(tt * 9) * 5f * signJolt);
+                prompt.position += Vector3.down * signDrop * .1f;
+                signRoot.position = prompt.position; signRoot.rotation = prompt.rotation; signRoot.localScale = Vector3.one * Mathf.Max(.01f, pop);
+                bool anyAlive = false;
                 for (int i = 0; i < balloons.Count; i++)
                 {
-                    var b = balloons[i]; var st = strings[i];
-                    if (!b.gameObject.activeSelf) { st.gameObject.SetActive(false); continue; }
-                    var lp = new Vector3((i - 2) * .17f + Mathf.Sin(tt * .9f + i) * .025f, .66f + Mathf.Sin(tt * 1.3f + i * 1.7f) * .03f, 0);
-                    b.localPosition = lp;
-                    var top = new Vector3((i - 2) * .1f, .33f, 0);
-                    st.localPosition = (lp + top) * .5f; st.localRotation = Quaternion.FromToRotation(Vector3.up, lp - top); st.localScale = new Vector3(.004f, Vector3.Distance(lp, top) * .5f, .004f);
+                    var b = balloons[i]; var segs = strings[i];
+                    bool alive = b.gameObject.activeSelf; anyAlive |= alive;
+                    foreach (var sg in segs) if (sg.gameObject.activeSelf != alive) sg.gameObject.SetActive(alive);
+                    if (!alive) continue;
+                    float born = Mathf.Clamp01((tt - balloonBorn[i]) / .7f);
+                    float sway = Mathf.Sin(tt * .9f + i * 1.3f);
+                    var lp = new Vector3((i - 2) * .18f + sway * .03f, .62f + .06f * Mathf.Sin(i * 1.1f) + Mathf.Sin(tt * 1.4f + i * 1.7f) * .025f, .02f * Mathf.Sin(tt * .7f + i));
+                    lp = Vector3.Lerp(new Vector3(lp.x, .1f, .05f), lp, DivaUi.EaseOutBack(born));   // 新长出来的从牌子后面飘上来
                     bool hov = Vector3.Angle(h.forward, b.position - h.position) < 3.5f;
                     if (hov) balloonHover = i;
-                    b.localScale = Vector3.one * (hov ? .19f : .16f);
+                    float wig = hov ? Mathf.Sin(tt * 22) * 14f : 0;
+                    b.localPosition = lp;
+                    b.localRotation = Quaternion.Euler(0, Mathf.Sin(tt * .6f + i) * 25f, -sway * 8f + wig);
+                    b.localScale = Vector3.one * (hov ? 1.15f : 1f) * born;
+                    // 绳子：从牌子顶边到气球结，中间往摇的反方向弯一点（4 段）
+                    var top = new Vector3((i - 2) * .11f, .33f, 0); var knot = lp + b.localRotation * new Vector3(0, -.11f, 0);
+                    var mid = (top + knot) * .5f + new Vector3(-sway * .035f, 0, 0);
+                    Vector3 prev = top;
+                    for (int k = 0; k < segs.Length; k++)
+                    {
+                        float u = (k + 1f) / segs.Length;
+                        var q = Vector3.Lerp(Vector3.Lerp(top, mid, u), Vector3.Lerp(mid, knot, u), u);
+                        var sg = segs[k]; sg.localPosition = (prev + q) * .5f; sg.localRotation = Quaternion.FromToRotation(Vector3.up, q - prev); sg.localScale = new Vector3(.004f, Vector3.Distance(prev, q) * .5f, .004f);
+                        prev = q;
+                    }
+                }
+                if (!anyAlive && regrowAt < 0) { regrowAt = tt + 2.5f; signDrop = 1; }
+                if (regrowAt > 0 && tt > regrowAt)
+                {
+                    regrowAt = -1; sound?.Play("rise", .5f, 1.4f);
+                    for (int i = 0; i < balloons.Count; i++) { balloons[i].gameObject.SetActive(true); balloonBorn[i] = tt + i * .12f; }
                 }
             }
         }
@@ -923,21 +952,35 @@ namespace Diva.VR
         void BuildBalloons()
         {
             var glow = Resources.Load<Material>("DivaVR Cockpit Glow");
-            if (!glow || !prompt) return;
+            var lit = Shader.Find("Universal Render Pipeline/Lit");
+            if (!glow || !lit || !prompt) return;
             signRoot = new GameObject("Sign Balloons").transform; signRoot.SetParent(prompt.parent, false);
-            Color[] cs = { new Color(1f, .55f, .8f), new Color(.6f, 1f, .85f), new Color(1f, .9f, .45f), new Color(.75f, .6f, 1f), new Color(.55f, .85f, 1f) };
-            var stringMat = new Material(glow); stringMat.color = Color.white * 1.2f; stringMat.SetColor("_BaseColor", Color.white * 1.2f);
+            Color[] cs = { new Color(1f, .55f, .8f), new Color(.55f, .95f, .8f), new Color(1f, .88f, .4f), new Color(.75f, .6f, 1f), new Color(.5f, .85f, 1f) };
+            Material Flat(Color c) { var m = new Material(glow); m.color = c; m.SetColor("_BaseColor", c); return m; }
+            var stringMat = Flat(Color.white * 1.2f); var eyeMat = Flat(new Color(.12f, .08f, .16f)); var cheekMat = Flat(new Color(1f, .6f, .75f)); var shineMat = Flat(Color.white * 1.4f);
+            Transform Part(PrimitiveType t, string name, Transform parent, Vector3 pos, Vector3 scale, Material m)
+            {
+                var go = GameObject.CreatePrimitive(t); Destroy(go.GetComponent<Collider>());
+                go.name = name; go.transform.SetParent(parent, false); go.transform.localPosition = pos; go.transform.localScale = scale;
+                var r = go.GetComponent<MeshRenderer>(); r.sharedMaterial = m; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+                return go.transform;
+            }
             for (int i = 0; i < 5; i++)
             {
-                var b = GameObject.CreatePrimitive(PrimitiveType.Sphere); Destroy(b.GetComponent<Collider>());
-                b.name = "Balloon " + i; b.transform.SetParent(signRoot, false); b.transform.localScale = Vector3.one * .16f;
-                var m = new Material(glow); m.color = cs[i] * 1.3f; m.SetColor("_BaseColor", cs[i] * 1.3f);
-                var mr = b.GetComponent<MeshRenderer>(); mr.sharedMaterial = m; mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                balloons.Add(b.transform);
-                var st = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Destroy(st.GetComponent<Collider>());
-                st.name = "String " + i; st.transform.SetParent(signRoot, false);
-                var sr = st.GetComponent<MeshRenderer>(); sr.sharedMaterial = stringMat; sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                strings.Add(st.transform);
+                // 一个气球 = 亮面的椭圆身子 + 底下的小结 + 两只眼睛、两团腮红、一点高光（脸朝着人）
+                var root = new GameObject("Balloon " + i).transform; root.SetParent(signRoot, false);
+                var body = new Material(lit); body.SetColor("_BaseColor", cs[i]); body.color = cs[i]; body.SetFloat("_Smoothness", .9f); body.SetFloat("_Metallic", 0f);
+                Part(PrimitiveType.Sphere, "Body", root, Vector3.zero, new Vector3(.15f, .185f, .15f), body);
+                Part(PrimitiveType.Sphere, "Knot", root, new Vector3(0, -.1f, 0), new Vector3(.035f, .03f, .035f), body);
+                Part(PrimitiveType.Sphere, "Eye L", root, new Vector3(-.03f, .015f, -.068f), Vector3.one * .02f, eyeMat);
+                Part(PrimitiveType.Sphere, "Eye R", root, new Vector3(.03f, .015f, -.068f), Vector3.one * .02f, eyeMat);
+                Part(PrimitiveType.Sphere, "Cheek L", root, new Vector3(-.052f, -.012f, -.06f), new Vector3(.022f, .014f, .01f), cheekMat);
+                Part(PrimitiveType.Sphere, "Cheek R", root, new Vector3(.052f, -.012f, -.06f), new Vector3(.022f, .014f, .01f), cheekMat);
+                Part(PrimitiveType.Sphere, "Shine", root, new Vector3(-.04f, .06f, -.058f), new Vector3(.03f, .02f, .01f), shineMat);
+                balloons.Add(root); balloonBorn[i] = -10;
+                var segs = new Transform[4];
+                for (int k = 0; k < segs.Length; k++) segs[k] = Part(PrimitiveType.Cylinder, $"String {i}.{k}", signRoot, Vector3.zero, new Vector3(.004f, .05f, .004f), stringMat);
+                strings.Add(segs);
             }
             signRoot.gameObject.SetActive(false);
         }
@@ -946,9 +989,11 @@ namespace Diva.VR
         {
             if (i < 0 || i >= balloons.Count || !balloons[i].gameObject.activeSelf) return;
             var b = balloons[i];
-            fx?.Pop(b.position, new Color(1f, .6f, .9f), .25f);
-            sound?.PlayAt("pop", b.position, .7f, 1.25f);
-            b.gameObject.SetActive(false); strings[i].gameObject.SetActive(false);
+            // 爆：泡泡碎片 + 彩纸 + 牌子晃一下 + "啪"
+            fx?.Pop(b.position, new Color(1f, .6f, .9f), .3f);
+            fx?.Pyro(b.position, new Color(1f, .8f, .4f) * 1.6f, true);
+            sound?.PlayAt("pop", b.position, .8f, 1.3f);
+            b.gameObject.SetActive(false); signJolt = 1;
             Debug.Log("DIVA_VR menu balloon popped " + i);
         }
 
