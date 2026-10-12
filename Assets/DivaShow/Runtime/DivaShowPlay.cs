@@ -171,17 +171,20 @@ namespace Diva.Show
         }
 
         /// <summary>赛道上的道具（糖果）吃到：加分、充一点能量、提示条、声音。</summary>
-        public void Collect(int points, Vector3 at)
+        /// <summary>吃到道具；返回实际加的分（燃烧时 ×1.5），没在 Play 阶段返回 0。</summary>
+        public int Collect(int points, Vector3 at)
         {
-            if (Phase != ShowPhase.Play) return;
-            bonus += Mathf.RoundToInt(points * ScoreMultiplier);
+            if (Phase != ShowPhase.Play) return 0;
+            int gained = Mathf.RoundToInt(points * ScoreMultiplier);
+            bonus += gained;
             charge = Mathf.Min(100, charge + 4);
             stats.candies++;
             // 连着吃音越来越高
             candyCombo = Time.time - lastCandyAt < 3.5f ? candyCombo + 1 : 0; lastCandyAt = Time.time;
             float pitch = 1 + .06f * Mathf.Min(candyCombo, 8);
-            Feed(DivaText.F("feed.candy", points), new Color(1f, .8f, .3f));
+            Feed(DivaText.F("feed.candy", gained), new Color(1f, .8f, .3f));
             if (Diva.VR.DivaVR.Active) sound.PlayAt("candy", at, .9f, pitch); else sound.Play("candy", .9f, pitch);
+            return gained;
         }
 
         void OnTargetHit(DivaTarget target)

@@ -143,7 +143,7 @@ namespace Diva.VR
                     fx.Flash(c.t.position, c.mat.color, 1.6f, .3f);
                     fx.Pop(c.t.position, c.mat.color, .5f);
                     if (c.rocket) { show.Collect(points, c.t.position); if (dash) dash.Trigger("rocket"); DivaVRFloatText.Show(DivaText.T("vr.feed.rocket"), c.t.position + Vector3.up * .5f, new Color(1f, .6f, .9f), 1.3f); }
-                    else { show.Collect(points, c.t.position); DivaVRFloatText.Show("+" + points, c.t.position + Vector3.up * .4f, new Color(1f, .85f, .3f), .9f); }
+                    else { int got = show.Collect(points, c.t.position); DivaVRFloatText.Show("+" + Mathf.Max(got, points), c.t.position + Vector3.up * .4f, new Color(1f, .85f, .3f), .9f); }
                 }
             }
         }

@@ -592,7 +592,7 @@ namespace Diva.VR
                     bool armed = aligned && menuPlaced && Time.unscaledTime - menuShownAt > 1.5f;
                     var hit = pinch && armed ? MenuHit(raw) : null;
                     if (hit == btnLang) { DivaText.Toggle(); sound?.Play("tick", .5f); }
-                    if (hit == btnStart || autopilot && stageTime > 2.5f || stageTime > 45) { sound?.Play("confirm", .6f); Go(Stage.Wide); }
+                    if (hit == btnStart || autopilot && stageTime > 2.5f || stageTime > 150) { sound?.Play("confirm", .6f); Go(Stage.Wide); }   // 150 秒兜底只救卡住的开场（手没追踪到），不能在玩家还在选语言时替他开始
                     break;
                 case Stage.Burst:
                     PlaceEye(wide.from, shotRot);

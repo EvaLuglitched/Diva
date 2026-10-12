@@ -65,8 +65,9 @@ namespace Diva.VR
         Transform cockpitRoot; float rumble;
         Material glowC; Light cabinLight;
         bool onFire;
-        /// <summary>燃烧状态：灯条烧成橙红。</summary>
+        /// <summary>燃烧状态：灯条烧成橙红；FireLevel（0–1）是火焰条，越满灯条越暖。</summary>
         public void SetFire(bool on) => onFire = on;
+        public float FireLevel { get; set; }
         /// <summary>驾驶舱抖一下（大招、冲刺、命中）：只抖驾驶舱的壳，不抖人的视角。</summary>
         public void Rumble(float amount) => rumble = Mathf.Max(rumble, amount);
         // 仪表台两块侧屏：左边速度，右边水量和连击
@@ -223,6 +224,7 @@ namespace Diva.VR
             // RGB 流转：色相在 0.5（青）到 0.92（粉）之间来回，12 秒一个来回
             float hue = onFire ? Mathf.Lerp(.02f, .1f, .5f + .5f * Mathf.Sin(Time.unscaledTime * 6f)) : Mathf.Lerp(.5f, .92f, .5f + .5f * Mathf.Sin(Time.unscaledTime * .52f));
             var rgb = Color.HSVToRGB(hue, .75f, 1f);
+            if (!onFire && FireLevel > 0) rgb = Color.Lerp(rgb, new Color(1f, .45f, .1f), FireLevel * .6f);
             if (glowC) { var cc = rgb * (1.8f + .3f * Mathf.Sin(Time.unscaledTime * 2.1f)); glowC.color = cc; glowC.SetColor("_BaseColor", cc); }
             if (cabinLight) cabinLight.color = rgb;
             // 表盘指针：速度、能量、水量（-60° 空 → +60° 满）；状态灯慢慢闪
