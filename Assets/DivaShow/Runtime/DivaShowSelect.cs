@@ -69,6 +69,7 @@ namespace Diva.Show
 
         void SetPlayers(bool one)
         {
+            startWhenReady = false;
             singlePlayer = one;
             ApplyPlayerMode();
             sound.Play("tick");
@@ -91,18 +92,24 @@ namespace Diva.Show
 
         void OnSkinChanged(int index) => RefreshSelect();
 
+        // 摄像头模式下校准没完成时按了 START：记住，校准一完成就自动开始（原来是静静地拒绝，像"按钮坏了"）
+        bool startWhenReady;
+
         void ConfirmSelect()
         {
             if (Phase != ShowPhase.Select) return;
             if (controller && controller.inputMode == DigiPhant.InputMode.Camera &&
                 (!controller.IsCalibrated || controller.CalibrationPending))
             {
+                startWhenReady = true;
+                sound.Play("tick");
                 if (statusText)
-                    statusText.text = controller.CalibrationPending
+                    statusText.text = (controller.CalibrationPending
                         ? DivaText.F("status.calibrating", Mathf.CeilToInt(controller.CalibrationSecondsRemaining(Time.realtimeSinceStartup)))
-                        : DivaText.T("status.waiting");
+                        : DivaText.T("status.waiting")) + "   ·   " + DivaText.T("status.startQueued");
                 return;
             }
+            startWhenReady = false;
             sound.Play("confirm");
             Enter(raceIntro ? ShowPhase.RaceIntro : ShowPhase.PowerUp);
         }
@@ -131,9 +138,14 @@ namespace Diva.Show
             string status;
             if (!controller || controller.inputMode != DigiPhant.InputMode.Camera) status = DivaText.T("status.test");
             else if (controller.CalibrationPending) status = DivaText.F("status.calibrating", Mathf.CeilToInt(controller.CalibrationSecondsRemaining(now)));
-            else if (controller.IsCalibrated) status = "<color=#7CFC9A>" + DivaText.T("status.ready") + "</color>";
+            else if (controller.IsCalibrated)
+            {
+                status = "<color=#7CFC9A>" + DivaText.T("status.ready") + "</color>";
+                if (startWhenReady) { ConfirmSelect(); if (Phase != ShowPhase.Select) return; }
+            }
             else if (demo.AllVisible(now)) { controller.BeginCalibrationCountdown(now); status = DivaText.F("status.calibrating", 10); }
             else status = singlePlayer ? DivaText.T("status.waiting") : DivaText.F("status.waiting3", MissingPlayers(now));
+            if (startWhenReady && !controller.IsCalibrated) status += "   ·   " + DivaText.T("status.startQueued");
             statusText.text = status;
 
             var mouse = UnityEngine.InputSystem.Mouse.current;
