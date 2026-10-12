@@ -152,7 +152,7 @@ namespace Diva.VR
             title = DivaUi.Text(panel, "Title", new Vector2(.5f, 1), new Vector2(0, -92), new Vector2(1100, 80), 62, Color.white);
             DivaUi.Glow(title, new Color(1, .3f, .7f, .9f));
             lineA = DivaUi.Text(panel, "Line A", new Vector2(.5f, .5f), new Vector2(0, 50), new Vector2(1100, 64), 46, Color.white, TextAlignmentOptions.Center, false);
-            lineB = DivaUi.Text(panel, "Line B", new Vector2(.5f, .5f), new Vector2(0, -2), new Vector2(1100, 44), 32, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
+            lineB = DivaUi.Text(panel, "Line B", new Vector2(.5f, .5f), new Vector2(0, -2), new Vector2(1100, 44), 30, new Color(.55f, 1f, .9f, .85f), TextAlignmentOptions.Center, false);
 
             // 第 2 步的四行动作
             learnRoot = new GameObject("Learn", typeof(RectTransform));
@@ -204,11 +204,11 @@ namespace Diva.VR
             for (int i = 0; i < 3; i++)
             {
                 float x = -330 + i * 330;
-                var lbl = DivaUi.Text(sr, "Stat " + i, new Vector2(.5f, .5f), new Vector2(x, 16), new Vector2(300, 36), 26, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
+                var lbl = DivaUi.Text(sr, "Stat " + i, new Vector2(.5f, .5f), new Vector2(x, 16), new Vector2(300, 36), 24, new Color(.55f, 1f, .9f, .6f), TextAlignmentOptions.Center, false);
                 int k = i;   // for 的循环变量是同一个，闭包里直接用 i 会在切换语言时越界（statKeys[3]）
                 DivaUi.Localize(lbl, () => DivaText.T(statKeys[k]));
-                var back = DivaUi.Image(sr, "Bar " + i, new Vector2(.5f, .5f), new Vector2(x, -12), new Vector2(240, 12), new Color(1, 1, 1, .15f));
-                var fillImg = DivaUi.Image(back.rectTransform, "Fill", new Vector2(0, .5f), Vector2.zero, new Vector2(240, 12), new Color(1f, .45f, .8f));
+                var back = DivaUi.Image(sr, "Bar " + i, new Vector2(.5f, .5f), new Vector2(x, -12), new Vector2(240, 10), new Color(1, 1, 1, .1f));
+                var fillImg = DivaUi.Image(back.rectTransform, "Fill", new Vector2(0, .5f), Vector2.zero, new Vector2(240, 10), new Color(1f, .45f, .8f, .65f));
                 fillImg.rectTransform.pivot = new Vector2(0, .5f); fillImg.rectTransform.anchoredPosition = Vector2.zero;
                 statFills[i] = fillImg.rectTransform;
             }
@@ -255,14 +255,16 @@ namespace Diva.VR
             buttons.Clear();
         }
 
-        void AddButton(string key, float x, float width, bool primary, Action press, float y = 80)
+        /// <summary>视觉层级：一块板只有一个主按钮（粉、大）；次要动作用深色小按钮（scale 0.8）。</summary>
+        void AddButton(string key, float x, float width, bool primary, Action press, float y = 80, float scale = 1f)
         {
             var b = new Btn { key = key, primary = primary, press = press };
-            b.rt = DivaUi.Rect(panel, "Button " + key, new Vector2(.5f, 0), new Vector2(x, y), new Vector2(width, 104));
+            float h = 104 * scale;
+            b.rt = DivaUi.Rect(panel, "Button " + key, new Vector2(.5f, 0), new Vector2(x, y), new Vector2(width, h));
             b.baseTop = primary ? new Color(1f, .38f, .74f) : new Color(.26f, .22f, .4f);
             b.baseBottom = primary ? new Color(.82f, .22f, .6f) : new Color(.17f, .14f, .28f);
-            b.plate = DivaUi.Panel(b.rt, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(width, 104), b.baseTop, b.baseBottom, 18);
-            b.label = DivaUi.Text(b.rt, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(width - 20, 90), primary ? 44 : 40, Color.white);
+            b.plate = DivaUi.Panel(b.rt, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(width, h), b.baseTop, b.baseBottom, 18);
+            b.label = DivaUi.Text(b.rt, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(width - 20, 90 * scale), (primary ? 44 : 40) * scale, Color.white);
             b.label.text = DivaText.T(key);
             buttons.Add(b);
         }
@@ -304,7 +306,7 @@ namespace Diva.VR
             {
                 case Step.Watch:
                     roundHadWatch = true; roundSteps = 4; clip = 0; clipAt = Time.unscaledTime;
-                    AddButton("vr.guide.skip", 470, 170, false, () => { watched = true; Go(Step.Pick); }, 420);
+                    AddButton("vr.guide.skip", 470, 170, false, () => { watched = true; Go(Step.Pick); }, 420, .8f);
                     break;
                 case Step.Pick:
                     roundSteps = roundHadWatch ? 4 : learned ? 2 : 3;
@@ -313,27 +315,27 @@ namespace Diva.VR
                     AddButton("vr.guide.next", 410, 150, false, () => show.VrStepSkin(1));
                     break;
                 case Step.Learn:
-                    AddButton("vr.guide.skip", 400, 240, false, () => { learned = true; Go(Step.Ready); });
+                    AddButton("vr.guide.skip", 420, 220, false, () => { learned = true; Go(Step.Ready); }, 80, .8f);
                     break;
                 case Step.Ready:
-                    AddButton("vr.guide.back", -340, 300, false, () => Go(Step.Pick));
-                    AddButton("vr.guide.start", 140, 460, true, () => show.VrConfirm());
+                    AddButton("vr.guide.back", -380, 280, false, () => Go(Step.Pick), 80, .8f);
+                    AddButton("vr.guide.start", 110, 520, true, () => show.VrConfirm());
                     break;
                 case Step.Results:
-                    AddButton("vr.guide.replay", -330, 420, false, () => { watched = learned = false; show.VrConfirm(); });
-                    AddButton("vr.guide.again.btn", 190, 480, true, () => show.VrConfirm());
+                    AddButton("vr.guide.replay", -370, 360, false, () => { watched = learned = false; show.VrConfirm(); }, 70, .8f);
+                    AddButton("vr.guide.again.btn", 150, 520, true, () => show.VrConfirm(), 70);
                     break;
                 case Step.Pause:
-                    // 两排：继续 / 回选涂装（两步确认）；重看教程 / EN 中文
-                    AddButton("vr.pause.continue", -250, 440, true, ClosePause);
-                    AddButton("vr.pause.quit", 250, 440, false, () =>
+                    // 主按钮"继续"居中在上；下面一排小的：重看教程 / EN 中文 / 回选涂装（两步确认）
+                    AddButton("vr.pause.continue", 0, 560, true, ClosePause, 205);
+                    AddButton("vr.pause.quit", 370, 400, false, () =>
                     {
                         var b = buttons.Find(x => x.key == "vr.pause.quit" || x.key == "vr.pause.quit2");
                         if (b != null && b.key == "vr.pause.quit2") { show.VrQuitToSelect(); return; }
                         if (b != null) { b.key = "vr.pause.quit2"; b.label.text = DivaText.T(b.key); quitArmedAt = Time.unscaledTime; }
-                    });
-                    AddButton("vr.pause.replay", -250, 440, false, () => { watched = learned = false; show.VrQuitToSelect(); }, 200);
-                    AddButton("lang", 250, 440, false, () => { DivaText.Toggle(); Refresh(); }, 200);
+                    }, 92, .8f);
+                    AddButton("vr.pause.replay", -370, 400, false, () => { watched = learned = false; show.VrQuitToSelect(); }, 92, .8f);
+                    AddButton("lang", 0, 300, false, () => { DivaText.Toggle(); Refresh(); }, 92, .8f);
                     break;
             }
             Fill();
@@ -604,10 +606,10 @@ namespace Diva.VR
             lineA.textWrappingMode = watch ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
             lineB.rectTransform.sizeDelta = new Vector2(watch ? 760 : 1100, 44);
             bool pause = step == Step.Pause;   // 暂停板两排按钮，两行字往上挪
-            lineA.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? 34 : watch ? 178 : pause ? 110 : 56);
+            lineA.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? 30 : watch ? 178 : pause ? 110 : 56);
             lineB.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? -40 : watch ? 118 : pause ? 62 : 8);
             lineA.gameObject.SetActive(step != Step.Learn);
-            lineB.gameObject.SetActive(step != Step.Learn && step != Step.Results);
+            lineB.gameObject.SetActive(step != Step.Learn && step != Step.Results);   // 结算板矮，提示行放不下（英雄卡 + 名次一行就够）
             switch (step)
             {
                 case Step.Watch:
@@ -645,10 +647,10 @@ namespace Diva.VR
                     lineB.text = DivaText.T("vr.pause.b");
                     break;
                 case Step.Results:
-                    stepLabel.text = "";
+                    stepLabel.text = show.VrResultTeam;
                     title.text = DivaText.T("vr.guide.results");
-                    lineA.text = DivaText.T("vr.guide.again");
-                    lineB.text = DivaText.T("vr.guide.again.b");
+                    lineA.text = show.VrResultLine;
+                    lineB.text = DivaText.T("vr.guide.again") + "   ·   " + DivaText.T("vr.guide.again.b");
                     break;
             }
             foreach (var x in new[] { stepLabel, title, lineA, lineB }) x.ForceMeshUpdate();
@@ -664,7 +666,7 @@ namespace Diva.VR
             if (step == Step.Hidden && arrived)
             {
                 if (phase == ShowPhase.Select && show.PhaseTime > .8f) { roundHadWatch = false; Go(watched ? Step.Pick : Step.Watch); }
-                else if (phase == ShowPhase.Results && show.PhaseTime > 3.5f) Go(Step.Results);
+                else if (phase == ShowPhase.Results && show.PhaseTime > 2.5f) Go(Step.Results);
             }
             var f = input ? input.Current : default;
             bool pinch = f.shoot && !lastShoot;
@@ -788,11 +790,11 @@ namespace Diva.VR
             bool results = step == Step.Results;
             // 牌子稍微偏左：右边留给全息大象
             // 结算：右下角（原来电脑版"再来一局"按钮的位置），小一点，不挡分数和排行榜
-            var at = results ? new Vector3(.32f, rig.eyeHeight - .34f, 1.3f) : new Vector3(-.12f, rig.eyeHeight + .03f, 1.45f);
+            var at = results ? new Vector3(.32f, rig.eyeHeight - .31f, 1.3f) : new Vector3(-.12f, rig.eyeHeight + .03f, 1.45f);
             panel.localPosition = group.alpha <= .01f ? at : Vector3.Lerp(panel.localPosition, at, 1 - Mathf.Exp(-dt * 6));
-            panel.sizeDelta = new Vector2(Units, results ? 400 : 560);
+            panel.sizeDelta = new Vector2(Units, results ? 460 : 560);   // 结算板比教学板矮一点（别挡上面的英雄卡），但要放得下队名、标题、名次一行和两个按钮
             // 第 1 步的底板是顶上一条字幕（Fill 里定的），别在这里每帧改回去
-            if (step != Step.Watch) plate.rectTransform.sizeDelta = new Vector2(1160, results ? 380 : 540);
+            if (step != Step.Watch) plate.rectTransform.sizeDelta = new Vector2(1160, results ? 440 : 540);
             // 牌子正对眼睛
             var eye = new Vector3(0, rig.eyeHeight, 0);
             panel.localRotation = Quaternion.LookRotation(panel.localPosition - eye);

@@ -150,6 +150,8 @@ namespace Diva.Show
             ["vr.menu.start"] = ("START", "开始"),
             ["vr.menu.hint"] = ("face a button and pinch", "头朝向按钮，捏一下"),
             ["vr.menu.exit"] = ("Digital Crown = leave the game any time", "数码表冠 = 随时退出游戏"),
+            ["vr.menu.mission"] = ("YOUR MISSION  ·  ONE LAP, FOUR STOPS", "你的任务 · 跑一圈，四个站"),
+            ["vr.menu.mission.b"] = ("shoot targets for points  ·  MEGA BUBBLE when charged  ·  cross the finish arch", "打靶得分 · 能量满放超级泡泡 · 冲过终点拱门"),
             ["vr.pause.btn"] = ("PAUSE", "暂停"), ["vr.pause"] = ("PAUSED", "暂停中"),
             ["vr.pause.a"] = ("the race is frozen", "比赛冻住了"), ["vr.pause.b"] = ("look at a button and pinch", "看着按钮捏一下"),
             ["vr.pause.continue"] = ("CONTINUE", "继续"), ["vr.pause.replay"] = ("REPLAY TUTORIAL", "重看教程"),

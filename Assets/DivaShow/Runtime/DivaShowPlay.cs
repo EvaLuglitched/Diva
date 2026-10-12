@@ -247,6 +247,8 @@ namespace Diva.Show
         {
             float t = PhaseTime;
             replay.Capture(Time.time - runStart, boosters ? boosters.Level : 0, 0, false, true, 0);
+            // VR：大招是火箭冲锋，大象一直在跑，泡泡的原点每帧跟着眼睛前方 3 米走，炸的是冲锋路上前方的靶子
+            if (Diva.VR.DivaVR.Active && Diva.VR.DivaVR.Head) { ultOrigin = Diva.VR.DivaVR.Head.position + Forward * 3f - Vector3.up * .5f; ultDirection = Forward; }
             // 泡泡从背上的炮舱冒出，长大，往前飞，然后爆开
             float grow = DivaUi.EaseOut(Mathf.Clamp01((t - .2f) / 1f));
             float fly = DivaUi.Smooth(Mathf.Clamp01((t - .7f) / .8f));
@@ -278,8 +280,8 @@ namespace Diva.Show
                 bonus += count * 10;
                 Feed(DivaText.F("feed.ult", DivaText.T("skill.ult"), count), Accent);
             }
-            // 爆开那一刻放慢
-            Time.timeScale = t > 1.45f && t < 2.2f ? .35f : 1;
+            // 爆开那一刻放慢（PC 版；VR 里冲锋中不放慢，慢动作在头显里像卡住）
+            Time.timeScale = !Diva.VR.DivaVR.Active && t > 1.45f && t < 2.2f ? .35f : 1;
             if (t > 2.9f || skipEdge && t > .5f)
             {
                 Time.timeScale = 1;

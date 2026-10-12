@@ -281,6 +281,9 @@ namespace Diva.Show
             FillResults();
         }
 
+        public string VrResultTeam { get; private set; } = "";
+        public string VrResultLine { get; private set; } = "";
+
         void FillResults()
         {
             if (record == null || !resTeam) return;
@@ -291,6 +294,10 @@ namespace Diva.Show
             resScore.text = record.score + "<size=40%> " + (DivaText.Chinese ? "分" : "PTS") + "</size>";
             DivaUi.Glow(resScore, DivaUi.WithAlpha(Accent, .9f), .7f, .4f, .1f);
             resRank.text = DivaText.F("rank", rank) + (rank == 1 ? "    <color=#FFD94A>" + DivaText.T("best") + "</color>" : "");
+            // VR 的结算板只有一行：队名 / 名次 · 用时 · 任务 · 新纪录（桌面版那三块板在 VR 里不显示）
+            VrResultTeam = resTeam.text;
+            VrResultLine = DivaText.F("rank", rank) + "   ·   " + DivaUi.Clock(record.seconds) + "   ·   " + DivaText.T("stat.tasks") + " " + record.tasks + "/" + (game ? game.tasks.Length : 4)
+                         + (rank == 1 ? "   ·   <color=#FFD94A>" + DivaText.T("best") + "</color>" : "");
 
             float run = locomotion ? locomotion.runSpeed : 4.5f;
             int ownHits = stats.hits - stats.ultHits, shots = Mathf.Max(record.shots, 0);

@@ -174,7 +174,7 @@ namespace Diva.Show
             Show(hudRoot, Phase == ShowPhase.Play || Phase == ShowPhase.Countdown);
             countdownRoot.gameObject.SetActive(Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 1);
             highlightRoot.gameObject.SetActive(Phase == ShowPhase.Highlight);
-            Show(resultsRoot, Phase == ShowPhase.Results);
+            Show(resultsRoot, Phase == ShowPhase.Results && !DivaVR.Active);   // VR：结算只留英雄卡 + 教学牌的结算板，桌面版三块板不画
             topRoot.gameObject.SetActive(!DivaVR.Active && Phase != ShowPhase.Highlight && Phase != ShowPhase.Intro && Phase != ShowPhase.RaceIntro);
         }
 

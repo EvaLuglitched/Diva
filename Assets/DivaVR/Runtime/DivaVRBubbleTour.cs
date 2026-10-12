@@ -93,6 +93,8 @@ namespace Diva.VR
         Transform prompt;
         CanvasGroup promptGroup;
         TextMeshProUGUI promptTitle, promptSub, menuHint, menuStart, menuLang;
+        // 落地页的"任务"块：四个站（编号 + 名字）和一行玩法
+        TextMeshProUGUI menuMission, menuMissionLine; readonly System.Collections.Generic.List<(TextMeshProUGUI text, string label)> menuStops = new System.Collections.Generic.List<(TextMeshProUGUI, string)>();
         RectTransform btnStart, btnLang, menuHovered;
         DivaSlant plateStart, plateLang;
         string promptKey, menuLangText;
@@ -417,25 +419,41 @@ namespace Diva.VR
             prompt.SetParent(world, false);
             var rt = (RectTransform)prompt;
             // 进入菜单：标题、副标题、[开始] [EN / 中文]，看着按钮捏一下；不看按钮直接捏也是开始
-            rt.sizeDelta = new Vector2(1100, 520);
+            rt.sizeDelta = new Vector2(1100, 660);
             rt.localScale = Vector3.one * (1.1f / 1100f);
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace; canvas.worldCamera = cam; canvas.sortingOrder = 60;
             promptGroup = go.GetComponent<CanvasGroup>();
             promptGroup.alpha = 0; promptGroup.blocksRaycasts = false; promptGroup.interactable = false;
             var ink = new Color(.06f, .05f, .12f);
-            var plate = DivaUi.Panel(rt, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1060, 500), ink, new Color(.6f, .6f, .75f, 1), 30);
+            var plate = DivaUi.Panel(rt, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1060, 640), ink, new Color(.6f, .6f, .75f, 1), 30);
             plate.stripe = new Color(1f, .45f, .8f); plate.stripeWidth = 14;
-            promptTitle = DivaUi.Text(rt, "Title", new Vector2(.5f, 1), new Vector2(0, -90), new Vector2(1000, 130), 112, Color.white);
+            promptTitle = DivaUi.Text(rt, "Title", new Vector2(.5f, 1), new Vector2(0, -66), new Vector2(1000, 96), 96, Color.white);
             DivaUi.Glow(promptTitle, new Color(1, .3f, .7f, .9f));
-            promptSub = DivaUi.Text(rt, "Sub", new Vector2(.5f, 1), new Vector2(0, -185), new Vector2(1000, 60), 40, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
-            btnStart = DivaUi.Rect(rt, "Start", new Vector2(.5f, 0), new Vector2(-150, 120), new Vector2(520, 120));
-            plateStart = DivaUi.Panel(btnStart, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(520, 120), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 20);
-            menuStart = DivaUi.Text(btnStart, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(500, 100), 60, Color.white);
-            btnLang = DivaUi.Rect(rt, "Lang", new Vector2(.5f, 0), new Vector2(270, 120), new Vector2(260, 120));
-            plateLang = DivaUi.Panel(btnLang, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(260, 120), new Color(.26f, .22f, .4f), new Color(.17f, .14f, .28f), 20);
-            menuLang = DivaUi.Text(btnLang, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(240, 100), 44, Color.white);
-            menuHint = DivaUi.Text(rt, "Hint", new Vector2(.5f, 0), new Vector2(0, 38), new Vector2(1000, 44), 28, new Color(1, 1, 1, .7f), TextAlignmentOptions.Center, false);
+            promptSub = DivaUi.Text(rt, "Sub", new Vector2(.5f, 1), new Vector2(0, -140), new Vector2(1000, 44), 34, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
+            // 落地页的小介绍：这局要干什么——四个站一排（编号牌 + 站名），下面一行玩法
+            menuMission = DivaUi.Text(rt, "Mission", new Vector2(.5f, 0), new Vector2(0, 440), new Vector2(1000, 34), 24, new Color(.55f, 1f, .9f, .85f), TextAlignmentOptions.Center, false);
+            var stopsRow = DivaUi.Rect(rt, "Stops", new Vector2(.5f, 0), new Vector2(0, 345), new Vector2(1000, 90));
+            var tasks = game ? game.tasks : null; int n = tasks != null ? Mathf.Min(tasks.Length, 4) : 0;
+            for (int i = 0; i < n; i++)
+            {
+                float x = -375 + i * 250;
+                var badge = DivaUi.Panel(stopsRow, "Badge " + i, new Vector2(.5f, .5f), new Vector2(x - 80, 0), new Vector2(54, 54), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 10);
+                var num = DivaUi.Text(badge.rectTransform, "Num", new Vector2(.5f, .5f), new Vector2(0, 1), new Vector2(54, 54), 30, Color.white);
+                num.text = (i + 1).ToString();
+                var name = DivaUi.Text(stopsRow, "Stop " + i, new Vector2(.5f, .5f), new Vector2(x + 50, 0), new Vector2(180, 84), 24, Color.white, TextAlignmentOptions.Left, false);
+                name.textWrappingMode = TextWrappingModes.Normal;
+                menuStops.Add((name, tasks[i] != null ? tasks[i].label : ""));
+            }
+            menuMissionLine = DivaUi.Text(rt, "Mission Line", new Vector2(.5f, 0), new Vector2(0, 300), new Vector2(1000, 36), 24, new Color(1, 1, 1, .75f), TextAlignmentOptions.Center, false);
+            // 视觉层级：标题 > START（唯一的主按钮，居中、大）> EN/中文（小药丸）> 提示（小、淡）
+            btnStart = DivaUi.Rect(rt, "Start", new Vector2(.5f, 0), new Vector2(0, 152), new Vector2(620, 130));   // y 是下边（轴心在底）：152–282，副标题在 305 以上
+            plateStart = DivaUi.Panel(btnStart, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(620, 130), new Color(1f, .38f, .74f), new Color(.82f, .22f, .6f), 20);
+            menuStart = DivaUi.Text(btnStart, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(600, 110), 66, Color.white);
+            btnLang = DivaUi.Rect(rt, "Lang", new Vector2(.5f, 0), new Vector2(0, 70), new Vector2(300, 76));
+            plateLang = DivaUi.Panel(btnLang, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 76), new Color(.26f, .22f, .4f), new Color(.17f, .14f, .28f), 16);
+            menuLang = DivaUi.Text(btnLang, "Label", new Vector2(.5f, .5f), new Vector2(0, 1), new Vector2(280, 66), 34, Color.white);
+            menuHint = DivaUi.Text(rt, "Hint", new Vector2(.5f, 0), new Vector2(0, 8), new Vector2(1000, 56), 26, new Color(1, 1, 1, .6f), TextAlignmentOptions.Center, false);
 
             // 全景里的大标题：浮在镇子上空，正对着人
             var tg = new GameObject("Tour Title", typeof(RectTransform), typeof(Canvas)) { layer = 5 };
@@ -874,6 +892,9 @@ namespace Diva.VR
                 menuStart.text = DivaText.T("vr.menu.start");
                 menuLangText = DivaText.T("lang"); menuLang.text = menuLangText;
                 menuHint.text = DivaText.T("vr.menu.hint") + "\n<size=70%>" + DivaText.T("vr.menu.exit") + "</size>";
+                if (menuMission) menuMission.text = DivaText.T("vr.menu.mission");
+                if (menuMissionLine) menuMissionLine.text = DivaText.T("vr.menu.mission.b");
+                foreach (var (text, label) in menuStops) text.text = DivaText.Task(label);
             }
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, key != null ? 1 : 0, dt * (key != null ? 3 : 4));
             // 头朝向的按钮高亮

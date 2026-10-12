@@ -77,7 +77,7 @@ namespace DigiPhant
             }
             // One person doing everything: moving the arms into the spray / drink pose must not also walk,
             // and drinking (hands at the mouth) must not steer.
-            if (all && (Shoot && !IndependentHands || Drink || Ult)) Forward = 0;
+            if (all && (Shoot && !IndependentHands || Drink || Ult && !IndependentHands)) Forward = 0;   // VR 的大招是火箭冲锋，不停车
             if (all && (Drink || Ult)) Turn = 0;
             if (Shoot && (!wasShooting || now >= nextBurst))
             {

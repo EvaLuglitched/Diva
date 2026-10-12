@@ -146,7 +146,7 @@ namespace Diva.VR
             if (up == 2) { if (ultSince < 0) ultSince = now; }
             else ultSince = -1;
             f.ult = ultSince >= 0 && Time.unscaledTime - ultSince >= ultHold;
-            if (f.ult || f.drink) f.go = f.steer = 0;
+            if (f.drink) f.go = f.steer = 0;   // 大招不清油门：举手那一刻 DivaVRDash 会点火全速冲
             return f;
         }
     }

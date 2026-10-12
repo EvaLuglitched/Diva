@@ -64,9 +64,16 @@ namespace Diva.VR
             if (streaks) streaks.Stop();
         }
 
+        float lastUltProgress;
         void Update()
         {
             if (until > 0 && Time.time >= until) Stop();
+            // 举双手蓄力（0.4 秒）：一举起就有上升音，座舱越震越厉害——火箭点火前的倒数
+            var hands = GetComponent<DivaVRHands>();
+            float p = hands && show && show.Phase == ShowPhase.Play && show.Charge >= 100 ? hands.UltProgress : 0;
+            if (p > 0 && lastUltProgress <= 0 && show.Sound != null) show.Sound.Play("rise", .7f, 1.3f);
+            if (p > 0) { var cockpit = GetComponent<DivaVRCockpit>(); if (cockpit) cockpit.Rumble(.2f + .6f * p); }
+            lastUltProgress = p;
             // 尾灯慢慢亮起来（一下全亮整个画面会跳一下）
             if (tail) tail.intensity = Mathf.MoveTowards(tail.intensity, Active ? 2.2f + .5f * Mathf.Sin(Time.time * 30) : 0, Time.deltaTime * 4);
         }

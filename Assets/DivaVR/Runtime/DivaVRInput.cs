@@ -51,7 +51,7 @@ namespace Diva.VR
             var head = DivaVR.Head;
             var frame = autopilot ? autopilot.Read() : simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
             // 冲刺中：自动全速往前，把手只管转弯
-            if (dash && dash.Active && show && show.Phase == Diva.Show.ShowPhase.Play) frame.go = 1;
+            if (dash && dash.Active && show && (show.Phase == Diva.Show.ShowPhase.Play || show.Phase == Diva.Show.ShowPhase.Ult)) frame.go = 1;
             // 辅助瞄准：捏的时候，看的方向 12° 以内、35 米以内最近的靶子就当作看准了它（眼睛的方向有一两度误差，远处的靶子很难正好看中）
             // 牌子在管手势的时候（选涂装、结算、暂停）不做辅助瞄准：那会把看向按钮的视线拐到旁边的靶子上，按错按钮
             bool guideOwns = guide && guide.isActiveAndEnabled && show && (guide.Handles(show.Phase) || guide.PauseHover);
