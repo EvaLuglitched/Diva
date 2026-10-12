@@ -203,7 +203,7 @@ class DivaGestureDetector:
         heights=[(shoulder[1]-val(b[i],'y'))/torso for i in (15,16)]
         normalized=[(shoulder[1]-val(b[i],'y'))/width for i in (15,16)]
         history=self.history.setdefault(slot,deque())
-        if history and (time<=history[-1][0] or time-history[-1][0]>.3):
+        if history and (time<=history[-1][0] or time-history[-1][0]>.6):   # a camera hiccup must not drop a pump in progress
             self.reset(slot,preserve_neutral=True);history=self.history.setdefault(slot,deque())
         if history and min(heights)>cfg['go_hand_min_height']:
             # go_step is motion over 100 ms, normalized by frame time. A 30 fps
