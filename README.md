@@ -25,7 +25,7 @@ Press Play in **Diva.unity** and the game now runs as a full match: choose one o
 ## Eva's updates
 
 Everything Eva added (candy-town game layer, race intro, rocket and sky, track edges, start pad, Vision Pro intro text,
-Fab fallback) is listed with commit IDs in **EVA_UPDATES.md** (Chinese), including replies to NOTE_FOR_EVA.md.
+Fab fallback) is listed with commit IDs in **EVA_UPDATES.md** (Chinese), including replies to NOTE_FOR_EVA.md. Three-player camera detection work (branch `carl/pc-three-player`) is explained in **NOTE_FOR_VICKY.md**.
 
 ## Fab rocket and clouds (not in git)
 

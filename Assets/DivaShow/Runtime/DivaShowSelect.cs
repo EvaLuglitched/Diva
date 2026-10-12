@@ -91,6 +91,7 @@ namespace Diva.Show
 
         void OnSkinChanged(int index) => RefreshSelect();
 
+
         void ConfirmSelect()
         {
             if (Phase != ShowPhase.Select) return;
