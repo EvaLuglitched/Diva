@@ -22,6 +22,7 @@ Eva 的代码都在 **`Assets/DivaGame/`**，场景物体都在 `Diva.unity` 的
 | 11 | 键盘操作玩法（和手势同时可用，不需要摄像头） | 见下方第 11 条 |
 | 12 | 终点：拱门移到终点线、冲线即结束、结束画面显示完成任务数、终点圆台 | 见下方第 12 条 |
 | 13 | 摄像头修复、竖拇指用 Gesture Recognizer、新开始流程（主页 → 大屏摄像头识别 → 自动开始） | 见下方第 13 条 |
+| 14 | 走路（摆臂 GO）放宽 + 每帧诊断记录 | 见下方第 14 条 |
 
 ## 1. 路线图（`029748d`）
 `ROADMAP.md`：大象射击游戏的玩法和分工计划。
@@ -124,6 +125,16 @@ DivaLook、机甲皮肤），再在上面重建 `Diva Game Layer`。之后每次
 - **给 Carl / Vicky：** 改了 `DivaShowDirector.cs`（新阶段 `CameraCheck`，各加一行）、`DivaShowSelect.cs`（START 不再拦、主页不再自动校准）、
   `DivaShowUi.cs`（建页面和显示）、`DivaText.cs`（新文字）、`DigiPhantCameraPreview.cs`（缺手势模型时自动下载）、
   `bridge.py`、`diva_gestures.py/json`，以及 Vicky 的 `DivaStartupValidation.cs`（新规则：摄像头模式 START → 识别页，测试模式 → 开场）。
+
+## 14. 走路（摆臂前进）
+- 问题：TrialData 显示一局里大象起步/停下上百次，每段只走约 0.3 秒，约每秒一次，和摆臂节奏一致。
+- **放宽**（`diva_gestures.py/json`，Vicky 的阈值）：`go_hand_min_height` -0.85 → **-1.25**（摆到髋部也算）；
+  新增 `go_dropout` 0.3 秒：手腕短暂看不清（模糊、出画面边缘）不清空摆臂记录，保持原来的走/停状态。
+  同一个"摆到髋部"的模拟动作：改前 73% 的帧在走、4 秒断 8 次；改后 100%、不断。`test_go_relaxed.py`。
+- **诊断**：追踪程序每帧把 P1"为什么走/不走"写到 `DigiPhantStarter/Tracking/go_debug/go_<时间>.csv`（保留最近 10 个，
+  `--no-go-log` 可关）。玩一局后运行 `python TrackingOverrides/go_debug_report.py` 看统计：走/停切换次数、
+  每段走多久、追踪帧率、以及"手臂在摆但判为不走"时是哪条规则（手太低 / 幅度不够 / 停顿 / 手腕看不清 / 两帧间隔太长）。
+- 没改 Unity 的移动代码（急停还在，按 Eva 的决定先不改）。
 
 ## 回复 Carl 的 NOTE_FOR_EVA.md
 

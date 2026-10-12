@@ -248,6 +248,41 @@ def preview_datagrams(jpeg, frame_id, chunk=PREVIEW_CHUNK):
             for i in range(count)]
 
 
+GO_LOG_FIELDS = ('wall', 't', 'loop_dt', 'bodies', 'assigned', 'slot', 'go', 'reason', 'left_h', 'right_h', 'left_range',
+                 'right_range', 'since_motion', 'frame_gap', 'wrist_q', 'lost_for', 'shoulder_q')
+
+
+class GoLog:
+    """Diagnostics for walking: one CSV row per frame for P1 (the walking player) with why GO was on or off.
+    Files go to Tracking/go_debug/go_<time>.csv; the newest 10 are kept. Summarise with go_debug_report.py."""
+    def __init__(self, folder, keep=10):
+        import csv
+        from datetime import datetime
+        folder.mkdir(parents=True, exist_ok=True)
+        for old in sorted(folder.glob('go_*.csv'))[:-(keep - 1) or None]:
+            try: old.unlink()
+            except OSError: pass
+        self.path = folder / f'go_{datetime.now():%Y%m%d_%H%M%S}.csv'
+        self.file = open(self.path, 'w', newline='', encoding='utf-8')
+        self.writer = csv.DictWriter(self.file, fieldnames=GO_LOG_FIELDS, extrasaction='ignore')
+        self.writer.writeheader()
+        self.last_flush = time.monotonic(); self.last_loop = None
+
+    def write(self, t, bodies, assigned, slot, go, info):
+        now = time.monotonic()
+        loop_dt = 0. if self.last_loop is None else now - self.last_loop
+        self.last_loop = now
+        row = dict(wall=round(time.time(), 3), t=round(t, 3), loop_dt=round(loop_dt, 3), bodies=bodies, assigned=assigned,
+                   slot=slot, go=go, **(info or {'reason': 'not-assigned'}))
+        self.writer.writerow(row)
+        if now - self.last_flush > 1:
+            self.file.flush(); self.last_flush = now
+
+    def close(self):
+        try: self.file.close()
+        except OSError: pass
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--people', type=int, choices=(1, 2, 3, 4), default=3)
@@ -260,6 +295,7 @@ def main():
     parser.add_argument('--diva', action='store_true', help='Enable Diva GO/body-lean steer/open-palm shoot/thumbs-up refill gesture rules')
     parser.add_argument('--diva-config', type=Path, default=Path(__file__).parent / 'diva_gestures.json')
     parser.add_argument('--hand-model', type=Path, default=Path(__file__).parent / 'hand_landmarker.task')
+    parser.add_argument('--no-go-log', action='store_true', help='Do not write the walking (GO) diagnostics CSV in go_debug/')
     parser.add_argument('--gesture-model', type=Path, default=Path(__file__).parent / 'gesture_recognizer.task',
                         help="MediaPipe Gesture Recognizer: hands plus pretrained 'Thumb_Up' for the refill gesture")
     args = parser.parse_args()
@@ -347,6 +383,13 @@ def main():
     preview_id = 0
     print('Stand side by side, all visible. IDs start left-to-right in the unmirrored preview.')
     print('R: reset identities (then recalibrate in Unity). Q: quit.')
+    go_log = None
+    if args.diva and not args.no_go_log:
+        try:
+            go_log = GoLog(Path(__file__).parent / 'go_debug')
+            print(f'Walking diagnostics: {go_log.path.name} (summary: python go_debug_report.py)', flush=True)
+        except OSError as error:
+            print(f'Walking diagnostics off: {error}', flush=True)
     try:
         with ExitStack() as stack:
             poses = GroupPoseDetector(lambda: vision.PoseLandmarker.create_from_options(pose_options(args.people, 'video')),
@@ -476,6 +519,12 @@ def main():
                         person['gestures'] = gestures.update(slot, bodies[slot], timestamp / 1000., matched_hands.get(slot, []), frame.shape[1] / frame.shape[0])
                         if needs_diva_neutral:
                             person['gestures'].update(go=0.,steer=0.,aim=0.,shoot=False,drink=False,ult=False)
+                    if go_log is not None:
+                        # P1 walks in every mode (solo: the one player is slot 1).
+                        walker = next((p for p in packet['people'] if p['slot'] == 1), None)
+                        go_log.write(timestamp / 1000., len(result.pose_landmarks), len(assignments), 1,
+                                     walker['gestures']['go'] if walker else 0.,
+                                     gestures.go_debug.get(1) if walker else None)
                 sender.sendto(json.dumps(packet, allow_nan=False).encode(), ('127.0.0.1', args.port))
                 h, w = frame.shape[:2]
                 # Draw every detection, even while waiting for the full group or
@@ -550,6 +599,7 @@ def main():
                     tracker.reset()
                     if gestures: gestures.reset()
     finally:
+        if go_log is not None: go_log.close()
         sender.sendto(b'{"version":1,"people":[]}', ('127.0.0.1', args.port))
         sender.close()
         camera.release()

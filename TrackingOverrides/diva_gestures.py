@@ -10,7 +10,9 @@ from numbers import Real
 from pathlib import Path
 
 DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
-                go_stop_delay=.35, go_step=.045, go_hand_min_height=-.85,
+                go_stop_delay=.35, go_step=.045, go_hand_min_height=-1.25,
+                # Wrists unclear for less than this (blur, frame edge) keep the swing history and the walking state.
+                go_dropout=.3,
                 steer_lean_start=.12, steer_lean_release=.07,
                 steer_lean_full=.35, steer_direction=-1.,
                 aim_height=.65, hand_match_distance=.55,
@@ -119,19 +121,25 @@ class DivaGestureDetector:
             self.config.update(json.loads(Path(config_path).read_text(encoding='utf-8')))
         self.history={}; self.last_motion={}; self.neutral={}; self.latest_geometry={}
         self.steering={}; self.refill={}; self.ult_since={}
+        self.hand_lost={}; self.last_go={}
+        # Per slot: why the last frame was GO or not, with the numbers behind it (the bridge logs this).
+        self.go_debug={}
+    def _why(self,slot,reason,**values):
+        self.go_debug[slot]=dict(reason=reason,**values)
     def calibrate(self):
         """Capture the last valid upright stance; camera must be unmirrored."""
         # A missing torso cannot establish a new lean baseline. Keep that slot's
         # previous valid lean while allowing independently valid hand geometry.
         self.neutral={slot:{**self.neutral.get(slot,{}),**g} for slot,g in self.latest_geometry.items()}
         self.history.clear();self.last_motion.clear();self.steering.clear();self.ult_since.clear();self.refill.clear()
+        self.hand_lost.clear();self.last_go.clear()
     def reset(self,slot=None,preserve_neutral=False):
         if slot is None:
             self.history.clear();self.last_motion.clear();self.neutral.clear();self.latest_geometry.clear()
-            self.steering.clear();self.refill.clear();self.ult_since.clear()
+            self.steering.clear();self.refill.clear();self.ult_since.clear();self.hand_lost.clear();self.last_go.clear()
         else:
             self.history.pop(slot,None);self.last_motion.pop(slot,None);self.steering.pop(slot,None);self.ult_since.pop(slot,None)
-            self.refill.pop(slot,None)
+            self.refill.pop(slot,None);self.hand_lost.pop(slot,None);self.last_go.pop(slot,None)
             if not preserve_neutral:self.neutral.pop(slot,None)
             self.latest_geometry.pop(slot,None)
     def retain(self,slots):
@@ -141,14 +149,14 @@ class DivaGestureDetector:
         out=dict(go=0.,steer=0.,aim=0.,shoot=False,drink=False,ult=False,confidence=0.)
         cfg=self.config
         if body is None or len(body)<25:
-            self.reset(slot,preserve_neutral=True);return out
+            self.reset(slot,preserve_neutral=True);self._why(slot,'body-lost');return out
         b=scale_body(body,aspect)
         required=[11,12]
         if any(not all(math.isfinite(c) for c in xyz(b[i])) for i in required):
-            self.reset(slot,preserve_neutral=True);return out
+            self.reset(slot,preserve_neutral=True);self._why(slot,'shoulders-missing');return out
         q=min(quality(b[i]) for i in [11,12])
         if q<cfg['min_quality']:
-            self.reset(slot,preserve_neutral=True);return out
+            self.reset(slot,preserve_neutral=True);self._why(slot,'shoulders-unclear',shoulder_q=round(q,2));return out
         out['confidence']=q
         shoulder=midpoint(b[11],b[12])
         width=max(.03,math.dist(xy(b[11]),xy(b[12])))
@@ -171,10 +179,11 @@ class DivaGestureDetector:
             out['drink']=time-previous[0]>=cfg['thumb_hold']
             self.history.pop(slot,None);self.last_motion.pop(slot,None);self.ult_since.pop(slot,None);self.steering.pop(slot,None)
             self.latest_geometry.pop(slot,None)
+            self._why(slot,'thumbs-up-refill')
             return out
         self.refill.pop(slot,None)
         if any(not all(math.isfinite(c) for c in xyz(b[i])) for i in (23,24)):
-            self.reset(slot,preserve_neutral=True);return out
+            self.reset(slot,preserve_neutral=True);self._why(slot,'hips-missing');return out
         hip=midpoint(b[23],b[24])
         torso_quality=min(quality(b[i]) for i in [23,24])
         torso=max(.03,math.dist(shoulder[:2],hip[:2])) if torso_quality>=cfg['min_quality'] else width*1.7
@@ -195,15 +204,27 @@ class DivaGestureDetector:
         # Steering only needs shoulders + hips. Invalid arms must not emit other actions.
         hand_valid=(all(all(math.isfinite(c) for c in xyz(b[i])) for i in (13,14,15,16))
                     and min(quality(b[i]) for i in (15,16))>=cfg['min_quality'])
+        wrist_q=min(quality(b[i]) for i in (15,16))
         if not hand_valid:
-            self.history.pop(slot,None);self.last_motion.pop(slot,None);self.ult_since.pop(slot,None);self.refill.pop(slot,None)
             out['confidence']=min(q,torso_quality)
+            since=self.hand_lost.setdefault(slot,time)
+            if time-since<cfg['go_dropout'] and slot in self.history:
+                # Brief blur / frame edge: keep the swing history and the walking state instead of starting over.
+                out['go']=self.last_go.get(slot,0.)
+                self._why(slot,'wrists-unclear-hold',wrist_q=round(wrist_q,2),lost_for=round(time-since,2))
+                return out
+            self.history.pop(slot,None);self.last_motion.pop(slot,None);self.ult_since.pop(slot,None);self.refill.pop(slot,None)
+            self.last_go.pop(slot,None)
+            self._why(slot,'wrists-unclear',wrist_q=round(wrist_q,2),lost_for=round(time-since,2))
             return out
+        self.hand_lost.pop(slot,None)
         out['confidence']=min(q,quality(b[15]),quality(b[16]))
         heights=[(shoulder[1]-val(b[i],'y'))/torso for i in (15,16)]
         normalized=[(shoulder[1]-val(b[i],'y'))/width for i in (15,16)]
         history=self.history.setdefault(slot,deque())
-        if history and (time<=history[-1][0] or time-history[-1][0]>.3):
+        frame_gap=time-history[-1][0] if history else 0.
+        gap_reset=bool(history) and (time<=history[-1][0] or frame_gap>.3)
+        if gap_reset:
             self.reset(slot,preserve_neutral=True);history=self.history.setdefault(slot,deque())
         if history and min(heights)>cfg['go_hand_min_height']:
             # go_step is motion over 100 ms, normalized by frame time. A 30 fps
@@ -214,9 +235,19 @@ class DivaGestureDetector:
         history.append((time,normalized))
         while history and time-history[0][0]>cfg['go_window']:history.popleft()
         ranges=[max(r[1][i] for r in history)-min(r[1][i] for r in history) for i in (0,1)]
+        since_motion=time-self.last_motion.get(slot,-999)
         if (len(history)>=4 and time-history[0][0]>=.25 and min(heights)>cfg['go_hand_min_height']
-                and min(ranges)>cfg['go_range'] and time-self.last_motion.get(slot,-999)<cfg['go_stop_delay']):
+                and min(ranges)>cfg['go_range'] and since_motion<cfg['go_stop_delay']):
             out['go']=1.
+        # Why GO is on or off this frame (first failing condition), for the bridge's debug log.
+        reason=('go' if out['go'] else 'frame-gap-reset' if gap_reset
+                else 'warming-up' if len(history)<4 or time-history[0][0]<.25
+                else 'hands-too-low' if min(heights)<=cfg['go_hand_min_height']
+                else 'swing-too-small' if min(ranges)<=cfg['go_range']
+                else 'paused' )
+        go_numbers=dict(left_h=round(heights[0],2),right_h=round(heights[1],2),left_range=round(ranges[0],3),
+                        right_range=round(ranges[1],3),since_motion=round(min(since_motion,9.99),2),
+                        frame_gap=round(frame_gap,3),wrist_q=round(wrist_q,2))
         wrists=midpoint(b[15],b[16])
         hand_offset=(wrists[0]-shoulder[0])/torso
         sep=math.dist(xy(b[15]),xy(b[16]))/torso
@@ -234,9 +265,12 @@ class DivaGestureDetector:
         if min(heights)>cfg['ult_height']:
             since=self.ult_since.setdefault(slot,time)
             out['ult']=time-since>=cfg['ult_hold']
+            if out['go']:reason='hands-above-head'
             out['go']=0.
         else:
             self.ult_since.pop(slot,None)
+        self.last_go[slot]=out['go']
+        self._why(slot,reason,**go_numbers)
         if not hands or len(hands)!=2:return out
         if any(len(h['landmarks'])!=21 or any(not all(math.isfinite(c) for c in xyz(p)) for p in h['landmarks']) for h in hands):return out
         counts=[open_fingers(scale_body(h['landmarks'],aspect),cfg) for h in hands]

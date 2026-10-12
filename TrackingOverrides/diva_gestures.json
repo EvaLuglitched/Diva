@@ -4,7 +4,7 @@
   "go_range": 0.14,
   "go_stop_delay": 0.35,
   "go_step": 0.045,
-  "go_hand_min_height": -0.85,
+  "go_hand_min_height": -1.25,
   "steer_direction": -1.0,
   "aim_height": 0.65,
   "hand_match_distance": 0.55,
@@ -27,5 +27,6 @@
   "thumb_up_cos": 0.7,
   "thumb_extension": 0.5,
   "curled_angle_max": 135.0,
-  "thumb_model_score": 0.5
+  "thumb_model_score": 0.5,
+  "go_dropout": 0.3
 }

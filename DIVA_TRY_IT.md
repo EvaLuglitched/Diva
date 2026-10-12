@@ -112,3 +112,10 @@ Current validation: 65 Python tests passed (62 repository + three starter record
 P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumbs-up is recognised by MediaPipe's pretrained Gesture Recognizer (`Thumb_Up`, `gesture_recognizer.task`, downloaded on first use) or, as a fallback, the geometric rule. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 uses calibrated torso lean alone, with shoulders and hips visible; wrists may be hidden. Upright or lost torso tracking stops turning, including while stationary.
 
 The publication Python suite passed 62 override tests; three starter recording tests also passed (65 total). Optional MediaPipe hand confidence set to `None` no longer crashes thumbs-up detection; explicit low or invalid confidence remains rejected. Fresh native Unity and physical checks of this restoration and the combined keyboard/finish-line checkout remain pending. Upstream keyboard and finish-line behavior is preserved.
+
+
+## Walking diagnostics
+Every Camera-mode session writes `DigiPhantStarter/Tracking/go_debug/go_<time>.csv`: one row per frame with why P1's
+GO was on or off (hands too low, swing too small, paused, wrists unclear, frame gap...). After a run, summarise it with
+`DigiPhantStarter/Tracking/.venv/bin/python TrackingOverrides/go_debug_report.py`. Walking now allows swings down to
+the hips (`go_hand_min_height` -1.25) and keeps the swing through wrist dropouts under 0.3 s (`go_dropout`).
