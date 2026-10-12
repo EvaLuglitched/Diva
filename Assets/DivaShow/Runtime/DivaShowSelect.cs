@@ -145,6 +145,7 @@ namespace Diva.Show
             }
             else if (demo.AllVisible(now)) { controller.BeginCalibrationCountdown(now); status = DivaText.F("status.calibrating", 10); }
             else status = singlePlayer ? DivaText.T("status.waiting") : DivaText.F("status.waiting3", MissingPlayers(now));
+            if (controller.inputMode != DigiPhant.InputMode.Camera) startWhenReady = false;   // 换到测试模式就不用排队了
             if (startWhenReady && !controller.IsCalibrated) status += "   ·   " + DivaText.T("status.startQueued");
             statusText.text = status;
 
