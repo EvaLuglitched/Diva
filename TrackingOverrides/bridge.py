@@ -28,7 +28,7 @@ class CameraRecovery:
             return True,frame,False
         self.healthy_since=None
         if now-self.last_frame<=self.timeout:return False,None,False
-        if self.reopens>=self.max_reopens:
+        if self.max_reopens is not None and self.reopens>=self.max_reopens:
             raise RuntimeError(f'Camera stopped delivering frames after {self.max_reopens} reconnect attempts. Restart Camera in Unity.')
         self.camera.release()
         self.camera=self.reopen()
@@ -280,7 +280,10 @@ def main():
     # Reopen the backend OpenCV already selected. Do not switch to DirectShow.
     selected_backend=int(camera.get(cv2.CAP_PROP_BACKEND))
     reopen_camera=lambda: cv2.VideoCapture(args.camera,selected_backend) if selected_backend>0 else cv2.VideoCapture(args.camera)
-    recovery=CameraRecovery(camera,reopen_camera,time.monotonic())
+    # Keep trying instead of exiting: on macOS the first frames can take several seconds (camera warm-up, the
+    # permission prompt, another app such as FaceTime/Zoom holding the camera). Exiting after three quick
+    # attempts left Unity with "Camera stopped" and no way to calibrate or START until Retry.
+    recovery=CameraRecovery(camera,reopen_camera,time.monotonic(),timeout=4,max_reopens=None)
     needs_diva_neutral=False
     camera_gap=False
     sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -364,7 +367,8 @@ def main():
                             tracker.reset()
                             gestures.reset()
                             needs_diva_neutral=True
-                        print(f'Camera reconnected ({recovery.reopens}/3). Stand side by side and save neutral again in Unity.',flush=True)
+                        print(f'Camera reconnected (attempt {recovery.reopens}). If it stays dark: close other apps using the camera '
+                              f'(FaceTime, Zoom, Photo Booth) and allow camera access. Then save neutral again in Unity.',flush=True)
                     time.sleep(.05)
                     continue
                 camera_gap=False

@@ -78,6 +78,7 @@ namespace Diva.Show
 
             ["status.test"] = ("Test controls: keyboard and sliders", "测试模式：键盘和滑块控制"),
             ["status.waiting"] = ("Step into the camera view", "请站到摄像头前"),
+            ["status.camera"] = ("No camera picture: {0}  ·  F1 → Retry, or Test controls / keyboard", "摄像头没有画面：{0}  ·  按 F1 点 Retry，或改用 Test controls / 键盘"),
             ["status.waiting3"] = ("Waiting for {0}", "等待 {0} 入镜"),
             ["status.calibrating"] = ("Stand naturally… ready in {0}", "自然站好…{0} 秒后就绪"),
             ["status.ready"] = ("Ready! Gestures are on", "就绪！可以用手势了"),

@@ -26,7 +26,10 @@ DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
                 ult_height=.85, ult_hold=.8)
 
 def val(point,name,default=0.):
-    return point.get(name,default) if isinstance(point,dict) else getattr(point,name,default)
+    # MediaPipe hand landmarks carry visibility/presence = None (only pose landmarks fill them): use the default,
+    # or comparisons such as quality(p) < min_quality crash the bridge (and Unity shows "Camera stopped").
+    v=point.get(name,default) if isinstance(point,dict) else getattr(point,name,default)
+    return default if v is None else v
 
 def xyz(point): return tuple(val(point,k) for k in ('x','y','z'))
 def xy(point): return xyz(point)[:2]

@@ -100,11 +100,22 @@ namespace Diva.Show
                 if (statusText)
                     statusText.text = controller.CalibrationPending
                         ? DivaText.F("status.calibrating", Mathf.CeilToInt(controller.CalibrationSecondsRemaining(Time.realtimeSinceStartup)))
-                        : DivaText.T("status.waiting");
+                        : CameraProblem() ?? DivaText.T("status.waiting");
                 return;
             }
             sound.Play("confirm");
             Enter(raceIntro ? ShowPhase.RaceIntro : ShowPhase.PowerUp);
+        }
+
+        /// <summary>
+        /// Eva: when the camera sends no frames (bridge stopped, permission, another app holding the camera), say so on
+        /// the START screen instead of "step into the camera view", which looked like a detection problem.
+        /// </summary>
+        string CameraProblem()
+        {
+            if (!cameraPreview && controller) cameraPreview = controller.GetComponent<DigiPhant.DigiPhantCameraPreview>();
+            if (!cameraPreview || cameraPreview.HasLiveFrame) return null;
+            return "<color=#FFB86B>" + DivaText.F("status.camera", cameraPreview.Status) + "</color>";
         }
 
         void UpdateSelect()
@@ -133,7 +144,7 @@ namespace Diva.Show
             else if (controller.CalibrationPending) status = DivaText.F("status.calibrating", Mathf.CeilToInt(controller.CalibrationSecondsRemaining(now)));
             else if (controller.IsCalibrated) status = "<color=#7CFC9A>" + DivaText.T("status.ready") + "</color>";
             else if (demo.AllVisible(now)) { controller.BeginCalibrationCountdown(now); status = DivaText.F("status.calibrating", 10); }
-            else status = singlePlayer ? DivaText.T("status.waiting") : DivaText.F("status.waiting3", MissingPlayers(now));
+            else status = CameraProblem() ?? (singlePlayer ? DivaText.T("status.waiting") : DivaText.F("status.waiting3", MissingPlayers(now)));
             statusText.text = status;
 
             var mouse = UnityEngine.InputSystem.Mouse.current;
