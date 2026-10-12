@@ -21,7 +21,10 @@ namespace Diva.Show
             if (waterGun) waterGun.StopSpray();
             if (boosters) boosters.SetBoost(1);
             sound.Play("fanfare");
-            Banner(DivaText.T(timeUp ? "timeup" : "finish"), DivaText.F("finish.sub", DivaUi.Clock(finishedTime), TotalScore), Accent, 4.2f, null);
+            // Eva: the finish banner also says how many course tasks this run completed.
+            string sub = DivaText.F("finish.sub", DivaUi.Clock(finishedTime), TotalScore);
+            if (game && game.tasks.Length > 0) sub += "   ·   " + DivaText.F("finish.tasks", game.TasksDone, game.tasks.Length);
+            Banner(DivaText.T(timeUp ? "timeup" : "finish"), sub, Accent, 4.2f, null);
             fx.Confetti(ElephantCenter + Vector3.up * ElephantSize * .3f, new[] { Primary, Secondary, Accent, Color.white, new Color(1, .85f, .3f) });
             fireworkNext = 0;
             finishAngle = BestAngle(ElephantSize * 1.4f, ElephantSize * .15f, 60);

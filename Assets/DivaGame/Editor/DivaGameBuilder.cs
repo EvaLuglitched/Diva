@@ -96,6 +96,7 @@ public static class DivaGameBuilder
         var targets = BuildTargets(Group(root.transform, "Targets"), layout, gates);
         BuildPathLights(Group(root.transform, "Path lights"), layout);
         BuildStartPad(root.transform, layout);
+        BuildFinish(root.transform, layout, course.transform);
         BuildSky(Group(root.transform, "Sky clouds"));
         BuildRocket(root.transform);
         RecolourCourse(course.transform);
@@ -325,7 +326,8 @@ public static class DivaGameBuilder
     static List<float> BuildGates(Transform parent, Layout layout)
     {
         var placed = new List<float>();
-        foreach (float wanted in new[] { .08f, .38f, .60f, .90f })
+        // The fourth arch (it stood at .90, before the finish) now stands on the finish line: see BuildFinish.
+        foreach (float wanted in new[] { .08f, .38f, .60f })
         {
             // Same placement as before: nudge forward until both pillars clear trees and landmarks.
             for (float f = wanted; f < wanted + .06f; f += .01f)
@@ -520,14 +522,25 @@ public static class DivaGameBuilder
     /// <summary>A round candy start pad under the elephant's starting spot; the course's start line and arrow stay on top.</summary>
     static void BuildStartPad(Transform parent, Layout layout)
     {
-        var pad = Group(parent, "Start pad");
-        pad.localPosition = layout.route[0];
-        // Layers stack just above the road (top at .025) and below the start line (top at .0525).
-        GameObject Layer(string name, Material m, float diameter, float bottom) =>
-            Part(pad, name, PrimitiveType.Cylinder, m, new Vector3(0, bottom + .004f, 0), new Vector3(diameter, .004f, diameter));
-        Layer("Pink rim", padPink, StartPadRadius * 2, .026f);
-        Layer("Cream disc", padCream, StartPadRadius * 2 - .5f, .030f);
-        Layer("Lilac centre", padLilac, 2.6f, .034f);
+        Vector3 ahead = (layout.route[1] - layout.route[0]).normalized;
+        BuildPad(parent, "Start pad", layout.route[0], ahead, padPink, padCream, padLilac, pathLight, true);
+    }
+
+    /// <summary>
+    /// A round candy pad for the elephant to stand on (start and finish). `open` is the side left free of gumdrops:
+    /// the way out at the start, the way in at the finish. Layers stack just above the road (top at .025) and below
+    /// the course's start line (top at .0525).
+    /// </summary>
+    static Transform BuildPad(Transform parent, string name, Vector3 centre, Vector3 ahead, Material rim, Material disc, Material middle,
+                              Material dashes, bool openAhead)
+    {
+        var pad = Group(parent, name);
+        pad.localPosition = centre;
+        GameObject Layer(string layer, Material m, float diameter, float bottom) =>
+            Part(pad, layer, PrimitiveType.Cylinder, m, new Vector3(0, bottom + .004f, 0), new Vector3(diameter, .004f, diameter));
+        Layer("Rim", rim, StartPadRadius * 2, .026f);
+        Layer("Disc", disc, StartPadRadius * 2 - .5f, .030f);
+        Layer("Centre", middle, 2.6f, .034f);
         foreach (var rr in pad.GetComponentsInChildren<MeshRenderer>()) rr.shadowCastingMode = ShadowCastingMode.Off;
 
         // A dashed neon ring that slowly turns.
@@ -535,28 +548,69 @@ public static class DivaGameBuilder
         for (int i = 0; i < 24; i++)
         {
             float a = i * Mathf.PI * 2 / 24;
-            var dash = Part(ring, "Dash", PrimitiveType.Cube, pathLight, new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 2.2f + Vector3.up * .044f, new Vector3(.12f, .016f, .32f));
+            var dash = Part(ring, "Dash", PrimitiveType.Cube, dashes, new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 2.2f + Vector3.up * .044f, new Vector3(.12f, .016f, .32f));
             dash.transform.localRotation = Quaternion.LookRotation(new Vector3(-Mathf.Sin(a), 0, Mathf.Cos(a)));
             dash.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
         }
         var spin = ring.gameObject.AddComponent<DivaFloat>();
         spin.bobHeight = 0; spin.spinDegreesPerSecond = 12;
 
-        // Gumdrops round the rim, leaving the way ahead open.
-        Vector3 ahead = (layout.route[1] - layout.route[0]).normalized;
+        // Gumdrops round the rim, leaving the path side open.
+        Vector3 open = openAhead ? ahead : -ahead;
         for (int i = 0; i < 20; i++)
         {
             float a = i * Mathf.PI * 2 / 20;
             Vector3 dir = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
-            if (Vector3.Dot(dir, ahead) > .55f) continue;
+            if (Vector3.Dot(dir, open) > .55f) continue;
             Part(pad, "Gumdrop", PrimitiveType.Sphere, candy[i % candy.Length], dir * (StartPadRadius - .05f) + Vector3.up * .05f, new Vector3(.36f, .26f, .36f))
                 .GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
         }
 
-        // Two lollipops flank the start, a little behind the line.
+        // Two lollipops flank the pad, set back from the path side.
         Vector3 side = Vector3.Cross(Vector3.up, ahead);
-        Lollipop(pad, side * (StartPadRadius + .7f) - ahead * .6f, 1.1f, padPink, 1);
-        Lollipop(pad, -side * (StartPadRadius + .7f) - ahead * .6f, 1.1f, candy[1], 2);
+        Lollipop(pad, side * (StartPadRadius + .7f) - open * .6f, 1.1f, rim, 1);
+        Lollipop(pad, -side * (StartPadRadius + .7f) - open * .6f, 1.1f, candy[1], 2);
+        return pad;
+    }
+
+    /// <summary>The finish line built by BuildFinish, for the game manager (crossing it ends the run).</summary>
+    static Transform finishLine;
+
+    /// <summary>
+    /// The finish: the last neon arch stands on the course's finish point in place of the course's small finish
+    /// gate (its renderers are hidden, its position kept; Restore Course Colours shows it again), a candy checkered
+    /// line under the arch, and a round pad just past it where the elephant stops.
+    /// </summary>
+    static void BuildFinish(Transform root, Layout layout, Transform course)
+    {
+        var group = Group(root, "Finish");
+        var (point, ahead, side) = layout.At(1);
+        PlaceModel(group, "Neon_Gate", slots.gate, point, Quaternion.LookRotation(-ahead), 8);
+
+        finishLine = Group(group, "Finish line");
+        finishLine.localPosition = point;
+        finishLine.localRotation = Quaternion.LookRotation(ahead);
+
+        // Checkered candy tiles across the road under the arch.
+        var tiles = Group(group, "Checkered line");
+        const int across = 12;
+        float tile = PathHalfWidth * 2 / across;
+        for (int row = 0; row < 2; row++)
+            for (int i = 0; i < across; i++)
+            {
+                Vector3 p = point + side * (-PathHalfWidth + tile * (i + .5f)) - ahead * tile * (row + .5f) + Vector3.up * .046f;
+                var t = Part(tiles, "Tile", PrimitiveType.Cube, (i + row) % 2 == 0 ? padPink : padCream, p, new Vector3(tile, .012f, tile));
+                t.transform.localRotation = Quaternion.LookRotation(ahead);
+                t.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+            }
+
+        // The pad starts right after the line: lemon rim, cream disc, mint centre, pink dashes.
+        BuildPad(group, "Finish pad", point + ahead * (StartPadRadius + .3f), ahead, candy[2], padCream, candy[1], landingLight, false);
+
+        // The course's own small finish gate is replaced by the arch.
+        var marker = course.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name.StartsWith("04 "));
+        if (marker)
+            foreach (var r in marker.GetComponentsInChildren<Renderer>(true)) { r.enabled = false; EditorUtility.SetDirty(r); }
     }
 
     static void BuildSky(Transform parent)
@@ -968,13 +1022,14 @@ public static class DivaGameBuilder
         game.controller = controller;
         game.locomotion = locomotion;
         game.blaster = blaster;
+        game.finishLine = finishLine;   // crossing the finish arch ends the run, tasks done or not
         Transform Landmark(string prefix) => course.GetComponentsInChildren<Transform>().First(t => t.name.StartsWith(prefix));
         game.tasks = new[]
         {
             new CourseTask { label = "Eat at the feeding bush", landmark = Landmark("01 "), radius = 5.5f, check = TaskCheck.CurlTrunk, action = "eat" },
             new CourseTask { label = "Drink at the water basin", landmark = Landmark("02 "), radius = 5.5f, check = TaskCheck.CurlTrunk, action = "drink" },
             new CourseTask { label = "Step over the fallen log", landmark = Landmark("03 "), radius = 5, check = TaskCheck.LiftLegs },
-            new CourseTask { label = "Reach the finish arch", landmark = Landmark("04 "), radius = 4, check = TaskCheck.Reach },
+            new CourseTask { label = "Cross the finish arch", landmark = Landmark("04 "), radius = 4, check = TaskCheck.Reach },
         };
 
         // Keyboard play alongside the gestures (W/A/D, U/I, Space, F); see Runtime/DivaKeyboardControls.cs.
@@ -1306,6 +1361,7 @@ public static class DivaGameBuilder
             ("game-camera", elephant.position + elephant.rotation * new Vector3(0, 4.5f, -8), elephant.position + Vector3.up * 1.5f, 0),
             ("start-chase", elephant.position - elephant.forward * 7 + Vector3.up * 6.5f, elephant.position + elephant.forward * 14 + Vector3.up * 1.5f, 60),
             ("start-pad", frame.TransformPoint(new Vector3(-5.5f, 6.5f, -6)), frame.TransformPoint(new Vector3(0, 0, 1)), 60),
+            ("finish", frame.TransformPoint(new Vector3(-4, 6, 22)), frame.TransformPoint(new Vector3(-19, 0, 18)), 60),
             ("bend", frame.TransformPoint(new Vector3(-9, 10, -2)), frame.TransformPoint(new Vector3(-17, 0, 3)), 60),
             ("course-low", frame.TransformPoint(new Vector3(-17, 3.2f, -16)), frame.TransformPoint(new Vector3(8, 1.5f, -17)), 60),
             ("finish-side", frame.TransformPoint(new Vector3(10, 4.5f, 12)), frame.TransformPoint(new Vector3(-12, 1.5f, 18)), 60),

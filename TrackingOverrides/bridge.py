@@ -6,12 +6,14 @@ import json
 import math
 from pathlib import Path
 import socket
+import struct
 import time
 from contextlib import ExitStack
 
 FEATURES = ('LeftHandHeight', 'RightHandHeight', 'LeftFootLift', 'RightFootLift', 'Lean', 'ArmSpread')
 MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task'
 HAND_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task'
+GESTURE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task'
 
 class CameraRecovery:
     """Bounded recovery of intermittent reads without changing camera backend."""
@@ -28,7 +30,7 @@ class CameraRecovery:
             return True,frame,False
         self.healthy_since=None
         if now-self.last_frame<=self.timeout:return False,None,False
-        if self.reopens>=self.max_reopens:
+        if self.max_reopens is not None and self.reopens>=self.max_reopens:
             raise RuntimeError(f'Camera stopped delivering frames after {self.max_reopens} reconnect attempts. Restart Camera in Unity.')
         self.camera.release()
         self.camera=self.reopen()
@@ -222,6 +224,30 @@ def encode_preview(frame, cv2):
     return None
 
 
+PREVIEW_MAGIC = b'DVP1'
+PREVIEW_CHUNK = 8000   # payload per datagram: under macOS's 9216-byte UDP limit with the 12-byte header
+
+
+def encode_preview_hd(frame, cv2, max_width=960, max_height=540, quality=72):
+    """A sharp preview for Unity's camera check (sent split over several datagrams, see preview_datagrams)."""
+    height, width = frame.shape[:2]
+    scale = min(1., max_width / width, max_height / height)
+    preview = frame if scale >= 1 else cv2.resize(frame, (max(1, round(width * scale)), max(1, round(height * scale))),
+                                                  interpolation=cv2.INTER_AREA)
+    ok, encoded = cv2.imencode('.jpg', preview, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    return encoded.tobytes() if ok else None
+
+
+def preview_datagrams(jpeg, frame_id, chunk=PREVIEW_CHUNK):
+    """Split one JPEG into datagrams: 'DVP1' + frame id (uint32) + index (uint16) + count (uint16) + bytes.
+    Unity reassembles a frame once every piece has arrived and drops incomplete ones."""
+    count = max(1, -(-len(jpeg) // chunk))
+    if count > 0xFFFF:
+        return []
+    return [PREVIEW_MAGIC + struct.pack('<IHH', frame_id & 0xFFFFFFFF, i, count) + jpeg[i * chunk:(i + 1) * chunk]
+            for i in range(count)]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--people', type=int, choices=(1, 2, 3, 4), default=3)
@@ -231,9 +257,11 @@ def main():
     parser.add_argument('--port', type=int, default=5055)
     parser.add_argument('--model', type=Path, default=Path(__file__).parent / 'pose_landmarker_full.task')
     parser.add_argument('--download-model', action='store_true', help='Download the official model if missing')
-    parser.add_argument('--diva', action='store_true', help='Enable Diva GO/steer/open-palm shoot/curled-hand drink gesture rules')
+    parser.add_argument('--diva', action='store_true', help='Enable Diva GO/body-lean steer/open-palm shoot/thumbs-up refill gesture rules')
     parser.add_argument('--diva-config', type=Path, default=Path(__file__).parent / 'diva_gestures.json')
     parser.add_argument('--hand-model', type=Path, default=Path(__file__).parent / 'hand_landmarker.task')
+    parser.add_argument('--gesture-model', type=Path, default=Path(__file__).parent / 'gesture_recognizer.task',
+                        help="MediaPipe Gesture Recognizer: hands plus pretrained 'Thumb_Up' for the refill gesture")
     args = parser.parse_args()
     if not 1024 <= args.port <= 65533:
         parser.error('--port must be between 1024 and 65533')
@@ -254,6 +282,16 @@ def main():
         temporary = args.hand_model.with_suffix('.download')
         urllib.request.urlretrieve(HAND_MODEL_URL, temporary)
         temporary.replace(args.hand_model)
+    if args.diva and not args.gesture_model.exists() and args.download_model:
+        # Optional: without it the hand landmarker and the geometric thumbs-up rule are used, as before.
+        try:
+            import urllib.request
+            temporary = args.gesture_model.with_suffix('.download')
+            print('Downloading the official MediaPipe gesture recognizer model...', flush=True)
+            urllib.request.urlretrieve(GESTURE_MODEL_URL, temporary)
+            temporary.replace(args.gesture_model)
+        except OSError as error:
+            print(f'Gesture recognizer download failed ({error}); using the hand landmarker.', flush=True)
     import cv2
     import mediapipe as mp
     from mediapipe.tasks import python
@@ -280,13 +318,20 @@ def main():
     # Reopen the backend OpenCV already selected. Do not switch to DirectShow.
     selected_backend=int(camera.get(cv2.CAP_PROP_BACKEND))
     reopen_camera=lambda: cv2.VideoCapture(args.camera,selected_backend) if selected_backend>0 else cv2.VideoCapture(args.camera)
-    recovery=CameraRecovery(camera,reopen_camera,time.monotonic())
+    # Keep trying instead of exiting: on macOS the first frames can take several seconds (camera warm-up, the
+    # permission prompt, another app such as FaceTime/Zoom holding the camera). Exiting after three quick
+    # attempts left Unity with "Camera stopped" and no way to calibrate or START until Retry.
+    recovery=CameraRecovery(camera,reopen_camera,time.monotonic(),timeout=4,max_reopens=None)
     needs_diva_neutral=False
     camera_gap=False
     sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sender.bind(('127.0.0.1', args.port + 1))
         sender.setblocking(False)
+        try:
+            sender.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1 << 21)   # room for a split HD preview frame
+        except OSError:
+            pass
     except OSError:
         camera.release()
         sender.close()
@@ -295,9 +340,11 @@ def main():
              (12, 14), (14, 16), (23, 25), (25, 27), (24, 26), (26, 28),
              (27, 29), (29, 31), (27, 31), (28, 30), (30, 32), (28, 32),
              (0, 7), (0, 8), (7, 11), (8, 12)]
-    colors = [(100, 230, 100), (255, 180, 80), (100, 160, 255), (220, 100, 230)]
+    # Every recognised (assigned) player is drawn green, unassigned bodies grey; the P1/P2/P3 label shows the role.
+    colors = [(100, 230, 100)] * 4
     previous_timestamp = -1
     last_preview = 0.0
+    preview_id = 0
     print('Stand side by side, all visible. IDs start left-to-right in the unmirrored preview.')
     print('R: reset identities (then recalibrate in Unity). Q: quit.')
     try:
@@ -307,7 +354,17 @@ def main():
                                       group=args.people >= 2)
             stack.callback(poses.close)
             hand_detector = None
-            if args.diva:
+            gesture_recognizer = None
+            if args.diva and args.gesture_model.exists():
+                # Gesture Recognizer = hand landmarks + pretrained gestures; its 'Thumb_Up' drives the refill.
+                gesture_options = vision.GestureRecognizerOptions(
+                    base_options=python.BaseOptions(model_asset_path=str(args.gesture_model)),
+                    running_mode=vision.RunningMode.VIDEO, num_hands=6,
+                    min_hand_detection_confidence=.4, min_hand_presence_confidence=.4,
+                    min_tracking_confidence=.4)
+                gesture_recognizer = stack.enter_context(vision.GestureRecognizer.create_from_options(gesture_options))
+                print('Hands: MediaPipe Gesture Recognizer (pretrained Thumb_Up).', flush=True)
+            elif args.diva:
                 hand_options = vision.HandLandmarkerOptions(
                     base_options=python.BaseOptions(model_asset_path=str(args.hand_model)),
                     running_mode=vision.RunningMode.VIDEO, num_hands=6,
@@ -364,7 +421,8 @@ def main():
                             tracker.reset()
                             gestures.reset()
                             needs_diva_neutral=True
-                        print(f'Camera reconnected ({recovery.reopens}/3). Stand side by side and save neutral again in Unity.',flush=True)
+                        print(f'Camera reconnected (attempt {recovery.reopens}). If it stays dark: close other apps using the camera '
+                              f'(FaceTime, Zoom, Photo Booth) and allow camera access. Then save neutral again in Unity.',flush=True)
                     time.sleep(.05)
                     continue
                 camera_gap=False
@@ -400,8 +458,15 @@ def main():
                     # bodies first so another player's palm cannot fire P3's gun.
                     matched_hands = {}
                     if p3_slot in bodies:
-                        hand_result = hand_detector.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), timestamp)
-                        hand_rows = [dict(landmarks=h) for h in hand_result.hand_landmarks]
+                        hand_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                        if gesture_recognizer is not None:
+                            hand_result = gesture_recognizer.recognize_for_video(hand_image, timestamp)
+                            hand_rows = [dict(landmarks=h, gesture=g[0].category_name if g else None,
+                                              gesture_score=float(g[0].score) if g else 0.)
+                                         for h, g in zip(hand_result.hand_landmarks, hand_result.gestures)]
+                        else:
+                            hand_result = hand_detector.detect_for_video(hand_image, timestamp)
+                            hand_rows = [dict(landmarks=h) for h in hand_result.hand_landmarks]
                         all_bodies = {f'observed-{i}': row[3] for i, row in enumerate(observations)}
                         associated = associate_hands(hand_rows, all_bodies, gestures.config, frame.shape[1] / frame.shape[0])
                         for slot, index in assignments.items():
@@ -461,15 +526,20 @@ def main():
                     message = f'Waiting for {args.people} visible people' if args.no_window else f'Stand side by side: waiting for {args.people} visible people | Q: quit'
                 cv2.putText(frame, message, (12, 26), cv2.FONT_HERSHEY_SIMPLEX, .55, (255, 255, 255), 2)
                 now = time.monotonic()
-                if now - last_preview >= .1:
-                    jpeg = encode_preview(frame, cv2)
+                if now - last_preview >= 1 / 15:
+                    # HD preview split across datagrams (Unity reassembles); about 960x540 at 15 fps instead of
+                    # the old single-datagram 320x240 at low quality, which looked blurry on the large camera check.
+                    jpeg = encode_preview_hd(frame, cv2)
                     if jpeg is not None:
-                        try:
-                            sender.sendto(jpeg, ('127.0.0.1', args.port + 2))
-                        except OSError as error:
-                            # A dropped preview must not stop performer tracking.
-                            if error.errno not in (errno.EMSGSIZE, errno.EAGAIN, errno.EWOULDBLOCK, errno.ENOBUFS):
-                                raise
+                        preview_id += 1
+                        for datagram in preview_datagrams(jpeg, preview_id):
+                            try:
+                                sender.sendto(datagram, ('127.0.0.1', args.port + 2))
+                            except OSError as error:
+                                # A dropped preview must not stop performer tracking (Unity skips the incomplete frame).
+                                if error.errno not in (errno.EMSGSIZE, errno.EAGAIN, errno.EWOULDBLOCK, errno.ENOBUFS):
+                                    raise
+                                break
                     last_preview = now
                 if not args.no_window:
                     cv2.imshow('DigiPhant tracking (unmirrored)', frame)

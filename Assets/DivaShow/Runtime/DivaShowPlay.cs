@@ -132,7 +132,8 @@ namespace Diva.Show
                            bubbles && bubbles.IsBlowing, waterGun ? waterGun.jetSpeed : 0);
 
             // 结束：Eva 的四个任务全部完成，或者超时
-            if (game && game.Finished) { trialEndReason = "tasks_completed"; Enter(ShowPhase.Finish); return; }
+            // Eva: crossing the finish arch ends the run even with tasks left ("finish_line"); all tasks done is still "tasks_completed".
+            if (game && game.Finished) { trialEndReason = game.AllTasksDone ? "tasks_completed" : "finish_line"; Enter(ShowPhase.Finish); return; }
             if (timeLimit > 0 && t >= timeLimit) { trialEndReason = "timeout"; timeUp = true; Enter(ShowPhase.Finish); return; }
             var kb2 = UnityEngine.InputSystem.Keyboard.current;
             if (kb2 != null && kb2.endKey.wasPressedThisFrame) { trialEndReason = "manual_end"; timeUp = true; Enter(ShowPhase.Finish); }

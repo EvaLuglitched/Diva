@@ -20,6 +20,8 @@ Eva 的代码都在 **`Assets/DivaGame/`**，场景物体都在 `Diva.unity` 的
 | 9 | 太空星空夜景；主摄像机显示天空盒 | `91a52e7` `0d4aa3f` |
 | 10 | 倒数时火箭从大象正前方飞过；火箭镜头里保留带光环的星球 | `c6fb9cd` `26a125f` |
 | 11 | 键盘操作玩法（和手势同时可用，不需要摄像头） | 见下方第 11 条 |
+| 12 | 终点：拱门移到终点线、冲线即结束、结束画面显示完成任务数、终点圆台 | 见下方第 12 条 |
+| 13 | 摄像头修复、竖拇指用 Gesture Recognizer、新开始流程（主页 → 大屏摄像头识别 → 自动开始） | 见下方第 13 条 |
 
 ## 1. 路线图（`029748d`）
 `ROADMAP.md`：大象射击游戏的玩法和分工计划。
@@ -95,6 +97,31 @@ DivaLook、机甲皮肤），再在上面重建 `Diva Game Layer`。之后每次
 - **给 Carl / Vicky：** 这次改了 `Assets/DigiPhant/Runtime/DivaControlState.cs`（你们的文件），只加了一个
   `Keys` 字段，并把 `Step` 拆成 `StepGestures` + 合并键盘 + 原来的连发逻辑。**没按键时（`Keys == null`）行为和原来完全一样**；
   用 11 个逻辑测试核对过（只有键盘、键盘+手势、锁定菜单、连发节奏、喝水补水、松开按键）。
+
+## 12. 终点和游戏结束
+- 原来终点前约 14 米的那座彩虹拱门移到了终点线上，代替老师赛道的小终点门（只隐藏了它的模型，位置不变；
+  **Restore Course Colours** 可恢复）。拱门下面有粉白棋盘格终点线，过线后是一个和起点一样的圆形**终点台**（柠檬黄外圈、薄荷绿中心、粉色虚线圈）。
+- **大象从拱门穿过终点线就结束这一局，不管其他任务有没有完成**（从侧面走进终点区不算）。
+- 结束动画的横幅显示：用时 · 分数 · **完成任务 x/4**；结算卡片原来就有任务数。
+- **给 Carl / Vicky：** 改了你们的三个文件，各只有一两行：
+  - `DivaShowPlay.cs`：结束原因在没做完所有任务时记为新的 `finish_line`，全部完成仍是 `tasks_completed`（TrialData 的 reason 会出现这个新值）。
+  - `DivaShowEnd.cs`：结束横幅后面加了"完成任务 x/4"。
+  - `DivaText.cs`：新增 `finish.tasks` 中英文文字。
+  - Carl 的 VR 分支里的 `ForceFinish()` 也是"到拱门就结束"，以后合并时两边逻辑一致，注意 `DivaGameManager.cs` 的冲突。
+
+## 13. 摄像头和开始流程
+- **修了"摄像头自动关闭"**：手部关键点的 visibility/presence 是 `None`，竖拇指判断一比较就报错，整个追踪程序退出。
+  `diva_gestures.val()` 现在把 `None` 当默认值（`test_hand_none_quality.py` 用 MediaPipe 格式的数据复现并验证）。
+- **摄像头没画面时不再放弃**：每 4 秒重连一次直到恢复（原来 12 秒内 3 次失败就永久退出）。
+- **合并了 Carl 的 `carl/pc-three-player`**：多人模式每 0.5 秒全画面找新人、按进入顺序从左到右分配角色、门槛放宽。
+- **竖拇指改用 MediaPipe Gesture Recognizer**（预训练 `Thumb_Up`，这是我们的"额外 MediaPipe 视觉任务"），原来的几何规则作为备用；
+  第一次运行自动下载模型，下载失败就退回原来的方法。`test_thumb_model.py` 测试。
+- 摄像头画面里**识别到的玩家骨架都是绿色**，没分配的是灰色，P1/P2/P3 标签表示角色。
+- **新开始流程**（`Assets/DivaShow/Runtime/DivaShowCameraCheck.cs`）：主页选颜色和人数 → START（不再需要先校准）→
+  大屏摄像头识别页（每个玩家识别到就变绿）→ 全员绿色保持 5 秒自动保存站姿 → Eva 的开场。回车跳过（键盘玩），Esc 返回；Test controls 直接进开场。
+- **给 Carl / Vicky：** 改了 `DivaShowDirector.cs`（新阶段 `CameraCheck`，各加一行）、`DivaShowSelect.cs`（START 不再拦、主页不再自动校准）、
+  `DivaShowUi.cs`（建页面和显示）、`DivaText.cs`（新文字）、`DigiPhantCameraPreview.cs`（缺手势模型时自动下载）、
+  `bridge.py`、`diva_gestures.py/json`，以及 Vicky 的 `DivaStartupValidation.cs`（新规则：摄像头模式 START → 识别页，测试模式 → 开场）。
 
 ## 回复 Carl 的 NOTE_FOR_EVA.md
 

@@ -10,7 +10,7 @@ using UnityEngine.Playables;
 
 namespace Diva.Show
 {
-    public enum ShowPhase { Intro, Select, RaceIntro, PowerUp, Countdown, Play, Ult, Finish, Highlight, Results }
+    public enum ShowPhase { Intro, Select, CameraCheck, RaceIntro, PowerUp, Countdown, Play, Ult, Finish, Highlight, Results }
 
     /// <summary>
     /// 整局流程：（Eva 的开场）→ 选涂装 → 机甲启动 → 3·2·1 → 游戏（技能、大招）→ 结束 → 本局高光 → 结算和排行榜。
@@ -211,6 +211,7 @@ namespace Diva.Show
             {
                 case ShowPhase.Intro: EnterIntro(); break;
                 case ShowPhase.Select: EnterSelect(); break;
+                case ShowPhase.CameraCheck: EnterCameraCheck(); break;
                 case ShowPhase.RaceIntro: EnterRaceIntro(); break;
                 case ShowPhase.PowerUp: EnterPowerUp(); break;
                 case ShowPhase.Countdown: EnterCountdown(); break;
@@ -246,6 +247,7 @@ namespace Diva.Show
             {
                 case ShowPhase.Intro: UpdateIntro(); break;
                 case ShowPhase.Select: UpdateSelect(); break;
+                case ShowPhase.CameraCheck: UpdateCameraCheck(); break;
                 case ShowPhase.RaceIntro: UpdateRaceIntro(); break;
                 case ShowPhase.PowerUp: if (PhaseTime > 2.7f || skipEdge) Enter(ShowPhase.Countdown); break;
                 case ShowPhase.Countdown: UpdateCountdown(); break;
@@ -269,6 +271,7 @@ namespace Diva.Show
             switch (Phase)
             {
                 case ShowPhase.Select: CameraSelect(); break;
+                case ShowPhase.CameraCheck: CameraSelect(); break;
                 case ShowPhase.PowerUp: CameraPowerUp(); break;
                 case ShowPhase.Ult: CameraUlt(); break;
                 case ShowPhase.Finish: PoseFinish(); break;
@@ -502,7 +505,8 @@ namespace Diva.Show
             bool panel = controller && controller.showControls;
             bool inIntro = raceIntro && raceIntro.Playing;
             if (!inIntro) cameraPreview.showPreview = panel;   // 面板打开时照常画在面板里；Eva 的开场自己管
-            ShowCameraFeed(!panel && !inIntro && (Phase == ShowPhase.Select || Phase == ShowPhase.Play));
+            // Eva: not on the home page any more (the camera check after START shows the camera full size); small in play.
+            ShowCameraFeed(!panel && !inIntro && Phase == ShowPhase.Play);
         }
 
         // ------------------------------------------------------------------ intro (Timeline, optional)

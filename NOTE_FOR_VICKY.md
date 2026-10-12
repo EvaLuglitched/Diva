@@ -32,7 +32,8 @@ turned green. Single player worked. I tracked it down in `TrackingOverrides/` (y
 - `test_bridge.py`: one expectation updated (two of three visible now returns the two leftmost roles instead of `{}`),
   three tests added (progressive fill + lock, late arrivals rebuild the tracker, solo never searches). 50 tests pass.
 - Unity side (small): `DigiPhantController.PoseFrame` gains `detected/usable/rolesLocked`; `DivaDemo.WaitingMessage`
-  appends `(camera sees N bodies, M usable)`; the skin-select START queues the start while calibration is pending.
+  appends `(camera sees N bodies, M usable)`. (I had also made START queue the start while calibration was pending;
+  Eva's new camera-check page supersedes that, so this branch takes her START flow as is.)
 
 ## What I could verify, and what I could not
 

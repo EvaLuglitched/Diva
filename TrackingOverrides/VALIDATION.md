@@ -1,13 +1,22 @@
 # Diva landmark gesture prototype
 
+## Current gestures — October 12, 2026
+
+- **P3 refill:** show either hand with the thumb upright and the other four fingers curled for **0.4 seconds**. Release/lost hand stops refill; a gap over **0.6 seconds** resets the hold. Recognition uses actual hand joints, associated to that performer's wrist. That wrist and shoulders must be visible; the other wrist may be missing. This replaces both mouth and chest-hold refill and also triggers the course eating/drinking actions.
+- **P2 turn:** lean the torso left/right with relaxed arms; no prayer or side-arm pose. Shoulders and hips must be visible, wrists may be hidden. Upright or lost torso tracking stops turning. Calibrated thresholds remain 0.12 start / 0.07 release / 0.35 full; GO need not be active.
+- P1 GO/STOP remains arm pumping; its walking/cadence limitation is unchanged. Calibrate upright with hips visible, then test **Try alone > All > Camera** before group play.
+
+All **65 Python tests** passed (62 override + three starter recording tests). Optional MediaPipe confidence `None` is handled without crashing; explicit low/invalid values remain rejected. Independent review passed. Fresh native Unity and physical verification of this restoration and merged keyboard/finish-line checkout remain pending. Earlier checks below are historical.
+
+
 Uses pretrained MediaPipe pose and hand landmark models plus configurable rules.
 It does not train a custom neural action classifier.
 
-The current combined Python suite passes 49 tests after the October 11 body-lean steering update. Earlier counts and replay figures below describe historical stages of the prototype.
+The earlier combined Python suite passed 49 tests after the October 11 body-lean steering update. Earlier counts and replay figures below describe historical stages of the prototype.
 
-## Body-lean steering update — October 11, 2026
+## Historical body-lean steering update — October 11, 2026
 
-Steering now uses torso lean relative to a valid neutral baseline, independently of GO and wrist pose. Start threshold is 0.12, release threshold 0.07, and full steering 0.35. Visible shoulders and hips are required; upright or lost torso tracking stops turning immediately. Missing/invalid wrists allow torso steering but suppress GO, aim, spray, refill and ultimate. Prior hand-position steering gates were removed.
+At that historical stage, steering used torso lean relative to a valid neutral baseline, independently of GO and wrist pose. Start threshold is 0.12, release threshold 0.07, and full steering 0.35. Visible shoulders and hips are required; upright or lost torso tracking stops turning immediately. Missing/invalid wrists allow torso steering but suppress GO, aim, spray, refill and ultimate. Prior hand-position steering gates were removed.
 
 Calibration records a fresh torso baseline only with valid hips, otherwise preserving an existing valid baseline or using zero when none exists. The UI's Ready state alone does not guarantee a fresh hip baseline: keep shoulders and hips visible while calibrating upright.
 
@@ -29,12 +38,12 @@ Rule changes after the first group test (2026-10-08), each covered by a new test
   sighting drinking is still blocked.
 These are synthetic-landmark checks; the replay numbers below predate them and live
 three-player testing is still needed.
-Tests cover temporal pumping and freeze, 30 fps pumping, lowered arms, upright
+The historical test suite covered temporal pumping and freeze, 30 fps pumping, lowered arms, upright
 neutral, corrected LEFT/RIGHT directions, opposing hand/body cues, open versus
 curled fingers, continuous held shooting and release, missing tracking, other
 players' hand exclusion, single-arm aiming, image aspect ratio, neutral capture,
-and preserving neutral calibration across temporary tracking loss. Missing face
-visibility blocks live drinking. Invalid hand coordinates and missing elbows
+and preserving neutral calibration across temporary tracking loss. At that historical stage, missing face
+visibility blocked drinking. Invalid hand coordinates and missing elbows
 block shooting. Shoulder-estimated mouth fallback is only available through an
 explicit archived-replay argument and is not used by the live bridge.
 
@@ -54,7 +63,7 @@ These are reference-fit checks, not unseen-person or three-player accuracy.
   holds produce drink events. Shoot replay has 14 positive frames; drinking has
   38 positive frames. No drink events on the shoot clip and no shoot events on
   the drink clip. Fresh pose face landmarks were extracted for the drinking
-  clip so its replay tests the live mouth proximity gate.
+  clip so that historical replay tested the former mouth proximity gate, not current thumbs-up.
 
 There is no multi-person hand recording in the examples. Hand association uses
 the nearest wrist across all detected people and rejects ambiguous matches;

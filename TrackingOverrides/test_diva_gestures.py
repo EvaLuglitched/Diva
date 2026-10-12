@@ -55,10 +55,10 @@ class GestureTests(unittest.TestCase):
     def test_open_hands_lowered_cannot_shoot(self):
         d=DivaGestureDetector(); b=body(height=-1.,separate=1.)
         self.assertFalse(d.update(3,b,0,[hand(b[15]),hand(b[16])])['shoot'])
-    def test_drink_curled_near_mouth_not_shoot(self):
+    def test_old_mouth_fists_do_not_refill_or_shoot(self):
         d=DivaGestureDetector(); b=body(height=.26,separate=.5)
         g=d.update(3,b,0,[hand(b[15],False),hand(b[16],False)])
-        self.assertTrue(g['drink']); self.assertFalse(g['shoot'])
+        self.assertFalse(g['drink']); self.assertFalse(g['shoot'])
     def test_hand_association_excludes_other_player(self):
         a=body(offset=-.28,separate=.5); b=body(offset=.28,separate=.5)
         hands=[hand(a[15]),hand(a[16]),hand(b[15]),hand(b[16])]
@@ -150,13 +150,13 @@ class GestureTests(unittest.TestCase):
         b[15]['y']=.3-1.2*.3
         for i in range(12): g=d.update(1,b,i*.1)
         self.assertFalse(g['ult']); self.assertNotEqual(g['aim'],0.)
-    def test_drink_uses_remembered_mouth_when_hands_hide_the_face(self):
+    def test_old_mouth_gesture_stays_inactive_after_face_is_hidden(self):
         d=DivaGestureDetector()
         d.update(3,body(),0)
         b=body(height=.26,separate=.5)
         for i in [0,9,10]: b[i]['visibility']=b[i]['presence']=0.
         hands=[hand(b[15],False),hand(b[16],False)]
-        self.assertTrue(d.update(3,b,1.,hands)['drink'])
+        self.assertFalse(d.update(3,b,1.,hands)['drink'])
         self.assertFalse(d.update(3,b,4.5,hands)['drink'])
 
 if __name__=='__main__':unittest.main()
