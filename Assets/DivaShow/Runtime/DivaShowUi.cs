@@ -137,9 +137,13 @@ namespace Diva.Show
         {
             if (dashDisplay) dashDisplay.gameObject.SetActive(hudRoot.gameObject.activeSelf);
             if (!vrCard) return;
-            bool show = Phase == ShowPhase.PowerUp || Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 3;
+            // 只在起跑前后露一下；大招结束回到 Play 时 PhaseTime 会归零，不能再弹出来压住教练提示
+            bool show = Phase == ShowPhase.PowerUp || Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 3 && Time.time - runStart < 3;
             vrCard.alpha = Mathf.MoveTowards(vrCard.alpha, show ? 1 : 0, DivaClock.DeltaTime * (show ? 3 : 1.2f));
         }
+
+        /// <summary>VR 的驾驶方法卡片还在眼前（教练提示等它走了再出来，免得叠字）。</summary>
+        public bool VrCardVisible => vrCard && vrCard.alpha > .05f;
 
         void ShowRoots()
         {

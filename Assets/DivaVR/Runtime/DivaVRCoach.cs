@@ -25,7 +25,7 @@ namespace Diva.VR
         TextMeshProUGUI labelText, labelDist, tipTitle, tipSub, arrowDist;
         CanvasGroup tipGroup;
         CourseTask current;
-        float tipUntil, tipShownAt, lastShootTip, lastDrinkTip, lastUltTip, runTipAt = -1;
+        float tipUntil, tipShownAt, lastShootTip, lastDrinkTip, lastUltTip, runTipAt = -1, runTipPending = -1;
         TextMeshProUGUI labelAction;
         string tipKey;
         bool runTipDone, runShown;
@@ -95,8 +95,11 @@ namespace Diva.VR
 
         void OnPhase(ShowPhase p)
         {
-            if (p == ShowPhase.Play && !runShown) { runShown = true; Tip("vr.coach.run", 5); runTipDone = false; runTipAt = Time.unscaledTime + 8; }
+            // 起跑提示等"驾驶方法"卡片退场后再出（卡片在 Play 的头 3 秒还在眼前，同时出就叠字）
+            if (p == ShowPhase.Play && !runShown) { runShown = true; runTipPending = Time.unscaledTime + 3.4f; runTipDone = false; runTipAt = Time.unscaledTime + 9; }
             if (p == ShowPhase.Results) runShown = false;
+            if (p == ShowPhase.Ult && tipKey == "vr.coach.ult") tipUntil = 0;   // 大招已经放了，"举双手"的提示就撤
+
         }
 
         Transform Canvas(string name, Vector2 size, float scale, Transform parent, int order)
@@ -177,6 +180,7 @@ namespace Diva.VR
             if (show.Phase == ShowPhase.Play)
             {
                 // 开跑：还没动就提示前倾
+                if (runTipPending > 0 && t > runTipPending) { runTipPending = -1; Tip("vr.coach.run", 5); }
                 if (!runTipDone && runTipAt > 0 && t > runTipAt && loco.CurrentSpeed < .3f) { runTipDone = true; Tip("vr.coach.run", 5); }
                 if (loco.CurrentSpeed > 1) runTipDone = true;
                 // 前方不远有靶子、没在喷：看着它捏
@@ -190,7 +194,7 @@ namespace Diva.VR
                 // 大招满了
                 if (show.Charge >= 100 && t > lastUltTip + 12) { lastUltTip = t; Tip("vr.coach.ult", 5); }
             }
-            bool showTip = t < tipUntil && (show.Phase == ShowPhase.Play || show.Phase == ShowPhase.Countdown);
+            bool showTip = t < tipUntil && (show.Phase == ShowPhase.Play || show.Phase == ShowPhase.Countdown) && !show.VrCardVisible;
             tipGroup.alpha = Mathf.MoveTowards(tipGroup.alpha, showTip ? 1 : 0, dt * (showTip ? 4 : 2));
             tip.localScale = Vector3.one * (.9f / 1200f) * Mathf.Max(.01f, DivaUi.EaseOutBack((t - tipShownAt) / .45f));
         }
