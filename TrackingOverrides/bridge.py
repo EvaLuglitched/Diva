@@ -255,10 +255,17 @@ class PerformerTracker:
         # re-sort when someone new steps in. Once every slot is filled, or Unity saves the neutral pose,
         # roles lock and only nearest-position tracking moves them.
         self.locked = False
+        # Locked, a player missing for relock_seconds hands the role to a person in view who has none (the one nearest
+        # to where the player was): whoever stays in front of the camera keeps playing. Others are ignored meanwhile.
+        self.relock_seconds = 1.0
+        self.missing_since = [None] * count
+        self.relocked = []
 
     def reset(self):
         self.positions = None
         self.locked = False
+        self.missing_since = [None] * self.count
+        self.relocked = []
 
     def lock(self):
         if self.positions is not None and all(p is not None for p in self.positions):
@@ -268,7 +275,8 @@ class PerformerTracker:
     def filled(self):
         return 0 if self.positions is None else sum(1 for p in self.positions if p is not None)
 
-    def assign(self, centers):
+    def assign(self, centers, now=None):
+        self.relocked = []
         if not self.locked:
             # Gather everyone: already-known positions matched to their nearest current body, plus unknown bodies.
             known = []
@@ -307,7 +315,53 @@ class PerformerTracker:
         result = {s + 1: i for s, i in enumerate(best[2]) if i >= 0 and s not in uncertain}
         for slot, index in result.items():
             self.positions[slot - 1] = centers[index]
+        # Re-lock: a player out of view for relock_seconds (not just paused as ambiguous) takes over the nearest person
+        # without a role. Short dropouts and occlusions never swap anyone; while the player is visible, others are ignored.
+        now = time.monotonic() if now is None else now
+        free = [i for i in range(len(centers)) if i not in best[2]]
+        for s in range(self.count):
+            if best[2][s] >= 0:
+                self.missing_since[s] = None
+            elif self.missing_since[s] is None:
+                self.missing_since[s] = now
+        for s in sorted((s for s in range(self.count) if self.missing_since[s] is not None
+                         and now - self.missing_since[s] >= self.relock_seconds), key=lambda s: self.missing_since[s]):
+            if not free:
+                break
+            index = min(free, key=lambda i: math.dist(self.positions[s], centers[i]))
+            free.remove(index)
+            result[s + 1] = index
+            self.positions[s] = centers[index]
+            self.missing_since[s] = None
+            self.relocked.append(s + 1)
         return result
+
+
+class RecoveringRecognizer:
+    """MediaPipe 0.10.x: with several people's hands in view the Gesture Recognizer graph can fail ("Packet isn't the
+    sole owner of the holder"), which used to end the bridge and turn every gesture off until Retry. Rebuild it and
+    skip that frame's hands instead. Detection settings, gesture rules and thresholds are unchanged."""
+    def __init__(self, create):
+        self.create = create
+        self.recognizer = create()
+        self.failures = 0
+
+    def recognize_for_video(self, image, timestamp):
+        try:
+            return self.recognizer.recognize_for_video(image, timestamp)
+        except RuntimeError as error:
+            self.failures += 1
+            detail = ' '.join(str(error).split())[:160]
+            print(f'Gesture Recognizer failed ({detail}); rebuilt it, hands skipped for this frame.', flush=True)
+            try:
+                self.recognizer.close()
+            except Exception:
+                pass
+            self.recognizer = self.create()
+            return None
+
+    def close(self):
+        self.recognizer.close()
 
 
 def requested_count(data):
@@ -543,7 +597,8 @@ def main():
                     running_mode=vision.RunningMode.VIDEO, num_hands=6,
                     min_hand_detection_confidence=.4, min_hand_presence_confidence=.4,
                     min_tracking_confidence=.4)
-                gesture_recognizer = stack.enter_context(vision.GestureRecognizer.create_from_options(gesture_options))
+                gesture_recognizer = RecoveringRecognizer(lambda: vision.GestureRecognizer.create_from_options(gesture_options))
+                stack.callback(gesture_recognizer.close)
                 print('Hands: MediaPipe Gesture Recognizer (pretrained Thumb_Up).', flush=True)
             elif args.diva:
                 hand_options = vision.HandLandmarkerOptions(
@@ -622,6 +677,8 @@ def main():
                 # Roles go left to right as the players see themselves in the MIRRORED preview (P1 = the player on
                 # the left of the picture), so they match the P1 · P2 · P3 order under Unity's camera check.
                 assignments = tracker.assign([(1 - o[0][0], o[0][1]) for o in observations])
+                for slot in tracker.relocked:
+                    print(f'P{slot} left the camera: locked onto the person still in view.', flush=True)
                 # Which detected body is which player, keyed by the RAW landmarks the preview draws (smoothing below
                 # replaces each assigned player's landmarks with a new object).
                 raw_slots = {id(observations[i][3]): (slot, i) for slot, i in assignments.items()}
@@ -656,9 +713,10 @@ def main():
                         hand_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                         if gesture_recognizer is not None:
                             hand_result = gesture_recognizer.recognize_for_video(hand_image, timestamp)
-                            hand_rows = [dict(landmarks=h, gesture=g[0].category_name if g else None,
-                                              gesture_score=float(g[0].score) if g else 0.)
-                                         for h, g in zip(hand_result.hand_landmarks, hand_result.gestures)]
+                            hand_rows = ([dict(landmarks=h, gesture=g[0].category_name if g else None,
+                                               gesture_score=float(g[0].score) if g else 0.)
+                                          for h, g in zip(hand_result.hand_landmarks, hand_result.gestures)]
+                                         if hand_result is not None else last_hand_rows or [])   # rebuilt: keep last frame's hands
                         else:
                             hand_result = hand_detector.detect_for_video(hand_image, timestamp)
                             hand_rows = [dict(landmarks=h) for h in hand_result.hand_landmarks]

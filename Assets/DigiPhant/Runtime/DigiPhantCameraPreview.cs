@@ -12,6 +12,10 @@ namespace DigiPhant
     {
         public bool autoStartBridge = true;
         [Range(0, 8)] public int cameraIndex;
+        [Tooltip("Mac: always use the Mac's own camera, even when an iPhone (Continuity Camera) is nearby. Off = use Camera Index.")]
+        public bool preferBuiltInCamera = true;
+        [Tooltip("Start the camera tracking again by itself when it stops in the middle of a game (it used to stay off until Retry).")]
+        public bool autoRestartBridge = true;
         public bool showPreview = true;
         public string Status { get; private set; } = "Starting camera...";
         public bool HasLiveFrame => texture != null && Time.realtimeSinceStartup - lastFrame < 2;
@@ -24,6 +28,8 @@ namespace DigiPhant
         float startAfter;
         float nextRead;
         bool startAttempted;
+        float restartAt = -1, bridgeStartedAt;
+        int restarts;
         string bridgeOutput = "";
         readonly object outputLock = new object();
 
@@ -45,6 +51,7 @@ namespace DigiPhant
                 nextRead = 0;
                 startAfter = Time.realtimeSinceStartup + 1;
                 startAttempted = false;
+                restarts = 0;
                 Status = "Connecting to camera...";
             }
             catch (Exception e) when (e is SocketException || e is ArgumentOutOfRangeException)
@@ -113,6 +120,11 @@ namespace DigiPhant
                 startAttempted = true;
                 if (autoStartBridge && !HasLiveFrame && !Application.isBatchMode) LaunchBridge();
             }
+            if (restartAt > 0 && now >= restartAt && ownedBridge == null)
+            {
+                restartAt = -1;
+                if (!HasLiveFrame) LaunchBridge();
+            }
             if (ownedBridge != null && ownedBridge.HasExited)
             {
                 string detail;
@@ -124,6 +136,17 @@ namespace DigiPhant
                 if (!string.IsNullOrWhiteSpace(detail)) UnityEngine.Debug.LogWarning("DigiPhant camera bridge: " + detail);
                 ownedBridge.Dispose();
                 ownedBridge = null;
+                // Start it again by itself: a tracking crash in the middle of a game used to leave the gestures off until
+                // Retry. Wait 2, 4, 8 … 30 s when it keeps stopping straight away (camera denied, another bridge running).
+                if (autoRestartBridge && autoStartBridge && !Application.isBatchMode)
+                {
+                    if (now - bridgeStartedAt > 60) restarts = 0;
+                    float wait = Mathf.Min(30, 2 * Mathf.Pow(2, restarts));
+                    restarts++;
+                    restartAt = now + wait;
+                    Status = (reason != null ? "Camera stopped: " + reason : "Camera stopped.") + $" Restarting it in {wait:0} s…";
+                    UnityEngine.Debug.Log($"DIGIPHANT camera bridge stopped; restart {restarts} in {wait:0} s");
+                }
             }
             else if (texture != null && !HasLiveFrame) Status = "Camera feed interrupted";
         }
@@ -155,8 +178,24 @@ namespace DigiPhant
 
         /// <summary>The bridge options shared by the editor and release builds (same people / camera / port / Diva rules).</summary>
         string BridgeArguments(bool divaMode) =>
-            "--no-window --people " + controller.performerCount + " --camera " + Mathf.Clamp(cameraIndex, 0, 8) + " --port " + controller.port +
+            "--no-window --people " + controller.performerCount + " --camera " + CameraForBridge() + " --port " + controller.port +
             (controller.upperBodyOnly ? " --upper-body-only" : "") + (divaMode ? " --diva" : "");
+
+        /// <summary>
+        /// The camera number for the bridge. On a Mac it is the built-in camera's place in the bridge's list
+        /// (DigiPhantMacCameras): an iPhone nearby (Continuity Camera) can take number 0, and the game used to open the
+        /// phone, or lose the camera when the phone went away. Elsewhere, or with preferBuiltInCamera off: cameraIndex.
+        /// </summary>
+        int CameraForBridge()
+        {
+            int configured = Mathf.Clamp(cameraIndex, 0, 8);
+            if (!preferBuiltInCamera) return configured;
+            int builtIn = DigiPhantMacCameras.BuiltInIndex(out string cameras);
+            if (cameras != null)
+                UnityEngine.Debug.Log("DIGIPHANT cameras (bridge order): " + cameras +
+                                      (builtIn >= 0 ? " -> using camera " + builtIn : " -> no built-in camera, using camera " + configured));
+            return builtIn >= 0 ? Mathf.Min(builtIn, 8) : configured;
+        }
 
         void StartBridge(string executable, string arguments, string workingDirectory, string status)
         {
@@ -174,6 +213,7 @@ namespace DigiPhant
                 ownedBridge.Start();
                 ownedBridge.BeginOutputReadLine();
                 ownedBridge.BeginErrorReadLine();
+                bridgeStartedAt = Time.realtimeSinceStartup;
                 Status = status;
             }
             catch (Exception e)
@@ -313,6 +353,7 @@ namespace DigiPhant
             if (askRoutine != null) { StopCoroutine(askRoutine); askRoutine = null; }
 #endif
             receiver?.Close(); receiver = null;
+            restartAt = -1;
             if (ownedBridge != null)
             {
                 try { if (!ownedBridge.HasExited) ownedBridge.Kill(); }

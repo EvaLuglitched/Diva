@@ -41,6 +41,11 @@ Do not change them without completing the double-check procedure below and Eva's
 
 - 角色按**镜像**摄像头画面从左到右分配，和摄像头识别页下面的 P1 · P2 · P3 对应；所有人到齐或保存站姿后角色锁定。
 - 两个人靠得太近分不清时，**只暂停分不清的那两个人**，其他人照常。
+- **谁留在镜头里就继续玩**（2026-10-13 Eva 批准的修改）：锁定后，某个玩家离开画面 **1 秒**以上、画面里又有没角色的人，
+  这个角色就交给离原位置最近的那个人（单人模式：一开始是 A，B 进来后 A 离开，就锁定 B）。原来的玩家还在画面里时，其他人一律不管；
+  不到 1 秒的短暂看不清不会换人；两个人分不清（暂停）时也不会把角色交给旁边的人。
+- **多人在画面里不再崩溃**（同一次修改）：MediaPipe 手势识别在好几只手同时出现时偶尔内部报错（"Packet isn't the sole owner"），
+  以前整个追踪程序会退出；现在重建识别器、跳过这一帧继续。Unity 那边如果追踪程序还是意外退出，也会自动重启（2 秒起，最长等 30 秒）。
 - 开始流程：主页选颜色和人数 → START → 大屏摄像头识别页 → 全员绿色 5 秒自动保存站姿 → 开场。
 
 ## 修改前的 double check 流程 / Before changing anything
@@ -52,6 +57,12 @@ Do not change them without completing the double-check procedure below and Eva's
    - Unity：**DigiPhant > Diva > Validate Startup / Validate Gestures / Validate Stationary Turn / Validate Trial Export**
 4. 有意修改参数时，同时更新 `test_gesture_lock.py` 里的 `LOCKED` 和本文件，并在提交说明里写清楚。
 5. **真人测试**：单人和三人各在摄像头前完整玩一局；用 `TrackingOverrides/go_debug_report.py` 看走路记录，确认没有变差。
-6. 在 `EVA_UPDATES.md` / `NOTE_FOR_*.md` 里记录改动。
+6. 在 `docs/EVA_UPDATES.md` / `docs/NOTE_FOR_*.md` 里记录改动。
+
+## 已批准的修改记录
+
+| 日期 | 改了什么 | 谁批准 | 测试 |
+| --- | --- | --- | --- |
+| 2026-10-13 | 角色在玩家离开 1 秒后交给仍在画面里的人；手势识别报错时重建、不退出（`bridge.py`） | Eva | `test_relock.py`，全部 Python 测试，4 个 Unity 检查；Eva 在 v1.2 Mac 版上真人测试成功（2026-10-13）；三人真人测试待补 |
 
 AI 助手（Claude 等）：见根目录 `CLAUDE.md`，不要擅自修改以上文件。
