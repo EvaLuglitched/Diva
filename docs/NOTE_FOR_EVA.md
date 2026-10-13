@@ -18,6 +18,14 @@ Measured on Carl's M1 Max with a person in a 1280×720 frame:
 | `test_solo_hands.py` (new), `test_gesture_lock.py` | the cadence, the first frame, the group cadence; two new locked lines |
 | `GESTURES_LOCKED.md` | the approved change, with "Eva (via Carl)" |
 
+**Your PR #18 (roles stay in each player's spot) is in v1.5**, plus one addition you approved via Carl: in a group game the
+per-frame matching ranks each role by the distance to its saved spot (`anchored` in `PerformerTracker.assign`). Your
+change covered the 1 s re-lock; the per-frame nearest match still let a person behind P2 (within 0.20 of P2's last
+position) take the role the moment P2 was hidden, and keep it after P2 came back, so P2 could not steer until that person
+left. Now the player back in their own spot wins the role back at once. A player who drifts is still followed (near the
+spot or near the last position both admit a body); one player is unchanged. `test_spot_anchor.py` (4 cases): the
+"person behind P2" case fails without the change; your `test_role_spots.py` passes with it.
+
 v1.5 also carries the Windows changes below (Next camera, the readable camera message, the 60 fps cap that keeps adapting)
 on both platforms. Windows has the same solo problem (same bridge; its CPU is slower), so it gets the same fix.
 Not changed: the walking thresholds. The replay of your 13:57 solo round (v1.3 rule 78 % walking, v1.4 62 %) suggests the

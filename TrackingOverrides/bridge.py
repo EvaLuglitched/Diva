@@ -316,14 +316,21 @@ class PerformerTracker:
             if len(order) >= self.count:
                 self.locked = True
             return {slot + 1: index for slot, index in enumerate(order)}
+        # 2026-10-13 (Carl, extends Eva's spots): in a group game each role is ranked by the distance to its saved spot,
+        # so the player standing in their own spot always wins it back from whoever held it meanwhile (a person behind
+        # them, a second detection of someone). A player who drifts is still followed: near the spot or near where the
+        # role was last seen both admit a body. One player is unchanged (the role follows whoever is in view).
+        anchored = self.home is not None and self.count >= 2
         candidates = []
         for assignment in itertools.product(range(-1, len(centers)), repeat=self.count):
             used = [i for i in assignment if i >= 0]
             if len(set(used)) != len(used):
                 continue
-            distances = [math.dist(self.positions[s], centers[i]) for s, i in enumerate(assignment) if i >= 0]
-            if any(d > self.max_distance for d in distances):
+            pairs = [(s, i) for s, i in enumerate(assignment) if i >= 0]
+            if any(math.dist(self.positions[s], centers[i]) > self.max_distance
+                   and not (anchored and math.dist(self.home[s], centers[i]) <= self.max_distance) for s, i in pairs):
                 continue
+            distances = [math.dist(self.home[s] if anchored else self.positions[s], centers[i]) for s, i in pairs]
             candidates.append((-len(used), sum(distances), assignment))
         candidates.sort()
         best = candidates[0]
