@@ -1,4 +1,4 @@
-# 生成 Diva 的图标 SVG：Q 版（chibi）机甲大象，紫晶夜色配色（Eva 的 amethyst 涂装：紫 + 黑 + 金，橙色灯光）——大圆脑袋、圆耳朵、挨得近的大眼睛、短短胖胖往上卷的小鼻子、腮红，没有象牙。
+# 生成 Diva 的图标 SVG：Q 版（chibi）机甲大象——大圆脑袋、圆耳朵、挨得近的大眼睛、短短胖胖往上卷的小鼻子、腮红，没有象牙。
 import math
 
 def cubic(p0, p1, p2, p3, t):
@@ -46,44 +46,44 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width=
       <path d="M512 24 C 820 24 1000 204 1000 512 C 1000 820 820 1000 512 1000 C 204 1000 24 820 24 512 C 24 204 204 24 512 24 Z"/>
     </clipPath>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#b48cff"/><stop offset="0.55" stop-color="#7a3fd6"/><stop offset="1" stop-color="#2f1458"/>
+      <stop offset="0" stop-color="#ffa3da"/><stop offset="0.55" stop-color="#ff5fae"/><stop offset="1" stop-color="#c12b92"/>
     </linearGradient>
     <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#efe8ff"/><stop offset="1" stop-color="#c9b6f2"/>
+      <stop offset="0" stop-color="#ffe3f3"/><stop offset="1" stop-color="#ffb0dc"/>
     </linearGradient>
     <linearGradient id="skinDark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#a27ae6"/><stop offset="1" stop-color="#6e34b8"/>
+      <stop offset="0" stop-color="#ff9ad2"/><stop offset="1" stop-color="#ea4fa6"/>
     </linearGradient>
     <linearGradient id="earInner" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#d9c8ff"/><stop offset="1" stop-color="#a985ea"/>
+      <stop offset="0" stop-color="#ffc9e8"/><stop offset="1" stop-color="#ff8fcd"/>
     </linearGradient>
     <linearGradient id="armor" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dcd0f5"/>
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffd0ea"/>
     </linearGradient>
     <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ff9a2e"/><stop offset="1" stop-color="#ffd58a"/>
+      <stop offset="0" stop-color="#4dfff0"/><stop offset="1" stop-color="#8cffe6"/>
     </linearGradient>
     <radialGradient id="iris" cx="0.5" cy="0.45" r="0.6">
-      <stop offset="0" stop-color="#ffe9bd"/><stop offset="0.55" stop-color="#ffb347"/><stop offset="1" stop-color="#d9711a"/>
+      <stop offset="0" stop-color="#b9fff6"/><stop offset="0.55" stop-color="#4dfff0"/><stop offset="1" stop-color="#17b8a8"/>
     </radialGradient>
     <radialGradient id="bubble" cx="0.35" cy="0.3" r="0.75">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/><stop offset="0.45" stop-color="#ffffff" stop-opacity="0.12"/>
-      <stop offset="0.9" stop-color="#ffd58a" stop-opacity="0.6"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.9" stop-color="#8cffe6" stop-opacity="0.55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.9"/>
     </radialGradient>
     <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="12"/></filter>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#1a0d33" flood-opacity="0.42"/>
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#5a0a40" flood-opacity="0.42"/>
     </filter>
   </defs>
 
   <g clip-path="url(#squircle)">
     <rect width="1024" height="1024" fill="url(#bg)"/>
     <circle cx="512" cy="1180" r="620" fill="#ffffff" fill-opacity="0.10"/>
-    <circle cx="512" cy="1140" r="520" fill="none" stroke="#ffb347" stroke-opacity="0.55" stroke-width="22"/>
-    <circle cx="512" cy="1140" r="470" fill="none" stroke="#c9b6f2" stroke-opacity="0.45" stroke-width="16"/>
+    <circle cx="512" cy="1140" r="520" fill="none" stroke="#8cffe6" stroke-opacity="0.55" stroke-width="22"/>
+    <circle cx="512" cy="1140" r="470" fill="none" stroke="#ffe066" stroke-opacity="0.45" stroke-width="16"/>
     <rect width="1024" height="1024" fill="url(#sheen)"/>
 
     <!-- 飘着的泡泡（泡泡炮） -->
@@ -107,14 +107,14 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width=
       <path d="M512 262 C 668 262 776 372 776 512 C 776 650 664 744 512 744 C 360 744 248 650 248 512 C 248 372 356 262 512 262 Z" fill="url(#skin)"/>
       <!-- 额头的小头盔（只盖头顶）+ 兔耳天线 + 头盔边缘一道青光 -->
       <path d="M300 430 C 330 300 694 300 724 430 C 700 448 324 448 300 430 Z" fill="url(#armor)"/>
-      <path d="M318 426 Q 512 376 706 426" fill="none" stroke="#a27ae6" stroke-opacity="0.8" stroke-width="8" stroke-linecap="round"/>
+      <path d="M318 426 Q 512 376 706 426" fill="none" stroke="#ff8fcd" stroke-opacity="0.8" stroke-width="8" stroke-linecap="round"/>
       <path d="M436 318 C 404 262 396 212 420 160 C 452 206 466 262 460 308 Z" fill="url(#skinDark)"/>
       <path d="M588 318 C 620 262 628 212 604 160 C 572 206 558 262 564 308 Z" fill="url(#skinDark)"/>
       <path d="M336 446 Q 512 400 688 446" fill="none" stroke="url(#glow)" stroke-width="10" stroke-linecap="round"/>
-      <path d="M336 446 Q 512 400 688 446" fill="none" stroke="#ff9a2e" stroke-opacity="0.55" stroke-width="20" stroke-linecap="round" filter="url(#soft)"/>
+      <path d="M336 446 Q 512 400 688 446" fill="none" stroke="#4dfff0" stroke-opacity="0.55" stroke-width="20" stroke-linecap="round" filter="url(#soft)"/>
       <!-- 眼睛：大、圆、挨得近；青色虹膜，两点高光 -->
-      <ellipse cx="446" cy="520" rx="56" ry="62" fill="#1f1a26"/>
-      <ellipse cx="578" cy="520" rx="56" ry="62" fill="#1f1a26"/>
+      <ellipse cx="446" cy="520" rx="56" ry="62" fill="#1f2340"/>
+      <ellipse cx="578" cy="520" rx="56" ry="62" fill="#1f2340"/>
       <circle cx="450" cy="530" r="34" fill="url(#iris)"/>
       <circle cx="582" cy="530" r="34" fill="url(#iris)"/>
       <circle cx="428" cy="496" r="16" fill="#ffffff"/>
@@ -122,19 +122,19 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width=
       <circle cx="468" cy="550" r="7" fill="#ffffff" fill-opacity="0.9"/>
       <circle cx="600" cy="550" r="7" fill="#ffffff" fill-opacity="0.9"/>
       <!-- 腮红 -->
-      <ellipse cx="352" cy="600" rx="40" ry="24" fill="#e08ad8" fill-opacity="0.55"/>
-      <ellipse cx="672" cy="600" rx="40" ry="24" fill="#e08ad8" fill-opacity="0.55"/>
+      <ellipse cx="352" cy="600" rx="40" ry="24" fill="#ff8fcd" fill-opacity="0.6"/>
+      <ellipse cx="672" cy="600" rx="40" ry="24" fill="#ff8fcd" fill-opacity="0.6"/>
       <!-- 小笑脸：鼻子两边各一小截嘴角 -->
-      <path d="M452 626 Q 468 648 490 640" fill="none" stroke="#6e34b8" stroke-opacity="0.75" stroke-width="7" stroke-linecap="round"/>
-      <path d="M572 626 Q 556 648 534 640" fill="none" stroke="#6e34b8" stroke-opacity="0.75" stroke-width="7" stroke-linecap="round"/>
+      <path d="M452 626 Q 468 648 490 640" fill="none" stroke="#e2409a" stroke-opacity="0.7" stroke-width="7" stroke-linecap="round"/>
+      <path d="M572 626 Q 556 648 534 640" fill="none" stroke="#e2409a" stroke-opacity="0.7" stroke-width="7" stroke-linecap="round"/>
       <!-- 鼻子：短胖、往上卷 -->
       <path d="{trunk_d}" fill="url(#skin)"/>
-      <g fill="none" stroke="#6e34b8" stroke-opacity="0.3" stroke-width="7" stroke-linecap="round">
+      <g fill="none" stroke="#e2409a" stroke-opacity="0.3" stroke-width="7" stroke-linecap="round">
         {"".join(wrinkles)}
       </g>
       <!-- 鼻尖吹出来的小泡泡 -->
       <circle cx="{tip[0] + 44:.0f}" cy="{tip[1] - 52:.0f}" r="26" fill="url(#bubble)"/>
-      <circle cx="{tip[0] + 44:.0f}" cy="{tip[1] - 52:.0f}" r="26" fill="#ffd58a" fill-opacity="0.3"/>
+      <circle cx="{tip[0] + 44:.0f}" cy="{tip[1] - 52:.0f}" r="26" fill="#8cffe6" fill-opacity="0.3"/>
       <circle cx="{tip[0] + 78:.0f}" cy="{tip[1] - 94:.0f}" r="14" fill="url(#bubble)"/>
     </g>
 
