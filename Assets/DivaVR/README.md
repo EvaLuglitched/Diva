@@ -14,10 +14,10 @@ visionOS 支持需要 Unity Pro / Enterprise 许可证，所以**先不要把这
 | `Runtime/DivaVRRig.cs` | 入口：在 `Diva.unity` 的 DivaShow 基础上搭 VR 装置（相机、驾驶舱、手势、教学、道具、庆祝……都是运行时加的组件，场景文件不改） |
 | `Runtime/DivaVRBubbleTour.cs` | 开场：梦境里的菜单（START、EN/中文）→ 三个静止镜头（全景 → 大象背后 → 低机位英雄镜头）用暮色淡入淡出接起来 → 落进驾驶舱 |
 | `Runtime/DivaVRGuide.cs` + `DivaVRGestureDemo.cs` | 驾驶舱正前方的教学牌：第 1 步自动播放的"怎么玩"小动画、第 2 步选涂装、第 3 步练动作、第 4 步出发；结算时"再来一局" |
-| `Runtime/DivaVRHands.cs` / `DivaVRInput.cs` | 操控（和电脑版的手势对齐）：身体前倾 = 前进（脖子根相对坐好时往前 7–22 厘米）、歪头 = 转弯、双手张开前推 = 象鼻水炮（看哪打哪，带 12° 辅助瞄准）、竖拇指 0.4 秒 = 吃喝补水、双手举到眼前 = 大招 / 确认；看着按钮捏 = 按按钮。倒数时记一次坐姿，暂停板有 RECENTER SEAT |
+| `Runtime/DivaVRHands.cs` / `DivaVRInput.cs` | 操控（和电脑版的手势对齐）：身体前倾 = 前进（脖子根相对坐好时往前 7–22 厘米）、歪头 = 转弯、看着靶子捏 = 象鼻水炮（看哪打哪，带 12° 辅助瞄准；捏也用来按按钮，按钮要先看 0.35 秒，主按钮捏住 0.5 秒）、竖拇指 0.4 秒 = 吃喝补水、双手举到眼前 = 大招 / 确认；看着按钮捏 = 按按钮。倒数时记一次坐姿，暂停板有 RECENTER SEAT |
 | `Runtime/DivaVRCockpit.cs` | 驾驶舱：Blender 零件 + 仪表（速度、能量、水量）、按钮、开关、踏板、RGB 流光灯条（燃烧时变橙红） |
 | `Runtime/DivaVRCoach.cs` / `DivaVRHowTo.cs` | 比赛里的教练提示（下一站的柱子和箭头、靠近任务点的动作提示）和起跑卡片旁的动作小人 |
-| `Runtime/DivaVRStickFigure.cs` | 教学牌第 1 步的火柴人（照 Eva 识别页的画法）：前倾、歪头、推手、竖拇指、举手 |
+| `Runtime/DivaVRStickFigure.cs` | 教学牌第 1 步的火柴人（照 Eva 识别页的画法）：前倾、歪头、看着捏、竖拇指、举手 |
 | `Runtime/DivaVRMeta.cs` / `DivaVRDash.cs` | 比赛节奏在驾驶舱里的呈现：灯条燃烧、空间音效、浮字、大招就绪提示；冲刺的风线、震动、尾灯。规则本身（糖果 +15、小火箭冲刺、ON FIRE ×1.5、黄金靶子 ×3、低水量、圈速奖牌、辅助瞄准、每次喷水耗水 .022）在 PC / VR 共用的 `Assets/DivaShow/Runtime/DivaShowMeta.cs`（糖果在 `DivaShowPickups.cs`，教练触发在 `DivaShowCoach.cs`），VR 只接它的事件 |
 | `Runtime/DivaVRCelebration.cs` / `DivaVRHologram.cs` | 冲线的英雄时刻（聚光灯、卡片砸进来、分数跳动、彩纸烟花、奖牌章）和仪表台上的全息大象 |
 | `Runtime/DivaVRFeedback.cs` / `DivaVRFloatText.cs` | 打中靶子的飘字、任务完成的 DONE!、光柱 |

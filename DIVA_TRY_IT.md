@@ -164,10 +164,10 @@ licence — see `Assets/DivaVR/README.md`). The PC game on `main` is unchanged.
 3. A guide board in front of the cockpit takes you through four steps; every step has buttons you press by
    **looking at them and pinching**:
    - **1/4 HOW TO PLAY** — just watch: a row of five stick figures (Eva's camera-check style) take turns showing lean,
-     head tilt, push hands, thumbs-up and hands up, with one big caption each. 14 seconds, **SKIP** at the bottom right.
+     head tilt, look + pinch, thumbs-up and hands up, with one big caption each. 14 seconds, **SKIP** at the bottom right.
      Plays once per launch.
    - **2/4 PICK YOUR PAINT** — pinch anywhere = next paint; **<** / **>** / **CHOOSE THIS PAINT**.
-   - **3/4 LEARN TO DRIVE** — do each move once (lean forward, tilt your head, push both hands, thumbs-up);
+   - **3/4 LEARN TO DRIVE** — do each move once (lean forward, tilt your head, look + pinch, thumbs-up);
      the board shows a live meter per move and stamps NICE! — or **SKIP**. First round per launch only.
    - **4/4 READY** — raise **both hands to eye level** and hold until the bar fills (in the race this is the
      MEGA BUBBLE gesture), or look at **START** and pinch.
@@ -177,8 +177,8 @@ licence — see `Assets/DivaVR/README.md`). The PC game on `main` is unchanged.
 | Control | How | Notes |
 | --- | --- | --- |
 | **Run** | **Lean forward** (same idea as walking on the PC: your body is the throttle) | 7 cm forward = walk, 22 cm = run, sit back = stop; measured from where you sat at the countdown (RECENTER SEAT on the pause board if you moved). Deliberately low sensitivity with a slow throttle so small head movements do not surge; a gentle vignette while accelerating |
-| **Steer** | **Tilt your head** (same as the PC game's shoulder / head tilt) | starts at 8°, full at 22°, measured from how you sat down; no reverse |
-| **Trunk cannon** | **Look at a target and push both open hands forward** (same as the PC game) | both wrists 30 cm in front of the head at chest height; keep them out to keep spraying, pull back to stop. Aim = where your head points, aim assist 12° / 35 m; each burst uses water (below 25 % it beeps and the coach tells you to refill) |
+| **Steer** | **Tilt your head** (same as the PC game's shoulder / head tilt) | starts at 5°, full at 15°, measured from how you sat down; the elephant turns at most 40°/s in VR (60 on PC) so the picture never whips round; no reverse |
+| **Trunk cannon** | **Look at a target and pinch** (hold the pinch to keep spraying) | Aim = where your eyes / head point, aim assist 12° / 35 m; each burst uses water (below 25 % it beeps and the coach tells you to refill). Pinching also presses buttons on the boards; buttons need a 0.35 s look first, the big ones a 0.5 s hold |
 | **Eat / drink / refill** | Hold a **thumbs-up** for 0.4 s (same as the PC game); hand to the mouth still works | The elephant stops and curls its trunk; at the feeding bush and the water basin this completes the task; refill works anywhere |
 | **Step over the log** | Keep driving over the log | same as PC |
 | **MEGA BUBBLE (ult)** | When the charge gauge reads 100 % ("MEGA BUBBLE READY" banner + chime): **raise both hands to eye level in front of you** and hold 0.4 s | Bubble burst at the targets ahead, then a 2.5 s dash |
