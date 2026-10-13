@@ -103,8 +103,22 @@ namespace Diva.Show
                 var sh = wallFrost.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(width, wallHeight, 1.6f);
                 var fr = wallFrost.GetComponent<ParticleSystemRenderer>(); fr.sharedMaterial = glowMaterial; fr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
+            // 地上一圈薄霜（压扁的冰盘，半透明）
+            {
+                var frost = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                var fc = frost.GetComponent<Collider>(); if (fc) Destroy(fc);
+                frost.name = "Ground Frost"; frost.transform.SetParent(wallRoot, true);
+                var fat = wallCentre + wallRight3 * mid + wallForward * .5f + Vector3.up * .02f;
+                var frot = Quaternion.LookRotation(wallForward, Vector3.up);
+                var fscale = new Vector3(width + 5f, .015f, 5.5f);
+                frost.transform.SetPositionAndRotation(fat, frot); frost.transform.localScale = fscale;
+                var fr2 = frost.GetComponent<MeshRenderer>(); fr2.sharedMaterial = snowMat; fr2.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; fr2.receiveShadows = true;
+                wallPieces.Add(new Piece { t = frost.transform, at = fat, rot = frot, scale = fscale });
+            }
+            // 折射（透过冰看到后面扭曲的街景）：要不透明纹理，PC 的渲染设置里开着；头显上太贵，不开
+            if (iceMat && iceMat.HasProperty("_Alpha") && !UnityEngine.XR.XRSettings.isDeviceActive) iceMat.EnableKeyword("_REFRACTION");
             wallUp = true;
-            Debug.Log($"DIVA_SHOW ice wall at {wallCentre} facing {wallForward}, {wallLeft:F1} m left / {wallRight:F1} m right, {wallPieces.Count} pieces, shader {(iceMat ? iceMat.shader.name : "none")}");
+            Debug.Log($"DIVA_SHOW ice wall at {wallCentre} facing {wallForward}, {wallLeft:F1} m left / {wallRight:F1} m right, {wallPieces.Count} pieces, shader {(iceMat ? iceMat.shader.name : "none")}, refraction {(iceMat && iceMat.IsKeywordEnabled("_REFRACTION"))}");
         }
 
         // 一根冰柱（+ 顶上的雪）
@@ -116,8 +130,21 @@ namespace Diva.Show
             go.transform.SetPositionAndRotation(at, rot);
             go.GetComponent<MeshFilter>().sharedMesh = CrystalMesh(wallRng, radius, height, lean, out var apex);
             var r = go.GetComponent<MeshRenderer>();
-            r.sharedMaterial = iceMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+            r.sharedMaterial = iceMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On; r.receiveShadows = false;
             wallPieces.Add(new Piece { t = go.transform, at = at, rot = rot, scale = Vector3.one, column = true });
+            // 前排脚下偶尔一块斜着的小冰块，像崩出来的碎冰
+            if (front && wallRng.NextDouble() < .45)
+            {
+                var sgo = new GameObject("Ice Chunk", typeof(MeshFilter), typeof(MeshRenderer));
+                sgo.transform.SetParent(wallRoot, true);
+                float cr = radius * WRand(.3f, .5f);
+                var cat = at - wallForward * WRand(.9f, 1.6f) + wallRight3 * WRand(-.6f, .6f);
+                var crot = Quaternion.LookRotation(wallForward, Vector3.up) * Quaternion.Euler(WRand(-35, -15), WRand(0, 360), WRand(-20, 20));
+                sgo.transform.SetPositionAndRotation(cat, crot);
+                sgo.GetComponent<MeshFilter>().sharedMesh = CrystalMesh(wallRng, cr, cr * WRand(2.2f, 3.6f), Vector2.zero, out _);
+                var cm = sgo.GetComponent<MeshRenderer>(); cm.sharedMaterial = iceMat; cm.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On; cm.receiveShadows = false;
+                wallPieces.Add(new Piece { t = sgo.transform, at = cat, rot = crot, scale = Vector3.one, column = true });
+            }
             // 六成的前排柱子顶上盖一团雪（偏一点、歪一点）
             if (front && wallRng.NextDouble() < .6)
             {
@@ -126,7 +153,7 @@ namespace Diva.Show
                 snow.name = "Snow Cap"; snow.transform.SetParent(wallRoot, true);
                 var sat = go.transform.TransformPoint(apex + new Vector3(WRand(-.3f, .3f) * radius, -radius * .35f, WRand(-.3f, .3f) * radius));
                 var srot = rot * Quaternion.Euler(WRand(-12, 12), 0, WRand(-12, 12));
-                var sscale = new Vector3(radius * WRand(1.3f, 1.7f), radius * .45f, radius * WRand(1.3f, 1.7f));
+                var sscale = new Vector3(radius * WRand(1.4f, 1.9f), radius * .34f, radius * WRand(1.2f, 1.7f));
                 snow.transform.SetPositionAndRotation(sat, srot); snow.transform.localScale = sscale;
                 var sr = snow.GetComponent<MeshRenderer>(); sr.sharedMaterial = snowMat; sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; sr.receiveShadows = false;
                 wallPieces.Add(new Piece { t = snow.transform, at = sat, rot = srot, scale = sscale });
@@ -176,7 +203,12 @@ namespace Diva.Show
                     int j = (i + 1) % sides;
                     Vector3 a = rings[r][i], b = rings[r][j], c = rings[r + 1][j], d = rings[r + 1][i];
                     float s0 = r + 1 == ringCount - 1 ? .2f : 0;
-                    Tri(a, b, c, 0, 0, s0); Tri(a, c, d, 0, s0, s0);
+                    // 每个侧面从中间一点凹进去或凸出来一点，分成四个小面：棱角更多，光打上去更像天然冰
+                    var m = (a + b + c + d) * .25f;
+                    var outDir = new Vector3(m.x - axis.x * m.y, 0, m.z - axis.z * m.y).normalized;
+                    m += outDir * radius * R(-.14f, .12f) + Vector3.up * R(-.08f, .08f) * radius;
+                    float sm = s0 * .5f;
+                    Tri(a, b, m, 0, 0, sm); Tri(b, c, m, 0, s0, sm); Tri(c, d, m, s0, s0, sm); Tri(d, a, m, s0, 0, sm);
                 }
             for (int i = 0; i < sides; i++) Tri(rings[ringCount - 1][i], rings[ringCount - 1][(i + 1) % sides], apex, .45f, .45f, 1f);
             var mesh = new Mesh { name = "Diva Ice Column" };
