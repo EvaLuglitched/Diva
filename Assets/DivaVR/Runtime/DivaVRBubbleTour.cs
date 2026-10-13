@@ -138,7 +138,7 @@ namespace Diva.VR
             BuildWipe();
             Prewarm();
             // 全景镜头的路上有 Eva 的云（漂在 30 多米高）会糊在脸上：开场期间把离镜头路径 20 米内的云藏起来
-            foreach (var f in FindObjectsByType<DivaFloat>(FindObjectsSortMode.None))
+            foreach (var f in FindObjectsByType<DivaFloat>())
             {
                 bool cloud = f.name.Contains("Cloud") || (f.transform.parent && f.transform.parent.name.Contains("Cloud"));
                 if (!cloud) continue;

@@ -15,7 +15,7 @@ namespace Diva.VR
             if (DivaVRDebug.Get("DIVA_RIM") == "0")
             {
                 if (look) look.rimIntensity = 0;
-                foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) if (l.name == "Diva Rim Light") l.intensity = 0;
+                foreach (var l in FindObjectsByType<Light>()) if (l.name == "Diva Rim Light") l.intensity = 0;
                 Debug.Log("DIVA_VR debug: rim light off");
             }
             if (DivaVRDebug.Get("DIVA_BLOOM") == "0") { if (look) look.bloomIntensity = 0; Debug.Log("DIVA_VR debug: bloom off"); }

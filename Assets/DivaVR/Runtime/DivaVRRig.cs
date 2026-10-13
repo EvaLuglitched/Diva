@@ -17,15 +17,16 @@ namespace Diva.VR
         public Vector3 seat;
         [Tooltip("坐着时眼睛比座位高多少（米）。")]
         public float eyeHeight = .78f;
-        [Tooltip("驾驶舱最快转多快（度/秒）。大象转得更快时视角会慢一点跟上，避免晕。")]
-        public float maxYawSpeed = 36;
-        [Tooltip("驾驶舱跟上大象朝向的平滑时间（秒）。")]
-        public float yawSmoothTime = .45f;
+        [Tooltip("驾驶舱最快转多快（度/秒）。要比大象的转速上限（DivaVRInput.turnDegreesPerSecond，40）高：以前是 36，持续转弯时座舱越落越后，" +
+                 "停下歪头后画面还自己转半秒追上来——这就是晕。画面转多快由大象的转速和加减速平滑管，座舱只负责紧紧跟着。")]
+        public float maxYawSpeed = 50;
+        [Tooltip("驾驶舱跟上大象朝向的平滑时间（秒）。小：只抹掉抖动，不拖尾（以前 0.45 秒，稀态下落后约 18°）。")]
+        public float yawSmoothTime = .15f;
         [Tooltip("仪表盘面板：在眼睛前方多远、低多少、多宽（米）。")]
         public float hudDistance = 1.8f, hudDrop = .24f, hudWidth = 2.0f;
-        [Tooltip("VR 里大象最快跑多快（米/秒）、最快转多快（度/秒）、加减速多柔和（越小越柔和）。电脑版是 4.5 / 60 / 6。" +
+        [Tooltip("VR 里大象最快跑多快（米/秒）、加减速多柔和（越小越柔和）。电脑版是 4.5 / 6。转速上限在 DivaVRInput（40°/秒）。" +
                  "按舒适来定（参考 Meta：跑步约 2.8 米/秒），所有人都用这一套。")]
-        public float runSpeed = 2.8f, turnSpeed = 30, inputSmoothing = 2.5f;
+        public float runSpeed = 2.8f, inputSmoothing = 2.5f;
 
         DigiPhantLocomotion loco;
         Transform root, offset;
@@ -62,11 +63,10 @@ namespace Diva.VR
             foreach (var preview in FindObjectsByType<DigiPhantCameraPreview>(FindObjectsInactive.Include))
             { preview.StopPreview(); preview.enabled = false; }
             if (demo) { demo.externalInput = true; demo.cameraHeld = true; demo.State.WaterPerBurst = .022f; }   // 水箱约 45 发（6 秒）喷完，要去补水
-            // 舒适：跑慢一点、转慢一点、加减速更柔和
+            // 舒适：跑慢一点、加减速更柔和（转速上限由 DivaVRInput 设）
             if (loco)
             {
                 loco.runSpeed = runSpeed;
-                loco.turnDegreesPerSecond = turnSpeed;
                 loco.inputSmoothing = inputSmoothing;
             }
             // Eva 的天空镜头每帧把镜头往上抬、改视角：VR 里镜头只能跟着头
@@ -108,7 +108,7 @@ namespace Diva.VR
                 hands = gameObject.AddComponent<DivaVRHands>();
                 gameObject.AddComponent<DivaVRHandGhost>();
             }
-            BuildStats(hud);
+            if (DivaVRDebug.On("DIVA_STATS")) BuildStats(hud);   // 帧率小字只在排查时要（diva_flags.txt 里 DIVA_STATS=1）
             gameObject.AddComponent<DivaVRCockpit>();
             gameObject.AddComponent<DivaVRHologram>();
             var show = FindAnyObjectByType<Diva.Show.DivaShowDirector>();

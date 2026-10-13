@@ -103,6 +103,7 @@ namespace Diva.VR
             pauseBg = DivaUi.Panel(pausePlate, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(320, 120), new Color(.06f, .05f, .12f), new Color(.26f, .22f, .4f), 18);
             pauseBg.stripe = new Color(.5f, .95f, 1f); pauseBg.stripeWidth = 10;
             pauseText = DivaUi.Text(pausePlate, "Text", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 100), 56, Color.white);
+            DivaUi.Localize(pauseText, () => DivaText.T("vr.pause.btn"));
             pausePlate.gameObject.SetActive(false);
         }
 
@@ -374,7 +375,12 @@ namespace Diva.VR
                 if (!figures[i]) continue;
                 figures[i].emphasis = Mathf.MoveTowards(figures[i].emphasis, i == clip ? 1 : 0, Time.unscaledDeltaTime * 4);
                 figures[i].rectTransform.localScale = Vector3.one * (i == clip ? 1.12f : 1f);
-                if (captions[i]) { captions[i].text = DivaText.T(figures[i].CaptionKey); captions[i].color = i == clip ? new Color(1f, .9f, .4f) : new Color(1, 1, 1, .45f); }
+                if (captions[i])
+                {
+                    var caption = DivaText.T(figures[i].CaptionKey);
+                    if (captions[i].text != caption) captions[i].text = caption;   // 只在换字时写（每帧写五段字就每帧重排）
+                    captions[i].color = i == clip ? new Color(1f, .9f, .4f) : new Color(1, 1, 1, .45f);
+                }
             }
             float act = Mathf.Clamp01((t - .4f) / 1.2f), pulse = Mathf.SmoothStep(0, 1, Mathf.PingPong(act * 2f, 1f));
             if (cockpit)
@@ -492,7 +498,6 @@ namespace Diva.VR
                 PauseHover = over && Time.unscaledTime - pauseHoverSince > .25f;
                 if (showPause)
                 {
-                    pauseText.text = DivaText.T("vr.pause.btn");
                     pausePlate.localScale = Vector3.one * (.13f / 320) * (PauseHover ? 1.15f : 1f);
                     pauseBg.Set(Color.Lerp(new Color(.06f, .05f, .12f), Color.white, PauseHover ? .35f : 0), Color.Lerp(new Color(.26f, .22f, .4f), Color.white, PauseHover ? .2f : 0));
                     if (pinch && PauseHover) { OpenPause(); if (show.Sound != null) show.Sound.Play("confirm", .6f); return; }
@@ -570,18 +575,9 @@ namespace Diva.VR
             if (AllDone) { allDoneAt = Time.unscaledTime; learned = true; }
         }
 
-        float noGripSince = -1;
         void Practice(DivaVRFrame f)
         {
             float dt = Time.unscaledDeltaTime;
-            // 学推把手：4 秒还没握到，把握把挪到手的位置（手放在哪儿都行）
-            var bars = GetComponent<DivaVRHandlebars>();
-            if (bars && Current == Move.Lean && rows[(int)Move.Lean].doneAt < 0)
-            {
-                if (bars.Held == 2) noGripSince = -1;
-                else if (noGripSince < 0) noGripSince = Time.unscaledTime;
-                else if (Time.unscaledTime - noGripSince > 4f) { bars.AdoptNow(.45f); noGripSince = Time.unscaledTime + 4f; }
-            }
             // 每个动作做够一小会儿才算（不是一碰就算）；做的时候反馈条跟着动
             void Hold(Move m, bool on, float seconds)
             {
@@ -624,8 +620,11 @@ namespace Diva.VR
             if (step == Step.Pick && skinsRef)
             {
                 int k = Mathf.Max(0, skinsRef.Current);
-                float[] vals = { .55f + .4f * Mathf.PerlinNoise(k * 1.7f, .3f), .55f + .4f * Mathf.PerlinNoise(k * 1.7f, 1.3f), .55f + .4f * Mathf.PerlinNoise(k * 1.7f, 2.3f) };
-                for (int i = 0; i < 3; i++) statFills[i].localScale = new Vector3(Mathf.Lerp(statFills[i].localScale.x, vals[i], 1 - Mathf.Exp(-dt * 8)), 1, 1);
+                for (int i = 0; i < 3; i++)
+                {
+                    float val = .55f + .4f * Mathf.PerlinNoise(k * 1.7f, .3f + i);
+                    statFills[i].localScale = new Vector3(Mathf.Lerp(statFills[i].localScale.x, val, 1 - Mathf.Exp(-dt * 8)), 1, 1);
+                }
             }
             // 图章：大→小砸下来；图章在的时候把下面的字收起来（不叠在一起）
             bool stamping = stamp.gameObject.activeSelf;

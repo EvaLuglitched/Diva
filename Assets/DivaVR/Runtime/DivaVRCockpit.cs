@@ -239,8 +239,8 @@ namespace Diva.VR
             if (cabinLight) cabinLight.color = rgb;
             // 表盘指针：速度、能量、水量（-60° 空 → +60° 满）；状态灯慢慢闪
             float water = demo ? demo.State.Water : 1, charge = show ? show.Charge / 100f : 0;
-            float[] vals = { DemoSpeed ?? speed, DemoCharge ?? charge, DemoWater ?? water };
-            for (int i = 0; i < 3; i++) if (needles[i]) needles[i].localRotation = Quaternion.Euler(0, Mathf.Lerp(-60, 60, Mathf.Clamp01(vals[i])), 0);
+            needleValues[0] = DemoSpeed ?? speed; needleValues[1] = DemoCharge ?? charge; needleValues[2] = DemoWater ?? water;
+            for (int i = 0; i < 3; i++) if (needles[i]) needles[i].localRotation = Quaternion.Euler(0, Mathf.Lerp(-60, 60, Mathf.Clamp01(needleValues[i])), 0);
             foreach (var (m, c, phase) in blinkers) { var cc = c * (.55f + .45f * Mathf.Max(0, Mathf.Sin(Time.unscaledTime * 1.7f + phase))); m.color = cc; m.SetColor("_BaseColor", cc); }
             if (glowA) { glowA.color = baseA * k * f; glowA.SetColor("_BaseColor", glowA.color); }
             if (glowB) { glowB.color = baseB * k * f; glowB.SetColor("_BaseColor", glowB.color); }
@@ -277,17 +277,26 @@ namespace Diva.VR
             }
         }
 
+        int lastKmh = -1, lastComboShown = -1, lastWaterPct = -1;
+        readonly float[] needleValues = new float[3];
+
+        // 侧屏的字只在数值变了才写（整公里数、整百分比、连击数）：每帧重写两块世界画布，头显上是实实在在的 CPU
         void UpdateScreens()
         {
             if (!screensBuilt && DivaUi.Font != null && Time.frameCount > 2) BuildScreens();
             if (!speedText) return;
             float speed = loco ? Mathf.Abs(loco.CurrentSpeed) : 0;
-            speedText.text = Mathf.RoundToInt(speed * 3.6f) + "<size=40%> KM/H</size>";
+            int kmh = Mathf.RoundToInt(speed * 3.6f);
+            if (kmh != lastKmh) { lastKmh = kmh; speedText.text = kmh + "<size=40%> KM/H</size>"; }
             speedBar.localScale = new Vector3(loco ? Mathf.Clamp01(speed / Mathf.Max(.1f, loco.runSpeed)) : 0, 1, 1);
             float water = demo ? demo.State.Water : 1;
             waterBar.localScale = new Vector3(Mathf.Clamp01(water), 1, 1);
-            int combo = show ? show.Combo : 0;
-            comboText.text = combo >= 2 ? "x" + combo + "<size=40%> COMBO</size>" : Mathf.RoundToInt(water * 100) + "<size=40%> %</size>";
+            int combo = show ? show.Combo : 0, pct = Mathf.RoundToInt(water * 100);
+            if (combo != lastComboShown || (combo < 2 && pct != lastWaterPct))
+            {
+                lastComboShown = combo; lastWaterPct = pct;
+                comboText.text = combo >= 2 ? "x" + combo + "<size=40%> COMBO</size>" : pct + "<size=40%> %</size>";
+            }
         }
 
         static readonly Collider[] near = new Collider[8];

@@ -97,8 +97,11 @@ namespace Diva.VR
         {
             tips.Clear();
             if (hands == null || !hands.running || !space) return;
-            foreach (var hand in new[] { hands.leftHand, hands.rightHand })
+            for (int h = 0; h < 2; h++)
+            {
+                var hand = h == 0 ? hands.leftHand : hands.rightHand;
                 if (hand.isTracked && hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var pose)) tips.Add(space.TransformPoint(pose.position));
+            }
         }
 
         /// <summary>头的侧倾角度（度）：往自己左边歪为负，右边为正。</summary>
@@ -164,14 +167,15 @@ namespace Diva.VR
 
             var mouth = head.position - head.up * .09f + head.forward * .04f;
             var fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
-            int up = 0, i = 0;
-            foreach (var hand in new[] { hands.leftHand, hands.rightHand })
+            int up = 0;
+            for (int i = 0; i < 2; i++)   // 不用 new[] { left, right }：每帧一次分配
             {
+                var hand = i == 0 ? hands.leftHand : hands.rightHand;
                 if (!hand.isTracked)
                 {
                     // 追踪丢了一下：这只手刚才举着就当还举着
                     if (now - lastUpAt[i] < blipSeconds) up++;
-                    i++; continue;
+                    continue;
                 }
                 bool thumb = hand.GetJoint(XRHandJointID.ThumbTip).TryGetPose(out var thumbPose);
                 bool index = hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var indexPose);
@@ -194,7 +198,6 @@ namespace Diva.VR
                     // 举手 = 手腕到眼睛高度附近、在身前（不用举过头顶：那里摄像头看不到手）
                     if (w.y > head.position.y - ultBelowEye && forward > .08f) { up++; lastUpAt[i] = now; }
                 }
-                i++;
             }
             if (f.drink) { f.pinch = false; up = 0; }   // 手在嘴边 / 竖拇指：不算捏、不算举手
             HandsUp = up;

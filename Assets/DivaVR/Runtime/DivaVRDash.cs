@@ -32,10 +32,13 @@ namespace Diva.VR
 
         void OnDestroy() { if (show) show.Dashed -= OnDash; }
 
+        DivaVRCockpit cockpit; DivaVRHands hands;
+
         void OnDash(string why)
         {
             if (streaks) streaks.Play();
-            var cockpit = GetComponent<DivaVRCockpit>(); if (cockpit) cockpit.Rumble(1);
+            if (!cockpit) cockpit = GetComponent<DivaVRCockpit>();
+            if (cockpit) cockpit.Rumble(1);
             if (show.Sound != null) show.Sound.Play("toot", .5f, 1.15f);
             Debug.Log("DIVA_VR dash " + why);
         }
@@ -45,10 +48,11 @@ namespace Diva.VR
         {
             if (streaks && streaks.isPlaying && !Active) streaks.Stop();
             // 举双手蓄力（0.4 秒）：一举起就有上升音，座舱越震越厉害——火箭点火前的倒数
-            var hands = GetComponent<DivaVRHands>();
+            if (!hands) hands = GetComponent<DivaVRHands>();
+            if (!cockpit) cockpit = GetComponent<DivaVRCockpit>();
             float p = hands && show.Phase == ShowPhase.Play && show.Charge >= 100 ? hands.UltProgress : 0;
             if (p > 0 && lastUltProgress <= 0 && show.Sound != null) show.Sound.Play("rise", .7f, 1.3f);
-            if (p > 0) { var cockpit = GetComponent<DivaVRCockpit>(); if (cockpit) cockpit.Rumble(.2f + .6f * p); }
+            if (p > 0 && cockpit) cockpit.Rumble(.2f + .6f * p);
             lastUltProgress = p;
             // 尾灯慢慢亮起来（一下全亮整个画面会跳一下）
             if (tail) tail.intensity = Mathf.MoveTowards(tail.intensity, Active ? 2.2f + .5f * Mathf.Sin(Time.time * 30) : 0, Time.deltaTime * 4);

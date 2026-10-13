@@ -24,7 +24,7 @@ namespace Diva.VR
             cam.layerCullDistances = dist;
             cam.layerCullSpherical = true;
             int n = 0, m = 0;
-            foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+            foreach (var r in FindObjectsByType<MeshRenderer>())
             {
                 if (r.gameObject.layer != 0) continue;
                 float size = r.bounds.size.magnitude;
@@ -39,7 +39,7 @@ namespace Diva.VR
             if (DivaVRDebug.Get("DIVA_TOWN") == "0")
             {
                 int off = 0;
-                foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                foreach (var r in FindObjectsByType<Renderer>())
                 {
                     if (loco && loco.travelRoot && r.transform.IsChildOf(loco.travelRoot)) continue;
                     if (DivaVR.Rig && r.transform.IsChildOf(DivaVR.Rig)) continue;

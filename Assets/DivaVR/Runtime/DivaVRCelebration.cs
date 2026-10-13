@@ -78,10 +78,17 @@ namespace Diva.VR
             beamRoot.gameObject.SetActive(false);
         }
 
+        Coroutine sequence;
+
         void OnPhase(ShowPhase p)
         {
-            if (p == ShowPhase.Finish) { shownAt = Time.unscaledTime; StartCoroutine(Sequence()); }
-            else if (p != ShowPhase.Results) { shownAt = -1; if (holo) holo.HeroMoment(false); if (beamRoot) beamRoot.gameObject.SetActive(false); }
+            if (p == ShowPhase.Finish) { if (sequence != null) StopCoroutine(sequence); shownAt = Time.unscaledTime; sequence = StartCoroutine(Sequence()); }
+            else if (p != ShowPhase.Results)
+            {
+                // 冲线后马上切走（回选涂装）：卡片的音效、烟火也一起停
+                if (sequence != null) { StopCoroutine(sequence); sequence = null; }
+                shownAt = -1; if (holo) holo.HeroMoment(false); if (beamRoot) beamRoot.gameObject.SetActive(false);
+            }
         }
 
         IEnumerator Wait(float s) { float e = Time.unscaledTime + s; while (Time.unscaledTime < e) yield return null; }
@@ -139,6 +146,7 @@ namespace Diva.VR
             stamp.text = DivaText.T(medal != "" ? medal : "hero.champion"); stamp.gameObject.SetActive(true); stampAt = Time.unscaledTime;
             stamp.color = medal == "medal.silver" ? new Color(.85f, .9f, 1f) : medal == "medal.bronze" ? new Color(1f, .65f, .4f) : new Color(1f, .85f, .25f);
             if (snd != null) snd.Play("powerup", .6f, 1.4f);
+            sequence = null;
         }
 
         float cardPop = -1, stampAt = -1;

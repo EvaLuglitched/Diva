@@ -132,10 +132,13 @@ namespace Diva.VR
             if (now > nextShot && !f.drink)
             {
                 var head = DivaVR.Head ? DivaVR.Head.position : root.position;
-                var target = FindObjectsByType<DivaTarget>(FindObjectsSortMode.None)
-                    .Where(t => Vector3.Distance(t.transform.position, head) < 30 &&
-                                Vector3.Angle(fwd, Vector3.ProjectOnPlane(t.transform.position - head, Vector3.up)) < 40)
-                    .OrderBy(t => Vector3.Distance(t.transform.position, head)).FirstOrDefault();
+                DivaTarget target = null; float best = 30;
+                foreach (var t in DivaTarget.All)   // 靶子自己登记在 All 里，不用每次扫场景
+                {
+                    if (!t || !t.IsUp) continue;
+                    float d = Vector3.Distance(t.transform.position, head);
+                    if (d < best && Vector3.Angle(fwd, Vector3.ProjectOnPlane(t.transform.position - head, Vector3.up)) < 40) { best = d; target = t; }
+                }
                 if (target) { shootAt = target.AimPoint; shootUntil = now + .7f; nextShot = now + 2.2f; }
             }
             if (now < shootUntil && DivaVR.Head)

@@ -28,7 +28,10 @@ namespace Diva.VR
         /// <summary>教学演示时整个藏起来（底座、涂装名都不要挡着演示）。</summary>
         [System.NonSerialized] public bool Hidden;
         public void Bump() => bump = 1;
-        readonly List<(Renderer source, Renderer copy)> parts = new List<(Renderer, Renderer)>();
+        // 每种材质一块合并的网格（以前每个机甲部件一份拷贝 = 几十次绘制，整场挂在仪表台上；头显的渲染线程就是被绘制次数拖住的）。
+        // 换涂装只换材质：记下这组来自哪个部件的第几个子网格，换的时候从那里再拿一次
+        class Group { public MeshRenderer copy; public Renderer source; public int submesh; }
+        readonly List<Group> groups = new List<Group>();
         float height = 1, eye;
 
         void Start()
@@ -48,29 +51,46 @@ namespace Diva.VR
             var model = new GameObject("Model").transform;
             model.SetPositionAndRotation(root.position, root.rotation);
             var bounds = new Bounds(root.position, Vector3.zero);
+            // 按材质归组：同一种材质的所有部件（的那个子网格）合成一块
+            var byMaterial = new Dictionary<Material, List<CombineInstance>>();
+            var sample = new Dictionary<Material, (Renderer r, int sub)>();
+            var toModel = model.worldToLocalMatrix;
             foreach (var r in root.GetComponentsInChildren<Renderer>())
             {
                 if (!r.enabled || !r.gameObject.activeInHierarchy || r is ParticleSystemRenderer || r is TrailRenderer || r is LineRenderer) continue;
-                Mesh mesh;
+                Mesh mesh; Matrix4x4 m;
                 if (r is SkinnedMeshRenderer smr)
                 {
                     mesh = new Mesh { name = smr.name + " (hologram)" };
-                    smr.BakeMesh(mesh, true);
+                    smr.BakeMesh(mesh, true);   // 烘出来的顶点已经带了缩放：只用位置和朝向
+                    m = toModel * Matrix4x4.TRS(r.transform.position, r.transform.rotation, Vector3.one);
                 }
-                else if (r.TryGetComponent(out MeshFilter mf) && mf.sharedMesh) mesh = mf.sharedMesh;
+                else if (r.TryGetComponent(out MeshFilter mf) && mf.sharedMesh) { mesh = mf.sharedMesh; m = toModel * r.transform.localToWorldMatrix; }
                 else continue;
-                var go = new GameObject(r.name, typeof(MeshFilter), typeof(MeshRenderer));
-                go.transform.SetPositionAndRotation(r.transform.position, r.transform.rotation);
-                go.transform.localScale = r is SkinnedMeshRenderer ? Vector3.one : r.transform.lossyScale;
-                go.transform.SetParent(model, true);
-                go.GetComponent<MeshFilter>().sharedMesh = mesh;
-                var copy = go.GetComponent<MeshRenderer>();
-                copy.sharedMaterials = r.sharedMaterials;
-                copy.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                copy.receiveShadows = false;
-                parts.Add((r, copy));
+                var mats = r.sharedMaterials;
+                for (int s = 0; s < mesh.subMeshCount && s < mats.Length; s++)
+                {
+                    if (!mats[s]) continue;
+                    if (!byMaterial.TryGetValue(mats[s], out var list)) { byMaterial[mats[s]] = list = new List<CombineInstance>(); sample[mats[s]] = (r, s); }
+                    list.Add(new CombineInstance { mesh = mesh, subMeshIndex = s, transform = m });
+                }
                 bounds.Encapsulate(r.bounds);
             }
+            foreach (var kv in byMaterial)
+            {
+                var combined = new Mesh { name = "Hologram " + kv.Key.name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                combined.CombineMeshes(kv.Value.ToArray(), true, true);
+                var go = new GameObject(kv.Key.name, typeof(MeshFilter), typeof(MeshRenderer));
+                go.transform.SetParent(model, false);
+                go.GetComponent<MeshFilter>().sharedMesh = combined;
+                var copy = go.GetComponent<MeshRenderer>();
+                copy.sharedMaterial = kv.Key;
+                copy.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                copy.receiveShadows = false;
+                var (sr, sub) = sample[kv.Key];
+                groups.Add(new Group { copy = copy, source = sr, submesh = sub });
+            }
+            Debug.Log($"DIVA_VR hologram: {groups.Count} combined meshes (one per material)");
             // 模型放在 Spin 的中心（脚踩在 0 高度），按身高归一成 1 米，之后整体缩放
             model.SetParent(spin, true);
             var foot = root.InverseTransformPoint(new Vector3(bounds.center.x, bounds.min.y, bounds.center.z));
@@ -110,10 +130,15 @@ namespace Diva.VR
 
         void OnDestroy() { if (skins) skins.Changed -= OnSkin; }
 
-        // 涂装换的是真机甲的材质：再拿一遍
+        // 涂装换的是真机甲的材质（同一种旧材质的部件都换成同一种新材质，DivaMechSkins.Apply）：每组从它的样本部件再拿一次
         void OnSkin(int index)
         {
-            foreach (var (source, copy) in parts) if (source && copy) copy.sharedMaterials = source.sharedMaterials;
+            foreach (var g in groups)
+            {
+                if (!g.source || !g.copy) continue;
+                var mats = g.source.sharedMaterials;
+                if (g.submesh < mats.Length && mats[g.submesh]) g.copy.sharedMaterial = mats[g.submesh];
+            }
             bump = 1;   // 换涂装：弹一下
             if (show && show.Sound != null) show.Sound.Play("whoosh", .35f, 1.6f);
         }
@@ -137,9 +162,8 @@ namespace Diva.VR
             bump = Mathf.MoveTowards(bump, 0, Time.unscaledDeltaTime * 2.5f);
             // 模型先归一化成 1 米高（norm），再乘弹一下的幅度（之前漏了 norm，大象按真实大小显示，巨大）
             spin.localScale = Vector3.one * norm * (1 + .18f * Mathf.Sin(bump * Mathf.PI));
-            if (glowRing) glowRing.localRotation = Quaternion.Euler(0, Time.unscaledTime * 40, 0);
-            if (glowRing2) { glowRing2.localRotation = Quaternion.Euler(0, -Time.unscaledTime * 25, 0); glowRing2.gameObject.SetActive(select); }
-            if (glowRing) glowRing.localRotation = Quaternion.identity;
+            // 底座光圈是圆对称的，转不转看不出来：不转（以前先转再归零，两行互相抵消）
+            if (glowRing2) glowRing2.gameObject.SetActive(select);
         }
     }
 }

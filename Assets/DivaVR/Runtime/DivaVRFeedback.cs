@@ -52,16 +52,8 @@ namespace Diva.VR
                 }
                 if (!task.Done) done[i] = false;
             }
-            // 到终点拱门就算完赛（Carl：不管四个任务完没完成，冲线就要有全场最佳）
-            if (!game.Finished && loco && show.Phase == ShowPhase.Play)
-            {
-                var finish = game.tasks.LastOrDefault(t => t != null && t.landmark && t.check == TaskCheck.Reach);
-                if (finish != null)
-                {
-                    var d = finish.landmark.position - loco.travelRoot.position; d.y = 0;
-                    if (d.magnitude < finish.radius) game.ForceFinish();
-                }
-            }
+            // 完赛判定和电脑版同一套：Eva 的终点线（过线就算完赛，任务没做完只是少拿分）。以前 VR 另判"离终点标记半径内"，
+            // 两边圈速差一两秒，奖牌却是同一套门槛
             // 脚下闪粉：越快越多
             if (dust && loco)
             {
@@ -93,7 +85,7 @@ namespace Diva.VR
         // 光柱：每个霓虹拱门和终点上方三根慢慢转的发光长条
         void BuildShafts()
         {
-            var gates = FindObjectsByType<Transform>(FindObjectsSortMode.None).Where(t => t.name.StartsWith("Neon_Gate")).Select(t => t.position).ToList();
+            var gates = FindObjectsByType<Transform>().Where(t => t.name.StartsWith("Neon_Gate")).Select(t => t.position).ToList();
             var finish = game != null ? game.tasks.FirstOrDefault(t => t != null && t.check == TaskCheck.Reach && t.landmark) : null;
             if (finish != null) gates.Add(finish.landmark.position);
             var root = new GameObject("Diva Light Shafts").transform;

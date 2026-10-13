@@ -27,7 +27,7 @@ namespace Diva.VR
         CourseTask current;
         float tipUntil, tipShownAt, lastUltTip;
         TextMeshProUGUI labelAction;
-        string tipKey;
+        string tipKey, lastAct; int lastMetres = -1; bool lastHere;
 
         void Start()
         {
@@ -134,7 +134,8 @@ namespace Diva.VR
             float t = Time.unscaledTime, dt = Time.unscaledDeltaTime;
             bool play = show.Phase == ShowPhase.Play || show.Phase == ShowPhase.Ult;
             var root = loco.travelRoot;
-            var next = play ? game.tasks.FirstOrDefault(x => x != null && !x.Done && x.landmark) : null;
+            CourseTask next = null;
+            if (play) foreach (var x in game.tasks) if (x != null && !x.Done && x.landmark) { next = x; break; }
             if (next != current)
             {
                 if (current != null && current.Done && show.Sound != null) show.Sound.PlayAt("combo", current.landmark ? current.landmark.position + Vector3.up * 3 : root.position, .5f);
@@ -154,22 +155,23 @@ namespace Diva.VR
                 var face = label.position - cam.transform.position; face.y = 0;
                 if (face.sqrMagnitude > 1e-4f) label.rotation = Quaternion.LookRotation(face);
                 label.localScale = Vector3.one * (4.5f / 1200f) * Mathf.Clamp(dist / 25f, .6f, 2.2f);
-                labelDist.text = $"{dist:0} m";
+                // 文字只在整米数 / 状态变了才写（每帧写两块世界画布的字，头显上是实实在在的 CPU）
+                int metres = Mathf.RoundToInt(dist);
+                if (metres != lastMetres) { lastMetres = metres; labelDist.text = metres + " m"; arrowDist.text = metres + " m"; }
                 // 14 米以内：距离换成要做的动作，闪着；到了圈里写"到了"
                 string act = current.check == TaskCheck.CurlTrunk ? ((current.label ?? "").ToLowerInvariant().Contains("drink") ? "coach.drink" : "coach.eat")
                            : current.check == TaskCheck.LiftLegs || current.check == TaskCheck.Pass ? "coach.log" : null;
-                bool near = act != null && dist < 14;
+                bool near = act != null && dist < 14, here = near && dist < current.radius;
                 labelAction.gameObject.SetActive(near); labelDist.gameObject.SetActive(!near);
                 if (near)
                 {
-                    labelAction.text = dist < current.radius ? DivaText.T("coach.here") + "  ·  " + DivaText.T(act) : DivaText.T(act);
+                    if (act != lastAct || here != lastHere) { lastAct = act; lastHere = here; labelAction.text = here ? DivaText.T("coach.here") + "  ·  " + DivaText.T(act) : DivaText.T(act); }
                     labelAction.color = new Color(1f, .9f, .4f, .7f + .3f * Mathf.Sin(t * 6));
                     label.localScale = Vector3.one * (4.5f / 1200f) * Mathf.Clamp(dist / 25f, .9f, 2.2f);
                 }
                 // 箭头：相对大象正前方的角度
                 float angle = Vector3.SignedAngle(Vector3.ProjectOnPlane(root.forward, Vector3.up), to, Vector3.up);
                 arrow.localRotation = Quaternion.Euler(0, 0, -angle);
-                arrowDist.text = $"{dist:0} m";
                 if (arrowMat) { var c = new Color(1f, .5f, .85f, 1) * (1.4f + .15f * Mathf.Sin(t * 3)); arrowMat.color = c; if (arrowMat.HasProperty("_BaseColor")) arrowMat.SetColor("_BaseColor", c); }
             }
             // 大招满了（PC 版用底部的大招提示条；VR 这里提示举手）
