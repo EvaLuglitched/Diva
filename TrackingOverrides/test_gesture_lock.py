@@ -44,6 +44,9 @@ LOCKED_LINES = [
     # Gesture Recognizer failure rebuilds it instead of ending the bridge.
     ('TrackingOverrides/bridge.py', 'self.relock_seconds = 1.0'),
     ('TrackingOverrides/bridge.py', 'gesture_recognizer = RecoveringRecognizer(lambda: vision.GestureRecognizer.create_from_options(gesture_options))'),
+    # 2026-10-13 approved change (Eva, v1.5): one player runs hand / gesture recognition on every other frame.
+    ('TrackingOverrides/bridge.py', 'SOLO_HANDS_EVERY = 2'),
+    ('TrackingOverrides/bridge.py', 'if p3_slot in bodies and hands_due(args.people, hand_frame, profile, last_hand_rows is not None):'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p1 = count == 1 ? (soloRole == 1 || all ? Read(1, now) : null) : Read(1, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p2 = count == 1 ? (soloRole == 2 || all ? Read(1, now) : null) : Read(2, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p3 = count == 1 ? (soloRole == 3 || all ? Read(1, now) : null) : Read(3, now);'),

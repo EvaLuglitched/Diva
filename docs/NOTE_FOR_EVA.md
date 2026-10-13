@@ -1,5 +1,28 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-13 (late night) — v1.5: single player tracks faster (you approved the bridge change), Mac and Windows together
+
+Single player could hardly walk in the app. The tracking ran at 12–16 fps alone but about 30 with three players: solo ran
+the full pose model and then the Gesture Recognizer (6 hands, the whole frame) on every camera frame, one after the other.
+Measured on Carl's M1 Max with a person in a 1280×720 frame:
+
+| One player, per frame | ms | tracking fps |
+| --- | --- | --- |
+| v1.4: pose + hands every frame | 64 | ~15.6 |
+| **v1.5: hands every other frame** | 45 | ~22 |
+| pose only (reference) | 26 | 30 (camera limit) |
+
+| Where | What |
+| --- | --- |
+| 🔒 `bridge.py` | `SOLO_HANDS_EVERY = 2`, `hands_due()`: solo runs hand / gesture recognition on every other frame and reuses the last hands in between, as the group already does on 'fast'. The first hands are never skipped. No gesture rule or threshold changed; three players unchanged |
+| `test_solo_hands.py` (new), `test_gesture_lock.py` | the cadence, the first frame, the group cadence; two new locked lines |
+| `GESTURES_LOCKED.md` | the approved change, with "Eva (via Carl)" |
+
+v1.5 also carries the Windows changes below (Next camera, the readable camera message, the 60 fps cap that keeps adapting)
+on both platforms. Windows has the same solo problem (same bridge; its CPU is slower), so it gets the same fix.
+Not changed: the walking thresholds. The replay of your 13:57 solo round (v1.3 rule 78 % walking, v1.4 62 %) suggests the
+0.25 s stop pause could be relaxed for one player, but that data is not on Carl's Mac, so it is left for you.
+
 ## 2026-10-13 (night) — Windows v1.3 and v1.4: your v1.2–v1.4 changes on Windows, camera switch, 60 fps cap keeps adapting
 
 Carl asked to bring Windows up to date: it was still on v1.1 (no re-lock, no recovery, no auto restart, old walking rule).

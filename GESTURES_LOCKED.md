@@ -12,7 +12,7 @@ Do not change them without completing the double-check procedure below and Eva's
 | --- | --- |
 | `TrackingOverrides/diva_gestures.py` | 所有动作的判断规则和 `DEFAULTS` 参数 |
 | `TrackingOverrides/diva_gestures.json` | 实际使用的参数（必须和 `DEFAULTS` 一致） |
-| `TrackingOverrides/bridge.py` | 角色分配（镜像画面从左到右、分不清时只暂停那个人）、多人检测、手部/手势识别 |
+| `TrackingOverrides/bridge.py` | 角色分配（镜像画面从左到右、分不清时只暂停那个人）、多人检测、手部/手势识别（含单人模式隔帧做手势识别的频率） |
 | `Assets/DigiPhant/Runtime/DivaControlState.cs` | 单人/三人角色合并规则、单人模式的互斥规则、键盘合并 |
 | `Assets/DigiPhant/Runtime/DivaDemo.cs` | 输入入口、可见超时（≥ 0.8 秒） |
 
@@ -66,5 +66,6 @@ Do not change them without completing the double-check procedure below and Eva's
 | 2026-10-13 | 角色在玩家离开 1 秒后交给仍在画面里的人；手势识别报错时重建、不退出（`bridge.py`） | Eva | `test_relock.py`，全部 Python 测试，4 个 Unity 检查；Eva 在 v1.2 Mac 版上真人测试成功（2026-10-13）；三人真人测试待补 |
 | 2026-10-13 | 走路对新手更友好：一只手 0.10 + 另一只手 0.05（原来两只手都要 0.14），看 1 秒内的摆动，停顿 0.5 秒才停，慢动作也算在动（go_step 0.03），最低到肩下 1.8 躯干长，手腕看不清保持 0.5 秒，摆过头顶不再立刻停走（`diva_gestures.py/json`） | Eva | `test_easier_walk.py`（10 个，含"站着、身体晃、举一只手瞄准都不会走"），全部 Python 测试，4 个 Unity 检查；Eva 单人真人测试（Unity，2026-10-13）：手在摆却因"幅度不够"不走从 92% 降到 5%；三人待测 |
 | 2026-10-13 | P1 停手更快、更准：判断"在动"改成和 0.2 秒前的手腕位置比（`go_motion_window`），阈值 0.04，停顿 0.5 → 0.25 秒。以前逐帧比，手腕抖动一直算"在动"，停手后要 1 秒才停；现在约 0.4 秒，开始走仍是 0.03–0.07 秒（`diva_gestures.py/json`） | Eva | `test_stop_on_time.py`（带手腕抖动的停止时间、站着不动、开始延迟），全部 Python 测试，4 个 Unity 检查；Eva 真人测试成功（Unity，2026-10-13），并打包成 v1.4 |
+| 2026-10-13 | 单人模式追踪变快：手部/手势识别从每帧做改成隔一帧做（`SOLO_HANDS_EVERY = 2`，`hands_due()`），中间那帧沿用上一帧的手，和三人模式在 'fast' 档一样。原因：单人时每帧先做完整姿势识别、再在整张图上找 6 只手，一帧 64 ms，只有约 15 帧（M1 Max 实测；Windows 用 CPU 更慢），走路判断拿到的样本太少。隔帧后约 45 ms、约 22 帧；喷水和 0.4 秒竖拇指每秒仍有约 11–15 次手部更新。走路、转弯、喷水、补水、大招的规则和参数都没改；三人模式不变（`bridge.py`） | Eva（Carl 转达） | `test_solo_hands.py`（隔帧、首帧不跳、三人不变），`test_gesture_lock.py` 新增两行锁定，全部 Python 测试（116 个），4 个 Unity 检查；Carl 单人真人测试（v1.5 Mac 版）待补 |
 
 AI 助手（Claude 等）：见根目录 `CLAUDE.md`，不要擅自修改以上文件。
