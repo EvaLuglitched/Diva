@@ -1,5 +1,21 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-13 (evening) — v1.1: downloads that run directly, smoother with the camera, lighter opening blur
+
+Carl played a live round on the release build with the camera and asked for downloads that run directly on Mac and
+Windows. What changed on shared things:
+
+| Where | What | Why |
+| --- | --- | --- |
+| `DivaShowPerf.cs` | Keeps full resolution when lowering it does not make frames faster | with the camera tracking running, v1.0 dropped to 60 % resolution and a 60 fps lock for the whole race, although the CPU, not the GPU, was the limit |
+| `DivaLook.cs`, `DivaShowDirector.cs` | Your intro flight no longer gets the gameplay far-field blur (it fades in at GO); cutscene bokeh f/4 → f/5.6 | Carl found the opening a bit too blurred: your aerial shots see the whole town past 35 m, so all of it went soft. Play is unchanged |
+| `DivaShowMute.cs` (new) | `DIVA_MUTE=1` or `-divaMute` mutes the desktop game | silent test runs |
+| `Tools/bridge_app/` | The Windows download carries the camera bridge as `diva_bridge.exe` (no Python); the Mac bridge keeps its font cache | Windows players needed Python before; the Mac's first camera frame came 15 s late on every launch |
+| `README.md`, `Tools/release/READ ME*` | v1.1 links and first-start steps (macOS "Open Anyway", Windows SmartScreen) | the Mac app is signed but not notarised (no Developer ID) |
+
+Nothing in the gesture rules, the three-player detection or your intro code changed. The About-box text below still
+needs you (owner only).
+
 ## 2026-10-13 (afternoon) — v1.0: README per the course, fresh-clone test, downloads for macOS / Windows / Vision Pro
 
 Carl asked to tidy the repository the way the instructor's `STUDENT_GIT.md` asks and to publish v1.0 with download

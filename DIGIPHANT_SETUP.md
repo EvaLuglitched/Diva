@@ -30,14 +30,24 @@ Play → F1 → **Try alone > All > Camera**. Keep shoulders, hips and wrists vi
 
 See [docs/DIVA_TRY_IT.md](docs/DIVA_TRY_IT.md) for roles, spray/refill and group instructions. Stop Play to stop Unity's camera bridge.
 
-## Release builds (v1.0)
+## Release builds (v1.1)
 
 Downloads: https://github.com/EvaLuglitched/Diva/releases (built with **Diva > Release** in `Assets/DivaShow/Editor/DivaReleaseBuild.cs`,
-packed by `Tools/release/package_release.sh`). The macOS app carries the tracking bridge itself, frozen with Python 3.13
-and MediaPipe 0.10.35 by `Tools/bridge_app/build_mac_bridge.sh` (the locked `bridge.py` runs unchanged, with the editor's
-options; only the walking diagnostics CSV is off because the app folder is read-only) and asks for camera permission
-as soon as the game opens (one click; if it was denied, the home page shows ALLOW CAMERA, which opens the setting). The Windows build carries the bridge sources and models in `DivaTracking/`; `setup_camera.bat` creates the
-Python environment once. The Vision Pro build is development-signed for the team's headsets.
+packed by `Tools/release/package_release.sh`). Both desktop builds carry the tracking bridge themselves, so players need
+no Python: the locked `bridge.py`, frozen with MediaPipe 0.10.35 and Python 3.13 by `Tools/bridge_app/build_mac_bridge.sh`
+(macOS) and `Tools/bridge_app/build_windows_bridge.ps1` (Windows; built on GitHub's Windows machines). The game starts it
+with the editor's options; only the walking diagnostics CSV is off because the app folder can be read-only. macOS asks
+for camera permission as soon as the game opens (one click; if it was denied, the home page shows ALLOW CAMERA, which
+opens the setting). The frozen bridge keeps Matplotlib's font cache in `~/Library/Caches/Diva` (Windows:
+`%LOCALAPPDATA%\Diva`), so only the first camera start on a computer takes longer (Mac about 17 s, Windows about 6 s);
+later starts take 1–3 s. The macOS app is signed with a development certificate but not notarised (no Developer ID),
+so a downloaded copy needs **Open Anyway** once in System Settings > Privacy & Security; tested: once Diva itself is
+allowed, its camera bridge runs too. The Vision Pro build is development-signed for the team's headsets.
+
+Frame-rate guard (`DivaShowPerf`): with the camera running, the M1 Max is CPU-bound (about 9 ms per frame at any
+resolution). v1.0 still lowered the resolution to 0.6 and then locked the race to 60 fps in Carl's live round; v1.1
+undoes a step that brings no gain, keeps full resolution (about 110 fps on a 120 Hz screen) and locks to 60 only below
+96 fps. `Tools/perf_sim` runs the real `DivaShowPerf.cs` outside Unity on four simulated loads.
 
 ## Recording and generated trial data
 
