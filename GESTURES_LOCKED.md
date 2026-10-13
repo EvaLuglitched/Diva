@@ -63,6 +63,6 @@ Do not change them without completing the double-check procedure below and Eva's
 
 | 日期 | 改了什么 | 谁批准 | 测试 |
 | --- | --- | --- | --- |
-| 2026-10-13 | 角色在玩家离开 1 秒后交给仍在画面里的人；手势识别报错时重建、不退出（`bridge.py`） | Eva | `test_relock.py`，全部 Python 测试，4 个 Unity 检查；Eva 在 v1.2 Mac 版上真人测试通过（2026-10-13） |
+| 2026-10-13 | 角色在玩家离开 1 秒后交给仍在画面里的人；手势识别报错时重建、不退出（`bridge.py`） | Eva | `test_relock.py`，全部 Python 测试，4 个 Unity 检查；Eva 在 v1.2 Mac 版上真人测试成功（2026-10-13）；三人真人测试待补 |
 
 AI 助手（Claude 等）：见根目录 `CLAUDE.md`，不要擅自修改以上文件。
