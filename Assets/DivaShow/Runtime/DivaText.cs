@@ -249,6 +249,16 @@ namespace Diva.Show
             ["coach.water.b"] = ("hold a thumbs-up for 0.4 s to refill (or F)", "竖起拇指保持 0.4 秒补水（或按 F）"),
             ["coach.water.b3"] = ("P3: hold a thumbs-up for 0.4 s to refill", "P3 竖起拇指保持 0.4 秒补水"),
             ["coach.here"] = ("YOU'RE HERE", "到了"),
+            // 终点前的冰墙（DivaShowWall）
+            ["coach.wall"] = ("ICE WALL AHEAD", "前面有冰墙"),
+            ["coach.wall.b"] = ("only the MEGA BUBBLE breaks it  ·  push the wall, shoot targets or eat candy to charge", "只有超级泡泡能炸开  ·  顶着墙推、打靶、吃糖都能充能"),
+            ["coach.wall.b3"] = ("only the MEGA BUBBLE breaks it  ·  P1: push the wall to charge  ·  P3: shoot targets", "只有超级泡泡能炸开  ·  P1 顶着墙推充能  ·  P3 打靶"),
+            ["coach.wall.ult"] = ("CHARGE FULL — MEGA BUBBLE!", "能量满了 放超级泡泡！"),
+            ["coach.wall.ult.b"] = ("both hands above your head (or U)  ·  the bubble smashes the wall, then charge through", "双手举过头顶（或按 U）  ·  泡泡炸开冰墙，然后冲过去"),
+            ["wall.hint"] = ("MEGA BUBBLE TO BREAK", "超级泡泡才能炸开"),
+            ["wall.hint.ult"] = ("MEGA BUBBLE NOW!", "放超级泡泡！"),
+            ["wall.break"] = ("WALL SMASHED!", "冰墙炸开了！"),
+            ["wall.break.b"] = ("+{0}  ·  charge through!", "+{0}  ·  冲过去！"),
             ["stat.candies"] = ("Candy", "糖果"),
 
             ["finish"] = ("COURSE COMPLETE", "完成赛道"),

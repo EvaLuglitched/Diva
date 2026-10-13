@@ -254,6 +254,8 @@ namespace Diva.Show
                 }
                 bonus += count * 10;
                 Feed(DivaText.F("feed.ult", DivaText.T("skill.ult"), count), Accent);
+                // 终点前的冰墙：泡泡飞过它就炸碎（DivaShowWall）
+                WallTryBreak(ultOrigin, ultDirection);
             }
             // 爆开那一刻放慢（PC 版；VR 里冲锋中不放慢，慢动作在头显里像卡住）
             Time.timeScale = !Diva.VR.DivaVR.Active && t > 1.45f && t < 2.2f ? .35f : 1;

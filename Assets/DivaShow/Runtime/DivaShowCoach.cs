@@ -66,9 +66,9 @@ namespace Diva.Show
         }
 
         /// <summary>弹一条教练提示（key 是标题，key + ".b" 是副标题；三人模式有 ".b3" 就用它）。正在显示别的提示时不插队（最后 1 秒除外）。</summary>
-        public void CoachTip(string key, float seconds = 4.5f)
+        public void CoachTip(string key, float seconds = 4.5f, bool force = false)
         {
-            if (Time.unscaledTime < tipUntil - 1f && tipKey != key) return;
+            if (!force && Time.unscaledTime < tipUntil - 1f && tipKey != key) return;
             tipKey = key; tipShownAt = Time.unscaledTime; tipUntil = tipShownAt + seconds;
             if (tipTitle)
             {

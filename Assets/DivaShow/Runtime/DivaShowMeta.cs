@@ -83,6 +83,7 @@ namespace Diva.Show
                 goldRing = ring.transform; goldRing.gameObject.SetActive(false);
             }
             CoachStart();
+            BuildWall();
         }
 
         static void Tint(Material m, Color c)
@@ -107,6 +108,7 @@ namespace Diva.Show
             EndGold(); lastGold = Time.unscaledTime; StopDash();
             if (demo) demo.State.WaterPerBurst = waterPerBurst;
             if (pickups) pickups.Restore();
+            WallReset();
             FireChanged?.Invoke(false);
             CoachStartRun();
         }

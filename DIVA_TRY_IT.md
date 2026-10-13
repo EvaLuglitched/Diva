@@ -33,6 +33,9 @@ These run on top of Eva's scoring and tasks (`Assets/DivaShow/Runtime/DivaShowMe
   ahead, when you reach the bush / basin / log, and when water is low. Three-player mode names the player (P1/P2/P3).
 - **Lap medals**: GOLD LAP at or under 50 s, SILVER LAP under 80 s, else BRONZE LAP (Eva's run timer). Time-outs get
   no medal.
+- **ICE WALL**: 14 m before the finish arch a wall of ice blocks the road (like Mei's wall). The elephant stops at it;
+  only the **MEGA BUBBLE** smashes it (+50), and the charge afterwards carries you through. No charge? Push against the
+  wall (10%/s), shoot targets or eat candy; the coach tells you which.
 - **PLAY OF THE RACE**: the finish shows a hero card instead of the old banner: time, tasks, skin, the score counting
   up, then the medal stamp. The highlight replay and results follow as before; the results line shows the medal too.
 All numbers are Inspector fields on the Diva Show object ("Race meta").
