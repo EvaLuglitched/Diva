@@ -17,6 +17,7 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 | **Unity** | 6000.6.3f1, Universal Render Pipeline 17.6.0 |
 | **Instructor starter** | https://github.com/kommanderpi/studentstarter.git at commit `8f426f675f86d938bf3dbec23d6a7ee2479d2c1d` |
 | **Tested setup, mappings, recording, limitations** | [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md) |
+| **Product page** (downloads, how to play, how we made it) | [docs/index.html](docs/index.html); public at https://evaluglitched.github.io/Diva/ once GitHub Pages is on (Settings > Pages > Deploy from a branch: `main`, `/docs`) |
 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
@@ -121,7 +122,7 @@ Optional: the sky rocket and clouds are Fab models whose licence does not allow 
 | `TrackingOverrides/` | Our modified Python bridge and gesture rules (locked), `requirements.txt` and 93 tests |
 | `Tools/` | `setup_tracking_mac.sh` (the reconstruction script above), `release/` (packing the downloads), `bridge_app/` (the self-contained camera bridge for the macOS app and the Windows download), `perf_sim/` (checks the frame-rate guard outside Unity) |
 | `Art/` | Blender script that builds the town kit (the `.blend` itself is not tracked) |
-| `docs/` | Notes for people: how to play ([DIVA_TRY_IT](docs/DIVA_TRY_IT.md)), Eva's log ([EVA_UPDATES](docs/EVA_UPDATES.md)), team notes ([NOTE_FOR_EVA](docs/NOTE_FOR_EVA.md), [NOTE_FOR_VICKY](docs/NOTE_FOR_VICKY.md)), [ROADMAP](docs/ROADMAP.md), [PLAYTEST_TODO](docs/PLAYTEST_TODO.md), [FAB_SETUP](docs/FAB_SETUP.md), the starter's [DIGIPHANT_CONTROLS](docs/DIGIPHANT_CONTROLS.md) |
+| `docs/` | The product page (`index.html`, `img/`) and notes for people: how to play ([DIVA_TRY_IT](docs/DIVA_TRY_IT.md)), Eva's log ([EVA_UPDATES](docs/EVA_UPDATES.md)), team notes ([NOTE_FOR_EVA](docs/NOTE_FOR_EVA.md), [NOTE_FOR_VICKY](docs/NOTE_FOR_VICKY.md)), [ROADMAP](docs/ROADMAP.md), [PLAYTEST_TODO](docs/PLAYTEST_TODO.md), [FAB_SETUP](docs/FAB_SETUP.md), the starter's [DIGIPHANT_CONTROLS](docs/DIGIPHANT_CONTROLS.md) |
 
 At the root: this README, [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md) (tested setup, mappings, recording, verification record
 and limitations), [GESTURES_LOCKED.md](GESTURES_LOCKED.md) and `CLAUDE.md` (instructions for the coding agents).
@@ -138,7 +139,7 @@ v1.1 checks (2026-10-13), automated unless stated:
 
 - 93 Python tests in `TrackingOverrides/` pass, including the gesture-lock test, and the starter's 3 recording tests.
 - Unity validators pass with 0 compile errors: startup / START flow, gesture scene setup, stationary turning, trial export.
-- A full automatic round in batch mode (keyboard path, single player), twice: candy, golden target, ON FIRE, ultimate,
+- A full automatic round in batch mode (keyboard path, single player): candy, golden target, ON FIRE, ultimate,
   ice wall, all four tasks, finish line, gold lap (33.8 s), highlight, results, play again. A three-player run through
   the camera check with a fake camera bridge: calibration, P1 walks, P2 turns, P3 sprays and drinks.
 - Frame-rate guard: `Tools/perf_sim` runs the real `DivaShowPerf.cs` on four simulated loads (CPU-bound by the camera

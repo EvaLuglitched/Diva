@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Diva Mech-Elephant Race</title>
+<meta name="description" content="Diva: drive a mech elephant through Candy Town with your body. Free downloads for macOS, Windows and Apple Vision Pro.">
+<link rel="icon" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Extra+Condensed:wght@600;800;900&family=Saira:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one night-time Candy Town column. Slanted plates like the game's own HUD, a wide hero screenshot,
+   then play → moments → Vision Pro → how we made it → install → team. Single dark look on purpose (the game is set at night). */
+:root {
+  --night: #160e2c;      /* page: the starry sky over Candy Town */
+  --plum: #241645;       /* raised panels */
+  --plum-2: #2f1d5a;     /* table rows, hover */
+  --ink: #f5effe;        /* text */
+  --mist: #b8aad8;       /* secondary text */
+  --pink: #ff4f9e;       /* START button pink */
+  --teal: #44e2cf;       /* mech visor teal */
+  --gold: #ffcf5a;       /* gold lap */
+  --line: rgba(220, 205, 255, .16);
+  --display: "Saira Extra Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --body: "Saira", "Segoe UI", system-ui, sans-serif;
+  --slant: -9deg;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.hero-grid > *, .play-grid > *, .vr-grid > *, .tech > *, .install > *, .team > *, .moments > *, .day > *, .dl > * { min-width: 0; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font-family: var(--body); font-size: 17px; line-height: 1.6;
+  background-image: radial-gradient(1px 1px at 12% 8%, #fff8 50%, transparent 51%), radial-gradient(1px 1px at 68% 4%, #fff6 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 84% 14%, #fff9 50%, transparent 51%), radial-gradient(1px 1px at 38% 16%, #fff5 50%, transparent 51%),
+    radial-gradient(1px 1px at 92% 30%, #fff5 50%, transparent 51%), radial-gradient(1px 1px at 6% 34%, #fff6 50%, transparent 51%);
+  background-repeat: no-repeat; background-size: 100% 1400px;
+}
+a { color: var(--teal); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+img { max-width: 100%; display: block; }
+.wrap { max-width: 1360px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 40px); }
+section { padding-block: clamp(56px, 8vw, 96px); }
+h1, h2, h3 { font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: .95; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h2 { font-size: clamp(40px, 6vw, 64px); }
+h3 { font-size: 26px; font-weight: 800; }
+p { margin: 0; max-width: 65ch; }
+.eyebrow { font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: .14em; text-transform: uppercase; color: var(--teal); }
+.lede { color: var(--mist); font-size: 19px; }
+.skew { display: inline-block; transform: skewX(var(--slant)); }
+.head { display: grid; gap: 14px; margin-bottom: 36px; }
+
+/* top bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: rgba(22, 14, 44, .86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.bar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-family: var(--display); font-weight: 900; font-size: 26px; letter-spacing: .04em; }
+.brand img { width: 34px; height: 34px; border-radius: 9px; }
+.bar nav { display: flex; gap: 22px; flex-wrap: wrap; }
+.bar nav a { color: var(--mist); text-decoration: none; font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: .08em; text-transform: uppercase; }
+.bar nav a:hover { color: var(--ink); }
+@media (max-width: 720px) { .bar nav { display: none; } }
+
+/* hero */
+.hero { padding-block: clamp(36px, 6vw, 64px) 0; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); gap: clamp(24px, 4vw, 48px); align-items: center; }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
+.title { font-size: clamp(88px, 13vw, 190px); line-height: .8; color: var(--ink); }
+.title .skew { text-shadow: 6px 6px 0 var(--pink); }
+.tagline { font-family: var(--display); font-weight: 800; font-size: clamp(28px, 3.6vw, 40px); text-transform: uppercase; line-height: 1; margin-top: 18px; }
+.tagline em { font-style: normal; color: var(--teal); }
+.hero p.lede { margin-top: 18px; }
+.shot-frame { position: relative; transform: skewX(-3deg); border: 3px solid var(--teal); box-shadow: 14px 14px 0 var(--pink); overflow: hidden; background: var(--plum); }
+.shot-frame img { transform: skewX(3deg) scale(1.06); width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+.shot-tag { position: absolute; left: 14px; bottom: 12px; transform: skewX(3deg); background: var(--night); color: var(--gold); font-family: var(--display); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 15px; padding: 4px 10px; }
+
+/* download plates */
+.downloads { display: grid; gap: 12px; margin-top: 28px; }
+.dl { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; text-decoration: none; color: var(--ink);
+  background: var(--plum); border: 1px solid var(--line); padding: 12px 18px; transform: skewX(var(--slant)); transition: background .15s, transform .15s; }
+.dl > * { transform: skewX(calc(var(--slant) * -1)); }
+.dl:hover { background: var(--plum-2); transform: skewX(var(--slant)) translateX(4px); }
+.dl.primary { background: var(--pink); border-color: var(--pink); color: #fff; }
+.dl.primary:hover { background: #ff67ad; }
+.dl .os { font-family: var(--display); font-weight: 900; font-size: 26px; text-transform: none; line-height: 1; min-width: 0; }
+.dl .meta { font-size: 14px; color: var(--mist); line-height: 1.35; min-width: 0; }
+.dl.primary .meta { color: #ffe3f0; }
+.dl .size { font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: .06em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dl svg { width: 26px; height: 26px; }
+.fine { font-size: 14px; color: var(--mist); margin-top: 14px; }
+.you { display: inline-block; margin-left: 8px; font-size: 12px; letter-spacing: .12em; padding: 1px 7px; background: var(--night); color: var(--gold); vertical-align: middle; }
+
+/* stats strip */
+.strip { margin-top: clamp(40px, 6vw, 64px); border-block: 1px solid var(--line); }
+.strip .wrap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 720px) { .strip .wrap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { padding: 20px 16px 20px 0; }
+.stat b { display: block; font-family: var(--display); font-weight: 900; font-size: 40px; line-height: 1; color: var(--gold); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 14px; color: var(--mist); }
+
+/* play */
+.play-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px; align-items: start; }
+@media (max-width: 900px) { .play-grid { grid-template-columns: minmax(0, 1fr); } }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 15px; }
+th { text-align: left; font-family: var(--display); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--mist); font-size: 15px; padding: 8px 12px; border-bottom: 2px solid var(--pink); }
+td { padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { font-family: var(--display); font-weight: 800; font-size: 19px; text-transform: uppercase; white-space: nowrap; }
+kbd { font-family: var(--display); font-weight: 800; font-size: 15px; background: var(--plum-2); border: 1px solid var(--line); border-bottom-width: 3px; padding: 0 7px; border-radius: 4px; white-space: nowrap; }
+.role { display: inline-block; font-family: var(--display); font-weight: 800; font-size: 14px; letter-spacing: .08em; padding: 0 7px; transform: skewX(var(--slant)); }
+.p1 { background: var(--teal); color: var(--night); } .p2 { background: var(--gold); color: var(--night); } .p3 { background: var(--pink); color: #fff; } .any { background: var(--plum-2); color: var(--ink); }
+.panel { background: var(--plum); border: 1px solid var(--line); padding: 24px; display: grid; gap: 14px; }
+.panel ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--mist); }
+.panel ol b { color: var(--ink); font-weight: 600; }
+
+/* two ways to play */
+.modes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .modes { grid-template-columns: minmax(0, 1fr); } }
+.mode { background: var(--plum); border: 1px solid var(--line); border-top: 4px solid var(--pink); padding: clamp(18px, 2.4vw, 28px); display: grid; gap: 18px; min-width: 0; }
+.mode.vrmode { border-top-color: var(--teal); }
+.mode-head { display: grid; gap: 8px; }
+.mode-tag { justify-self: start; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 10px; background: var(--pink); color: #fff; transform: skewX(var(--slant)); }
+.vrmode .mode-tag { background: var(--teal); color: var(--night); }
+.mode-head h3 { font-size: clamp(28px, 3vw, 36px); }
+.mode-head p { color: var(--mist); font-size: 16px; }
+.mode h4 { font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: .1em; text-transform: uppercase; margin: 0; color: var(--gold); }
+.mode ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--mist); font-size: 16px; }
+.mode ol b { color: var(--ink); font-weight: 600; }
+.mode table { min-width: 520px; }
+.mode table.vr-table { min-width: 380px; }
+.vrmode th { border-bottom-color: var(--teal); }
+.mode table td:nth-child(4) { white-space: nowrap; }
+
+/* moments gallery */
+.moments { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; }
+.moment { grid-column: span 2; margin: 0; background: var(--plum); border: 1px solid var(--line); overflow: hidden; display: grid; }
+.moment.wide { grid-column: span 3; }
+@media (max-width: 900px) { .moment, .moment.wide { grid-column: span 3; } }
+@media (max-width: 560px) { .moment, .moment.wide { grid-column: span 6; } }
+.moment button { all: unset; cursor: zoom-in; display: block; }
+.moment img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; transition: transform .25s; }
+.moment button:hover img { transform: scale(1.03); }
+.moment figcaption { padding: 12px 14px 14px; display: grid; gap: 2px; }
+.moment figcaption b { font-family: var(--display); font-weight: 900; font-size: 22px; text-transform: uppercase; line-height: 1.05; }
+.moment figcaption span { font-size: 14px; color: var(--mist); }
+
+/* vision pro */
+.vr { background: linear-gradient(180deg, transparent, rgba(68, 226, 207, .06) 30%, transparent); }
+.vr-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+@media (max-width: 900px) { .vr-grid { grid-template-columns: minmax(0, 1fr); } }
+.vr-shots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vr-shots img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border: 1px solid var(--line); }
+.vr-shots img:first-child { grid-column: span 2; }
+.vr dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 20px 0 0; }
+.vr dt { font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--teal); }
+.vr dd { margin: 0; color: var(--mist); }
+
+/* timeline */
+.timeline { display: grid; gap: 0; border-left: 2px solid var(--line); margin-left: 8px; }
+.day { position: relative; padding: 0 0 34px 30px; display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 8px 28px; }
+@media (max-width: 720px) { .day { grid-template-columns: minmax(0, 1fr); } }
+.day::before { content: ""; position: absolute; left: -9px; top: 6px; width: 16px; height: 16px; background: var(--pink); transform: rotate(45deg); }
+.day:last-child::before { background: var(--gold); }
+.date { font-family: var(--display); font-weight: 900; font-size: 28px; text-transform: uppercase; line-height: 1; }
+.date small { display: block; font-size: 15px; color: var(--mist); letter-spacing: .1em; margin-top: 6px; font-weight: 800; }
+.day ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.day li { position: relative; padding-left: 20px; }
+.day li::before { content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 7px; background: var(--teal); transform: rotate(45deg); }
+.who { font-family: var(--display); font-weight: 800; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; text-align: center; padding: 1px 0; transform: skewX(var(--slant)); }
+.who.eva { background: #8a5cff; color: #fff; } .who.carl { background: var(--pink); color: #fff; } .who.vicky { background: var(--teal); color: var(--night); } .who.team { background: var(--gold); color: var(--night); }
+.day li p { color: var(--mist); font-size: 16px; }
+.day li p b { color: var(--ink); font-weight: 600; }
+
+/* tech */
+.tech { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .tech { grid-template-columns: minmax(0, 1fr); } }
+.tech .panel h3 { color: var(--gold); }
+.tech .panel p { color: var(--mist); font-size: 16px; }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+.flow span { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: .06em; text-transform: uppercase; background: var(--plum-2); padding: 3px 9px; }
+.flow i { color: var(--teal); font-style: normal; }
+
+/* install */
+.install { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .install { grid-template-columns: minmax(0, 1fr); } }
+.install .panel h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; text-transform: none; }
+.install .panel h3 a { text-transform: uppercase; }
+.install .panel h3 a { font-size: 16px; letter-spacing: .08em; }
+.install code { font-size: 13px; background: var(--night); padding: 2px 6px; border-radius: 3px; overflow-wrap: anywhere; }
+
+/* team */
+.team { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 720px) { .team { grid-template-columns: minmax(0, 1fr); } }
+.member { border-top: 4px solid var(--who); padding-top: 14px; display: grid; gap: 6px; }
+.member h3 { font-size: 34px; }
+.member a { font-size: 15px; }
+.member p { color: var(--mist); font-size: 16px; }
+
+footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--mist); font-size: 14px; }
+footer .wrap { display: grid; gap: 10px; }
+
+/* lightbox */
+.lightbox { position: fixed; inset: 0; z-index: 10; background: rgba(10, 6, 22, .92); display: grid; place-items: center; padding: 24px; }
+.lightbox img { max-height: 86vh; width: auto; border: 2px solid var(--teal); }
+.lightbox p { margin-top: 12px; color: var(--ink); text-align: center; font-family: var(--display); font-weight: 800; font-size: 20px; text-transform: uppercase; letter-spacing: .06em; }
+.lightbox button { position: absolute; top: calc(16px + env(safe-area-inset-top, 0px)); right: 16px; background: var(--pink); color: #fff; border: 0; font-family: var(--display); font-weight: 900; font-size: 18px; padding: 6px 14px; cursor: pointer; text-transform: uppercase; }
+</style>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="img/icon.png" alt="">DIVA</a>
+    <nav aria-label="Sections">
+      <a href="#play">Play</a><a href="#moments">Moments</a><a href="#vision-pro">Vision Pro</a><a href="#making">How we made it</a><a href="#install">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Team Diva · DesComp Project 2 · DigiPhant</p>
+        <h1 class="title"><span class="skew">Diva</span></h1>
+        <p class="tagline">Drive a mech elephant<br>with <em>your whole body</em></p>
+        <p class="lede">Pump your arms to run, tilt your shoulders to turn, push your hands forward to spray water. A webcam reads one player or three, or you ride in the cockpit on Apple Vision Pro, racing through Candy Town for a gold lap.</p>
+        <div class="downloads" id="download">
+          <a class="dl" data-os="mac" href="https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-macOS-AppleSilicon.zip">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v11.2l4-4 1.4 1.4L12 17l-5.4-5.4L8 10.2l4 4V3h0zM5 19h14v2H5z"/></svg>
+            <span><span class="os">macOS</span><span class="meta"><br>Apple silicon (M1 and newer) · camera built in</span></span>
+            <span class="size">178 MB</span>
+          </a>
+          <a class="dl" data-os="win" href="https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-Windows-x64.zip">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v11.2l4-4 1.4 1.4L12 17l-5.4-5.4L8 10.2l4 4V3h0zM5 19h14v2H5z"/></svg>
+            <span><span class="os">Windows</span><span class="meta"><br>10 / 11, 64-bit · camera built in, no Python</span></span>
+            <span class="size">191 MB</span>
+          </a>
+          <a class="dl" data-os="vr" href="https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-VR-v1.1-visionOS.zip">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v11.2l4-4 1.4 1.4L12 17l-5.4-5.4L8 10.2l4 4V3h0zM5 19h14v2H5z"/></svg>
+            <span><span class="os">Vision Pro</span><span class="meta"><br>first-person cockpit · team headsets</span></span>
+            <span class="size">117 MB</span>
+          </a>
+        </div>
+        <p class="fine">Version 1.1 · free · <a href="https://github.com/EvaLuglitched/Diva/releases/tag/v1.1">release notes</a> · <a href="#install">first-start steps</a></p>
+      </div>
+      <div class="shot-frame">
+        <img src="img/hero.jpg" alt="The Diva mech elephant on its start pad in Candy Town at night: pink armour, teal visor, gatling water cannons and booster boots" width="1600" height="900">
+        <span class="shot-tag">Classic Candy skin</span>
+      </div>
+    </div>
+    <div class="strip">
+      <div class="wrap">
+        <div class="stat"><b>1 or 3</b><span>players on one webcam</span></div>
+        <div class="stat"><b>6</b><span>body gestures, no controller</span></div>
+        <div class="stat"><b>120 fps</b><span>top frame rate on a ProMotion MacBook Pro</span></div>
+        <div class="stat"><b>3</b><span>platforms: Mac, Windows, Vision Pro</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="play">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">How you play</p>
+        <h2><span class="skew">Two ways to drive</span></h2>
+        <p class="lede">On a Mac or a Windows PC you stand in front of a webcam and your whole body drives. On Apple Vision Pro you sit in the cockpit and the headset reads your hands and head. Same elephant, same Candy Town, same race.</p>
+      </div>
+      <div class="modes">
+        <article class="mode" id="play-desktop">
+          <header class="mode-head">
+            <span class="mode-tag">macOS · Windows</span>
+            <h3>Webcam: stand up and move</h3>
+            <p>One player does every job, or three players split them left to right. The keyboard works at any time, with or without a camera.</p>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Move</th><th>Gesture</th><th>Who</th><th>Key</th></tr></thead>
+              <tbody>
+                <tr><td>Walk / run</td><td>Pump both arms up and down</td><td><span class="role p1">P1</span></td><td><kbd>W</kbd></td></tr>
+                <tr><td>Turn</td><td>Tilt your shoulders or your head</td><td><span class="role p2">P2</span></td><td><kbd>A</kbd> <kbd>D</kbd></td></tr>
+                <tr><td>Aim the trunk</td><td>Raise one arm</td><td><span class="role p3">P3</span></td><td><kbd>U</kbd> <kbd>I</kbd></td></tr>
+                <tr><td>Spray water</td><td>Push both open hands forward and hold</td><td><span class="role p3">P3</span></td><td><kbd>Space</kbd></td></tr>
+                <tr><td>Eat, drink, refill</td><td>Thumbs-up for 0.4 s</td><td><span class="role p3">P3</span></td><td><kbd>F</kbd></td></tr>
+                <tr><td>Mega Bubble</td><td>Both hands above your head for 0.8 s</td><td><span class="role any">Anyone</span></td><td><kbd>E</kbd></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>One lap</h4>
+          <ol>
+            <li><b>Pick a mech skin</b> (raise one arm for the next one), choose 1 or 3 players, then START.</li>
+            <li><b>Camera check:</b> stand back until your head to waist is in the picture. When every card turns green, hold still for 5 s and the game saves your standing pose.</li>
+            <li><b>Race:</b> shoot targets and candy, grab golden targets, go ON FIRE and finish the four tasks.</li>
+            <li><b>The ice wall:</b> only a Mega Bubble smashes it, so save your charge.</li>
+            <li><b>Finish:</b> a hero card, a highlight replay and the leaderboard.</li>
+          </ol>
+        </article>
+        <article class="mode vrmode" id="play-vision-pro">
+          <header class="mode-head">
+            <span class="mode-tag">Apple Vision Pro</span>
+            <h3>Headset: sit in the cockpit</h3>
+            <p>One player, life-size on the elephant's back. No webcam and no keyboard: the headset tracks your hands, your eyes and your head.</p>
+          </header>
+          <div class="table-scroll">
+            <table class="vr-table">
+              <thead><tr><th>Move</th><th>How</th></tr></thead>
+              <tbody>
+                <tr><td>Walk / run</td><td>Lean forward; sit back to stop</td></tr>
+                <tr><td>Turn</td><td>Tilt your head</td></tr>
+                <tr><td>Spray water</td><td>Look at a target and pinch; hold to keep spraying</td></tr>
+                <tr><td>Eat, drink, refill</td><td>Thumbs-up for 0.4 s, or a hand to your mouth</td></tr>
+                <tr><td>Mega Bubble</td><td>Raise both hands to eye level and hold</td></tr>
+                <tr><td>Buttons</td><td>Look at a button and pinch; PAUSE is on the dashboard</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>One lap</h4>
+          <ol>
+            <li><b>Look at START and pinch.</b> The camera flies over Candy Town and drops you into the cockpit.</li>
+            <li><b>Pick your paint:</b> pinch to try the next skin, then CHOOSE.</li>
+            <li><b>Learn the moves:</b> glowing ghost hands show each one, then you practise until every move ticks.</li>
+            <li><b>Set off:</b> raise both hands to eye level.</li>
+            <li><b>Race:</b> the coach points to each task; the same targets, tasks and ice wall, then the hero moment and the leaderboard.</li>
+          </ol>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="moments">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">Moments from a lap</p>
+        <h2><span class="skew">Candy, fire and ice</span></h2>
+      </div>
+      <div class="moments">
+        <figure class="moment wide"><button type="button" data-full="img/town.jpg" aria-label="Enlarge: Candy Town"><img src="img/town.jpg" alt="Aerial view of Candy Town: rows of pastel houses around the race track under a starry sky, a rocket flying overhead" loading="lazy"></button><figcaption><b>Candy Town</b><span>Eva's town, seen from the opening flight</span></figcaption></figure>
+        <figure class="moment wide"><button type="button" data-full="img/golden-target.jpg" aria-label="Enlarge: golden target"><img src="img/golden-target.jpg" alt="Racing past a golden target with the task list and score on the HUD" loading="lazy"></button><figcaption><b>Golden target</b><span>3× points for 10 s</span></figcaption></figure>
+        <figure class="moment"><button type="button" data-full="img/on-fire.jpg" aria-label="Enlarge: ON FIRE"><img src="img/on-fire.jpg" alt="The ON FIRE streak with a ×5 combo" loading="lazy"></button><figcaption><b>On fire</b><span>A hit streak scores ×1.5</span></figcaption></figure>
+        <figure class="moment"><button type="button" data-full="img/wall-smashed.jpg" aria-label="Enlarge: wall smashed"><img src="img/wall-smashed.jpg" alt="The elephant charging through the smashed ice wall" loading="lazy"></button><figcaption><b>Wall smashed</b><span>Mega Bubble breaks the ice</span></figcaption></figure>
+        <figure class="moment"><button type="button" data-full="img/hero-card.jpg" aria-label="Enlarge: hero card"><img src="img/hero-card.jpg" alt="Play of the race card: 958 points, all four tasks, gold lap" loading="lazy"></button><figcaption><b>Gold lap</b><span>The hero card after the finish</span></figcaption></figure>
+        <figure class="moment wide"><button type="button" data-full="img/results.jpg" aria-label="Enlarge: results"><img src="img/results.jpg" alt="Results screen with distance, top speed, hits and the leaderboard" loading="lazy"></button><figcaption><b>Leaderboard</b><span>Your stats against every run on this computer</span></figcaption></figure>
+        <figure class="moment wide"><button type="button" data-full="img/closeup.jpg" aria-label="Enlarge: the mech elephant"><img src="img/closeup.jpg" alt="Close-up of the mech elephant's armour, visor and tusks" loading="lazy"></button><figcaption><b>The mech</b><span>A D.Va-style suit on the course elephant</span></figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="vision-pro" class="vr">
+    <div class="wrap vr-grid">
+      <div class="vr-shots">
+        <img src="img/vr-mega-bubble.jpg" alt="Vision Pro view from the cockpit: a Mega Bubble rising over Candy Town" loading="lazy">
+        <img src="img/vr-booster.jpg" alt="Vision Pro view during a booster rush" loading="lazy">
+        <img src="img/vr-cockpit.jpg" alt="Vision Pro cockpit dashboard with the Amethyst Night skin" loading="lazy">
+      </div>
+      <div>
+        <p class="eyebrow">Apple Vision Pro</p>
+        <h2><span class="skew">Ride on its back</span></h2>
+        <p class="lede" style="margin-top:14px">The Vision Pro version puts you in a cockpit on the elephant, life-size in Candy Town. You lean to run, tilt your head to turn and pinch at targets, and the headset does the tracking.</p>
+        <p class="fine" style="margin-top:18px"><a href="#play-vision-pro">Vision Pro controls and the first lap</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="making">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">How we made it</p>
+        <h2><span class="skew">Six days, three people, one elephant</span></h2>
+        <p class="lede">Built on the course's DigiPhant starter: a Unity scene and a Python camera bridge. No custom model was trained. Pretrained MediaPipe models find the bodies and hands, and our own rules turn the movements into controls.</p>
+      </div>
+      <div class="timeline">
+        <div class="day"><p class="date">Oct 8<small>Foundations</small></p><ul>
+          <li><p><b>Set up the DigiPhant Unity project</b> with the savannah course and the webcam, and got a first three-player gesture demo running.</p></li>
+          <li><p><b>Built Candy Town</b> around the course: pastel streets, targets, a rocket, the HUD and a race intro under a starry sky.</p></li>
+          <li><p><b>Put a D.Va-style mech suit on the elephant</b>, wired the gestures to it and built the match flow: four skins, the ultimate, a highlight replay and a leaderboard.</p></li>
+        </ul></div>
+        <div class="day"><p class="date">Oct 9–11<small>Two ways to play</small></p><ul>
+          <li><p><b>Started the first-person Vision Pro version</b> on its own branch: a cockpit on the elephant's back, driven by hands and head.</p></li>
+          <li><p><b>Added keyboard play</b> next to the gestures, so anyone can try the game without a camera.</p></li>
+          <li><p><b>Added trial export:</b> every run writes its route and events for analysis.</p></li>
+        </ul></div>
+        <div class="day"><p class="date">Oct 12<small>Three players, one camera</small></p><ul>
+          <li><p><b>Rebuilt three-player detection</b> so all three bodies are found every frame without stalls, tuned for Apple silicon.</p></li>
+          <li><p><b>Made the gestures feel right:</b> thumbs-up refill, steering by tilting the shoulders or head, and a camera check page with role cards and a stick-figure demo of every move.</p></li>
+          <li><p><b>Filled the race:</b> candy, ON FIRE, golden targets, the log task, the finish arch and the ice wall. Then we locked the gesture settings for one and three players.</p></li>
+        </ul></div>
+        <div class="day"><p class="date">Oct 13<small>Polish and release</small></p><ul>
+          <li><p><b>A console-style look at 120 fps</b> on M1 and M2 Max MacBook Pros, and the app icon.</p></li>
+          <li><p><b>Version 1.1:</b> the camera tracking is built into the Mac and Windows downloads. Tested with 93 automated gesture tests, an automatic gold lap, a three-player run, a live camera round and a clean Windows machine.</p></li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tech">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">Under the hood</p>
+        <h2><span class="skew">From webcam to elephant</span></h2>
+        <div class="flow" aria-label="Data flow"><span>Webcam</span><i>→</i><span>MediaPipe pose + hands</span><i>→</i><span>Gesture rules</span><i>→</i><span>Local UDP</span><i>→</i><span>Unity elephant</span></div>
+      </div>
+      <div class="tech">
+        <div class="panel"><h3>Tracking</h3><p>MediaPipe Pose Landmarker (full), Hand Landmarker and the pretrained Gesture Recognizer for thumbs-up, version 0.10.35. Everything runs on the player's computer and nothing is uploaded.</p></div>
+        <div class="panel"><h3>Gestures</h3><p>Calibrated rules on the body: arm swings for walking, shoulder or head tilt for turning, hand pose for spraying. The settings are locked and covered by 93 automated tests.</p></div>
+        <div class="panel"><h3>Game</h3><p>Unity 6 with the Universal Render Pipeline: depth of field in cutscenes, motion blur while boosting, and a frame-rate guard that holds 120 Hz on ProMotion screens.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">First start</p>
+        <h2><span class="skew">Install in a minute</span></h2>
+        <p class="lede">The very first camera start on a computer takes a little longer while the tracking prepares itself once: about 17 s on a Mac and 6 s on Windows. After that it takes a few seconds.</p>
+      </div>
+      <div class="install">
+        <div class="panel">
+          <h3>macOS <a href="https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-macOS-AppleSilicon.zip">Download</a></h3>
+          <ol>
+            <li>Unzip and drag <b>Diva.app</b> into Applications.</li>
+            <li>Open it. The app is signed but not notarised, so macOS stops it the first time: click <b>Done</b>.</li>
+            <li>Open <b>System Settings › Privacy &amp; Security</b>, scroll down, click <b>Open Anyway</b> and confirm. On macOS 14 or older, right-click the app and choose Open instead.</li>
+            <li>Click <b>Allow</b> when Diva asks for the camera.</li>
+          </ol>
+        </div>
+        <div class="panel">
+          <h3>Windows <a href="https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-Windows-x64.zip">Download</a></h3>
+          <ol>
+            <li>Unzip the whole folder. Do not run the game from inside the zip.</li>
+            <li>Run <b>Diva.exe</b>. If SmartScreen appears, click <b>More info › Run anyway</b>.</li>
+            <li>The camera starts by itself. If the picture stays dark, open <b>Settings › Privacy &amp; security › Camera</b> and allow desktop apps.</li>
+          </ol>
+        </div>
+        <div class="panel">
+          <h3>Vision Pro <a href="https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-VR-v1.1-visionOS.zip">Download</a></h3>
+          <ol>
+            <li>The build is development-signed and installs only on the team's registered headsets.</li>
+            <li>With the headset paired, drag <b>Diva VR.app</b> into Xcode › Devices and Simulators › Installed Apps.</li>
+            <li>Allow hand tracking the first time the app opens.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="team">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">Team Diva</p>
+        <h2><span class="skew">Made by</span></h2>
+      </div>
+      <div class="team">
+        <div class="member" style="--who:#8a5cff"><h3>Eva</h3><a href="https://github.com/EvaLuglitched">@EvaLuglitched</a></div>
+        <div class="member" style="--who:var(--pink)"><h3>Carl</h3><a href="https://github.com/jchen60-bot">@jchen60-bot</a></div>
+        <div class="member" style="--who:var(--teal)"><h3>Vicky</h3><a href="https://github.com/vickyyan-rgb">@vickyyan-rgb</a></div>
+      </div>
+      <p class="lede" style="margin-top:22px">We designed, built and tested Diva together as one team, from the first webcam test to the release.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Source, setup and test records: <a href="https://github.com/EvaLuglitched/Diva">github.com/EvaLuglitched/Diva</a> · Recordings: <a href="https://drive.google.com/drive/folders/1NAZGp2xYGU9ZVkIdl9RajQ89eXVgnDBF">Google Drive</a></p>
+    <p>DesComp Project 2 (DigiPhant). Credits: Kenney Starter-Kit-FPS (CC0), Saira (SIL OFL), MediaPipe models (Apache 2.0), the instructor's elephant and starter assets under the starter's terms.</p>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Screenshot">
+  <button type="button" id="lightbox-close">Close</button>
+  <figure style="margin:0"><img id="lightbox-img" alt=""><p id="lightbox-cap"></p></figure>
+</div>
+
+<script>
+(function () {
+  // Highlight the download that matches this computer
+  var ua = navigator.userAgent || '';
+  var os = /Windows/i.test(ua) ? 'win' : (/Macintosh|Mac OS X/i.test(ua) && !/iPhone|iPad/i.test(ua) ? 'mac' : '');
+  if (os) {
+    var a = document.querySelector('.dl[data-os="' + os + '"]');
+    if (a) {
+      a.classList.add('primary');
+      var tag = document.createElement('span'); tag.className = 'you'; tag.textContent = 'YOUR COMPUTER';
+      a.querySelector('.os').appendChild(tag);
+      a.parentNode.insertBefore(a, a.parentNode.firstChild);
+    }
+  } else {
+    document.querySelector('.dl[data-os="mac"]').classList.add('primary');
+  }
+  // Screenshot lightbox
+  var box = document.getElementById('lightbox'), img = document.getElementById('lightbox-img'), cap = document.getElementById('lightbox-cap');
+  var last = null;
+  function close() { box.hidden = true; if (last) last.focus(); }
+  document.querySelectorAll('.moment button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      last = b; img.src = b.getAttribute('data-full'); img.alt = b.querySelector('img').alt;
+      cap.textContent = b.parentNode.querySelector('figcaption b').textContent;
+      box.hidden = false; document.getElementById('lightbox-close').focus();
+    });
+  });
+  document.getElementById('lightbox-close').addEventListener('click', close);
+  box.addEventListener('click', function (e) { if (e.target === box) close(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !box.hidden) close(); });
+})();
+</script>
+
+</html>

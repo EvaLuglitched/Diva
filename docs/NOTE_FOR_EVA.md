@@ -16,6 +16,11 @@ Windows. What changed on shared things:
 Nothing in the gesture rules, the three-player detection or your intro code changed. The About-box text below still
 needs you (owner only).
 
+**Product page:** `docs/index.html` is a game page with the v1.1 downloads, how to play, the Vision Pro version and how the
+three of us built it (a dated timeline written as one team, from the git history). To put it online, please turn on GitHub Pages
+(owner only): Settings > Pages > Deploy from a branch > `main`, folder `/docs`. It then appears at
+https://evaluglitched.github.io/Diva/ and the README already links there.
+
 ## 2026-10-13 (afternoon) — v1.0: README per the course, fresh-clone test, downloads for macOS / Windows / Vision Pro
 
 Carl asked to tidy the repository the way the instructor's `STUDENT_GIT.md` asks and to publish v1.0 with download
