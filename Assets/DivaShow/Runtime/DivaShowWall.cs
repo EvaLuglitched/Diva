@@ -18,6 +18,8 @@ namespace Diva.Show
         public bool iceWall = true;
         [Tooltip("Metres before the finish line; column height; widest the wall may get (it stops at the buildings on each side).")]
         public float wallDistance = 14f, wallHeight = 3.2f, wallMaxWidth = 18f;
+        [Tooltip("Width of the tall part in the middle of the road; the rest of the road is low rubble that still blocks.")]
+        public float wallCoreWidth = 8f;
         [Tooltip("Ultimate charge per second while pushing against the wall, so a player without a charge is never stuck.")]
         public float wallPushCharge = 10f;
         public int wallBreakBonus = 50;
@@ -67,15 +69,26 @@ namespace Diva.Show
             wallRng = new System.Random(11);
             float width = wallLeft + wallRight, mid = (wallRight - wallLeft) * .5f;
             // 前排：一根挨一根，中间高、两边矮（圆弧形的轮廓）；后排错开半根，矮一截，墙才有厚度
-            for (float x = -wallLeft - .3f; x <= wallRight + .3f; x += WRand(.85f, 1.1f))
+            // 高的部分只占路中间 wallCoreWidth 米；两边到建筑之间是半米高的碎冰（照样挡路，但看起来墙很窄）
+            float core = Mathf.Min(wallCoreWidth, width) * .5f;
+            for (float x = -wallLeft - .3f; x <= wallRight + .3f;)
             {
-                float edge = Mathf.Abs(x - mid) / Mathf.Max(1f, width * .5f);          // 0 中间 … 1 两端
-                float h = wallHeight * Mathf.Lerp(WRand(1.0f, 1.15f), WRand(.3f, .45f), edge * edge);   // 中间 3 米多，两头矮成一堆碎冰
-                float r = WRand(.42f, .68f);
+                float d = Mathf.Abs(x - mid);
+                if (d > core)
+                {
+                    // 碎冰：矮、细、密，不盖雪
+                    Column(wallCentre + wallRight3 * x + wallForward * WRand(-.4f, .4f), WRand(.28f, .45f), WRand(.35f, .8f), new Vector2(WRand(-.1f, .1f), WRand(-.1f, .1f)), false);
+                    x += WRand(.55f, .8f);
+                    continue;
+                }
+                float edge = d / Mathf.Max(.5f, core);                                   // 0 中间 … 1 高墙的边
+                float h = wallHeight * Mathf.Lerp(WRand(1.0f, 1.15f), WRand(.5f, .65f), edge * edge);
+                float r = WRand(.42f, .66f);
                 var lean = new Vector2(Mathf.Sign(x - mid) * WRand(.05f, .22f) * r, WRand(-.1f, .1f) * r);   // 两边的柱子往外歪一点
                 Column(wallCentre + wallRight3 * x + wallForward * WRand(-.25f, .25f), r, h, lean, true);
                 float h2 = h * WRand(.5f, .72f);
                 Column(wallCentre + wallRight3 * (x + WRand(.3f, .6f)) + wallForward * WRand(.75f, 1.05f), r * WRand(.7f, .95f), h2, new Vector2(0, WRand(.05f, .2f) * r), false);
+                x += WRand(.85f, 1.1f);
             }
             // 脚下一道雪堆（前后各一条）
             foreach (float z in new[] { -.9f, 1.9f })
@@ -84,7 +97,7 @@ namespace Diva.Show
                 var sc = snow.GetComponent<Collider>(); if (sc) Destroy(sc);
                 snow.name = "Snow Bank"; snow.transform.SetParent(wallRoot, true);
                 var at = wallCentre + wallRight3 * mid + wallForward * z + Vector3.up * .05f;
-                var scale = new Vector3(width + 2f, .5f, 1.9f);
+                var scale = new Vector3(Mathf.Min(wallCoreWidth, width) + 3f, .5f, 1.9f);
                 var rot = Quaternion.LookRotation(wallForward, Vector3.up);
                 snow.transform.SetPositionAndRotation(at, rot); snow.transform.localScale = scale;
                 var sr = snow.GetComponent<MeshRenderer>(); sr.sharedMaterial = snowMat; sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; sr.receiveShadows = false;
@@ -100,7 +113,7 @@ namespace Diva.Show
                 var main = wallFrost.main; main.startLifetime = 2.5f; main.startSpeed = .2f; main.startSize = new ParticleSystem.MinMaxCurve(.06f, .16f);
                 main.startColor = new ParticleSystem.MinMaxGradient(new Color(.8f, .97f, 1f, .9f), new Color(.5f, .85f, 1f, .6f)); main.maxParticles = 200;
                 var em = wallFrost.emission; em.rateOverTime = 45;
-                var sh = wallFrost.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(width, wallHeight, 1.6f);
+                var sh = wallFrost.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(Mathf.Min(wallCoreWidth, width) + 1f, wallHeight, 1.6f);
                 var fr = wallFrost.GetComponent<ParticleSystemRenderer>(); fr.sharedMaterial = glowMaterial; fr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
             // 地上一圈薄霜（压扁的冰盘，半透明）
@@ -110,7 +123,7 @@ namespace Diva.Show
                 frost.name = "Ground Frost"; frost.transform.SetParent(wallRoot, true);
                 var fat = wallCentre + wallRight3 * mid + wallForward * .5f + Vector3.up * .02f;
                 var frot = Quaternion.LookRotation(wallForward, Vector3.up);
-                var fscale = new Vector3(width + 4f, .015f, 4.5f);
+                var fscale = new Vector3(Mathf.Min(wallCoreWidth, width) + 5f, .015f, 4.5f);
                 frost.transform.SetPositionAndRotation(fat, frot); frost.transform.localScale = fscale;
                 var fr2 = frost.GetComponent<MeshRenderer>(); fr2.sharedMaterial = snowMat; fr2.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; fr2.receiveShadows = true;
                 wallPieces.Add(new Piece { t = frost.transform, at = fat, rot = frot, scale = fscale });
