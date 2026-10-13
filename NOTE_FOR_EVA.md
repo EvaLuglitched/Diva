@@ -1,5 +1,28 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-13 — bug fixes, frame rate and a 3A look on the MacBooks (branch `carl/race-meta`)
+
+Carl asked for a full review, then for the bugs fixed and the picture / frame rate tuned for M1 / M2 Max MacBook Pros
+(and Vision Pro). Nothing in the locked gesture files changed; `DivaGameManager` is identical to `main` again on both
+branches. Shared things we touched, so you know what to expect after pulling:
+
+| Where | What | Why |
+| --- | --- | --- |
+| `ProjectSettings/QualitySettings.asset` (PC level) | vSync on, realtime reflection probes on | 120 fps on ProMotion with even frame pacing; the town reflection probe never rendered with probes off |
+| `Assets/Settings/PC_RPAsset.asset` | opaque texture off, shadow map 4096, shadow distance 60 | the opaque copy was a full-screen copy every frame and only the ice wall's refraction needs it (requested per camera on demand now); sharper shadows |
+| `Assets/Settings/PC_Renderer.asset` | SSAO downsample on | half-resolution AO, visually the same, much cheaper on a 3456×2234 screen |
+| `DivaKeyboardControls` (your file) | legend text only: the ultimate key is **E** | **U** was both "aim left" and "fire the ultimate", so aiming left at full charge fired it |
+| `DigiPhantLocomotion.Evaluate` | caches the `DivaDemo` reference | it ran `GetComponent` every frame |
+
+Gameplay fixes: ON FIRE's x1.5 now also counts for targets the MEGA BUBBLE hits (the popup already showed it); the golden
+target is only picked among targets ahead (±60°, 6–45 m) instead of ones you already passed; the snow banks span the
+whole blocked width so a skipped ice column never feels like an invisible wall.
+
+Performance (Diva Show layer only): pooled particle flashes / pops / score popups / feed rows, HUD texts rebuilt only when
+their value changes, sound synthesis on a background thread, candy materials shared, cached lookups. New runtime
+component `DivaShowPerf` (vSync + adaptive URP render scale, never below 0.7) and `DivaLook` gained a light gameplay
+depth of field (f/11) plus camera motion blur; both are off in VR. Details: `DIVA_TRY_IT.md` → "Picture and frame rate".
+
 ## 2026-10-12 — race extras, shared between PC and Vision Pro (branch `carl/race-meta`)
 
 Carl wanted the Vision Pro extras in the PC game too, so the rules now live in the shared Diva Show layer and the VR

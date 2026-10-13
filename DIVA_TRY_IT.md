@@ -11,8 +11,8 @@ Press Play: the home page opens (Diva Show). Pick a colour and 1 or 3 players, t
 Raise one arm to switch skins, then hold both hands above your head to start; Eva's race intro plays
 (both hands up, Enter or Esc skip to the countdown) and the run starts at GO. One person has every
 control (Try alone > All). Hold both hands above your head again when MEGA BUBBLE is charged.
-Keyboard: arrows switch skins, Enter starts or skips, U fires the ultimate, L switches EN/中文, F1 shows the setup panel.
-Keyboard play works together with the gestures, even without a camera: W (or ↑) go, A/D (or ←/→) turn, U/I aim (U also fires a charged ultimate),
+Keyboard: arrows switch skins, Enter starts or skips, E fires the ultimate, F1 shows the setup panel (the EN/中文 switch is off for now).
+Keyboard play works together with the gestures, even without a camera: W (or ↑) go, A/D (or ←/→) turn, U/I aim, E fires a charged ultimate,
 hold Space to spray, F to drink, H hides the key legend. See Assets/DivaGame/README.md.
 
 ## Race extras (same rules on PC and Vision Pro)
@@ -40,6 +40,21 @@ These run on top of Eva's scoring and tasks (`Assets/DivaShow/Runtime/DivaShowMe
 - **PLAY OF THE RACE**: the finish shows a hero card instead of the old banner: time, tasks, skin, the score counting
   up, then the medal stamp. The highlight replay and results follow as before; the results line shows the medal too.
 All numbers are Inspector fields on the Diva Show object ("Race meta").
+
+## Picture and frame rate on a MacBook Pro (M1 / M2 Max)
+- **Smooth first**: `DivaShowPerf` (added at runtime by Diva Show) turns vSync on so the game runs at the display's rate
+  (120 fps on a ProMotion screen) and, only when a frame misses that budget, lowers the URP render scale in 0.1 steps
+  (never below 0.7), raising it back when there is headroom. It logs `DIVA_SHOW perf:` lines; untick *Adaptive* on the
+  component to keep native resolution.
+- **3A look** (`DivaLook` on the Diva Show object): a light depth of field during play (f/11, 50 mm, the elephant and the
+  targets stay sharp, far houses soften) and f/4 cinematic focus in cutscenes; camera motion blur during play, stronger
+  while boosting; 4096 shadow map over 60 m; SSAO at half resolution; the town reflection probe now really renders
+  (the quality setting that disabled realtime probes is on). Fields: *Gameplay Depth Of Field*, *Cutscene / Gameplay
+  Aperture*, *Motion Blur*.
+- The ice-wall refraction (a full-screen opaque copy) is only requested while the wall is within 70 m in front of the
+  camera; `PC_RPAsset` no longer forces the opaque texture every frame.
+- Vision Pro: no depth of field, no motion blur (they hurt in a headset); the cockpit tracks the elephant's heading
+  closely (0.15 s, 50°/s) so the view never keeps turning after you level your head.
 
 ## One person, one role (testing)
 Press F1 for the setup panel. Select Try alone, then P1 Move, P2 Turn or P3 Water. Keep Camera selected.
