@@ -12,6 +12,9 @@ namespace Diva.Show
     ///   只差一点（比如 110 fps）就留在全速全分辩率；差很多（不到 96 fps）才锁到半速 60，之后每 30 秒试一次能不能回全速。
     ///   改的是内存里的管线资源，退出时还原（编辑器里不会把改动存进工程）。
     /// 头显（DivaVRRig 自己管画质）和后台测试不挂它。
+    /// · Eva 2026-10-13：开着摄像头识别时，游戏最多画 cameraFrameCap（60）帧。识别和游戏抢同一块 CPU：游戏跑满 120 Hz 时
+    ///   识别从 30 帧掉到约 15 帧，走路就一顿一顿的。60 帧的画面照样流畅，省下来的 CPU 让识别回到 30 帧。
+    ///   日志和 F2 都显示识别的帧率（tracking … fps，摄像头每处理一帧发一个包）。
     /// </summary>
     public class DivaShowPerf : MonoBehaviour
     {
@@ -21,6 +24,8 @@ namespace Diva.Show
         public bool adaptive = true;
         [Tooltip("If even the lowest scale cannot hold the display's rate, lock to half of it (a steady 60 on a 120 Hz screen) instead of juddering between 120 and 60.")]
         public bool halfRateFallback = true;
+        [Tooltip("While the camera tracking runs, draw at most this many fps (0 = no cap). The game and the tracking share the CPU: at 120 fps the tracking fell from 30 to about 15 fps.")]
+        public int cameraFrameCap = 60;
 
         public float RefreshHz { get; private set; } = 60;
         /// <summary>Average frame time over the last window, in milliseconds.</summary>
@@ -28,6 +33,15 @@ namespace Diva.Show
         public float Scale => scale;
         /// <summary>vSync interval in use: 1 = every refresh, 2 = every second refresh (steady half rate).</summary>
         public int VSync { get; private set; } = 1;
+        /// <summary>Camera tracking rate (packets from the bridge per second), measured over the last report window.</summary>
+        public float TrackingFps { get; private set; }
+
+        DigiPhant.DigiPhantController controller;
+        int lastReceived; float lastReceivedAt;
+        bool cameraCapped;
+        /// <summary>Smallest vSync interval allowed now: with the camera tracking on, enough to stay at or below cameraFrameCap.</summary>
+        int FloorVSync => cameraFrameCap > 0 && controller && controller.inputMode == DigiPhant.InputMode.Camera
+            ? Mathf.Max(1, Mathf.RoundToInt(RefreshHz / cameraFrameCap)) : 1;
 
         UniversalRenderPipelineAsset urp;
         float baseScale = 1, scale = 1, sum, worst, hold, nextReport;
@@ -48,6 +62,7 @@ namespace Diva.Show
             urp = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
             if (urp) baseScale = scale = urp.renderScale;
             hold = 8;   // 开头着色器还在编译、帧率不准：先不量
+            controller = FindAnyObjectByType<DigiPhant.DigiPhantController>();
             Debug.Log($"DIVA_SHOW perf: vsync on, display {RefreshHz:0} Hz, render scale {scale:0.00}, adaptive {adaptive}");
         }
 
@@ -64,7 +79,8 @@ namespace Diva.Show
         {
             if (!showStats) return;
             statsStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1, 1, 1, .9f) } };
-            string text = $"{fpsNow:0} fps  ·  {AverageMs:0.0} ms  ·  scale {scale:0.00}  ·  vsync {VSync} ({RefreshHz / VSync:0} Hz)  ·  {Screen.width}x{Screen.height}";
+            string text = $"{fpsNow:0} fps  ·  {AverageMs:0.0} ms  ·  scale {scale:0.00}  ·  vsync {VSync} ({RefreshHz / VSync:0} Hz)  ·  {Screen.width}x{Screen.height}" +
+                          (controller && controller.inputMode == DigiPhant.InputMode.Camera ? $"  ·  tracking {TrackingFps:0} fps" : "");
             var size = statsStyle.CalcSize(new GUIContent(text));
             var r = new Rect(Screen.width - size.x - 24, 8, size.x + 16, size.y + 6);
             GUI.color = new Color(0, 0, 0, .55f); GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = Color.white;
@@ -77,6 +93,18 @@ namespace Diva.Show
             if (kb != null && kb.f2Key.wasPressedThisFrame) showStats = !showStats;
             float dt = Time.unscaledDeltaTime;
             fpsNow = Mathf.Lerp(fpsNow, 1 / Mathf.Max(1e-4f, dt), 1 - Mathf.Exp(-dt * 2));
+            // Camera tracking on: cap the game so the tracking keeps its CPU (and its 30 fps). Off: the cap goes away.
+            int floor = FloorVSync;
+            if (VSync < floor)
+            {
+                VSync = floor; QualitySettings.vSyncCount = floor; cameraCapped = true; hold = 1;
+                Debug.Log($"DIVA_SHOW perf: camera tracking on -> game capped at {RefreshHz / floor:0} fps so the tracking keeps 30 fps");
+            }
+            else if (cameraCapped && floor == 1)
+            {
+                cameraCapped = false; VSync = 1; QualitySettings.vSyncCount = 1; hold = 1;
+                Debug.Log($"DIVA_SHOW perf: camera tracking off -> back to {RefreshHz:0} fps");
+            }
             if (hold > 0) { hold -= dt; return; }
             worst = Mathf.Max(worst, dt);
             // 单帧超过 100 毫秒的是卡顿（着色器首次编译、切阶段的加载），不是持续的负载：记进 worst，不算进平均，
@@ -86,11 +114,23 @@ namespace Diva.Show
             if (sum < 2f) return;
             AverageMs = sum / frames * 1000;
             float budget = 1000f * VSync / RefreshHz;
-            if (Time.unscaledTime > nextReport) { nextReport = Time.unscaledTime + 10; Debug.Log($"DIVA_SHOW perf: {frames / sum:0} fps ({AverageMs:0.0} ms avg, worst {worst * 1000:0} ms) scale {scale:0.00} vsync {VSync} at {Screen.width}x{Screen.height}"); }
+            if (controller)
+            {
+                int received = controller.ReceivedFrames;
+                float now = Time.unscaledTime;
+                if (received >= lastReceived && now > lastReceivedAt) TrackingFps = (received - lastReceived) / (now - lastReceivedAt);
+                lastReceived = received; lastReceivedAt = now;
+            }
+            if (Time.unscaledTime > nextReport)
+            {
+                nextReport = Time.unscaledTime + 10;
+                Debug.Log($"DIVA_SHOW perf: {frames / sum:0} fps ({AverageMs:0.0} ms avg, worst {worst * 1000:0} ms) scale {scale:0.00} vsync {VSync} at {Screen.width}x{Screen.height}" +
+                          (controller && controller.inputMode == DigiPhant.InputMode.Camera ? $", tracking {TrackingFps:0.0} fps" : ""));
+            }
             if (adaptive && urp)
             {
                 if (VSync == 1) AdaptAtFullRate(budget);
-                else if (Time.unscaledTime > nextProbe)
+                else if (Time.unscaledTime > nextProbe && FloorVSync == 1)
                 {
                     // 半速时帧时间被垂直同步卡在两次刷新上，看不出余量：隔一阵试一次全速，跟得上就留下
                     VSync = 1; QualitySettings.vSyncCount = 1; probing = true; hold = 1;
