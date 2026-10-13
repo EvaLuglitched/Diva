@@ -17,7 +17,7 @@ Choose **Try alone** and **All** for the single-player game (one person has ever
 
 For group play, stand left-to-right as you see yourselves in the mirrored preview: P1 movement, P2 turning, P3 water. Keep background people out of view and avoid crossing. Use Reassign players and recalibrate if roles are lost.
 
-The demo includes a third-person camera, the game layer's 16 targets, scoring, a water tank and the course tasks. Course tasks follow the Diva gestures: drink/eat with a thumbs-up near the bush or basin, step over the log by pumping (P1) next to it. Refill currently works anywhere. See **DIVA_TRY_IT.md** for details.
+The demo includes a third-person camera, the game layer's 16 targets, scoring, a water tank and the course tasks. Course tasks follow the Diva gestures: drink/eat with a thumbs-up near the bush or basin, go around the fallen log by walking past it along the path (no gesture); a floating arrow points at each unfinished task when the elephant comes near it. Refill currently works anywhere. See **DIVA_TRY_IT.md** for details.
 
 If the camera panel says **Camera stopped: …**, the text after the colon is the tracker's own error (for example a missing model or file). **Waiting for P2, P3 …** names the players the camera cannot see; for one person choose **Try alone**.
 

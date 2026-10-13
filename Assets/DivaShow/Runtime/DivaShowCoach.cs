@@ -16,6 +16,7 @@ namespace Diva.Show
         TextMeshProUGUI tipTitle, tipSub, wayText;
         CanvasGroup tipGroup;
         Transform beacon; Material beaconMat;
+        DivaTaskMarkers taskMarkers;   // Eva 的任务箭头（靠近任务点时出现）；有它的时候光柱只管远处
         CourseTask coachTask;
         string tipKey = "", wayAct;
         float tipUntil, tipShownAt = -10, lastShootTip = -100, lastNearTip = -100, runTipAt = -1, wayDist;
@@ -81,7 +82,9 @@ namespace Diva.Show
             var next = play && game ? game.tasks.FirstOrDefault(x => x != null && !x.Done && x.landmark) : null;
             if (next != coachTask) { coachTask = next; lastNearTip = -100; }
             bool showWay = coachTask != null && play;
-            if (beacon) beacon.gameObject.SetActive(showWay);
+            if (!taskMarkers) taskMarkers = FindAnyObjectByType<DivaTaskMarkers>();
+            // 靠近时 Eva 的悬浮箭头会指着任务点，光柱就收起来（两个一起太乱）
+            if (beacon) beacon.gameObject.SetActive(showWay && !(taskMarkers && wayDist < taskMarkers.showDistance));
             if (showWay)
             {
                 wayAt = coachTask.landmark.position;
@@ -90,7 +93,7 @@ namespace Diva.Show
                 if (beacon) { beacon.position = wayAt + Vector3.up * 7; Tint(beaconMat, new Color(1f, .6f, .9f, .3f * (.8f + .2f * Mathf.Sin(t * 3)))); }
                 // 吃 / 喝 = 竖拇指；跨木头 = 继续跑过去；终点只要到达
                 wayAct = coachTask.check == TaskCheck.CurlTrunk ? ((coachTask.label ?? "").ToLowerInvariant().Contains("drink") ? "coach.drink" : "coach.eat")
-                       : coachTask.check == TaskCheck.LiftLegs ? "coach.log" : null;
+                       : coachTask.check == TaskCheck.LiftLegs || coachTask.check == TaskCheck.Pass ? "coach.log" : null;
                 wayNear = wayAct != null && wayDist < 14;
                 // 14 米内每 7 秒提醒一次，到了圈里立刻再提醒
                 if (wayAct != null && (wayDist < 14 && t > lastNearTip + 7 || wayDist < coachTask.radius && t > lastNearTip + 3)) { lastNearTip = t; CoachTip(wayAct, 4); }

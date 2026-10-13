@@ -58,7 +58,8 @@ Changing roles resets calibration, so use Get ready again after changing roles.
 
 Refill currently works anywhere. Water and target hits appear in the panel; the
 score and tasks appear in the HUD (eat/drink: thumbs-up near the bush or basin;
-step over the log: P1 pumping next to it).
+go around the log: just walk past it along the path). A floating arrow points at each unfinished task when
+the elephant comes near it.
 
 ## Three people
 Select 3 players. Start side by side, left-to-right as you see yourselves in the MIRRORED camera preview (like a mirror):
