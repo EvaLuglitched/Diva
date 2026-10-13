@@ -440,6 +440,7 @@ namespace Diva.VR
             btnLang = DivaUi.Rect(rt, "Lang", new Vector2(.5f, 0), new Vector2(0, 86), new Vector2(300, 76));
             plateLang = DivaUi.Panel(btnLang, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 76), new Color(.26f, .22f, .4f), new Color(.17f, .14f, .28f), 16);
             menuLang = DivaUi.Text(btnLang, "Label", new Vector2(.5f, .5f), new Vector2(0, 1), new Vector2(280, 66), 34, Color.white);
+            if (!DivaText.LanguageSwitch) btnLang.gameObject.SetActive(false);   // 中文先拿掉
             menuHint = DivaUi.Text(rt, "Hint", new Vector2(.5f, 0), new Vector2(0, 16), new Vector2(1000, 56), 24, new Color(.16f, .13f, .25f, .7f), TextAlignmentOptions.Center, false);
 
             // 全景里的大标题：浮在镇子上空，正对着人
@@ -863,6 +864,7 @@ namespace Diva.VR
             var p = new Ray(origin, dir.normalized).GetPoint(d);
             foreach (var b in new[] { btnStart, btnLang })
             {
+                if (!b || !b.gameObject.activeSelf) continue;
                 var local = (Vector2)b.InverseTransformPoint(p); var r = b.rect;
                 if (Mathf.Abs(local.x - r.center.x) < r.width * .5f + 70 && Mathf.Abs(local.y - r.center.y) < r.height * .5f + 70) return b;
             }

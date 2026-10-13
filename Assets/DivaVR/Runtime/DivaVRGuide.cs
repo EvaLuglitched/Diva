@@ -337,9 +337,9 @@ namespace Diva.VR
                         if (b != null) { b.key = "vr.pause.quit2"; b.label.text = DivaText.T(b.key); quitArmedAt = Time.unscaledTime; }
                     }, 92, .8f);
                     AddButton("vr.pause.replay", -370, 400, false, () => { watched = learned = false; show.VrQuitToSelect(); }, 92, .8f);
-                    AddButton("lang", -60, 220, false, () => { DivaText.Toggle(); Refresh(); }, 92, .8f);
+                    if (DivaText.LanguageSwitch) AddButton("lang", -60, 220, false, () => { DivaText.Toggle(); Refresh(); }, 92, .8f);
                     // 坐姿变了（往前挪了椅子、换了姿势）：重新记一次"坐好"的位置
-                    AddButton("vr.pause.recenter", 170, 220, false, () => { if (hands) hands.Recenter(); if (show.Sound != null) show.Sound.Play("confirm", .5f); }, 92, .8f);
+                    AddButton("vr.pause.recenter", DivaText.LanguageSwitch ? 170 : 0, 300, false, () => { if (hands) hands.Recenter(); if (show.Sound != null) show.Sound.Play("confirm", .5f); }, 92, .8f);
                     break;
             }
             Fill();
