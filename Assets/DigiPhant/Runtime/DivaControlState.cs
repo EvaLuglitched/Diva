@@ -29,8 +29,6 @@ namespace DigiPhant
         public float MenuAim { get; private set; }
         /// <summary>Menus and cutscenes: gestures are still read (Ult, MenuAim) but do not drive the elephant.</summary>
         public bool Locked;
-        /// <summary>VR: the hands and the body are separate inputs (lean to run, pinch to spray), so spraying does not stop the run.</summary>
-        public bool IndependentHands;
         public float Water { get; private set; } = 1;
         /// <summary>
         /// Keyboard play (set each frame by Diva.DivaKeyboardControls; null when no key is held). It is merged with the
@@ -105,8 +103,8 @@ namespace DigiPhant
                 Shoot = p3.shoot && !Drink && Water >= Math.Max(.0001f, WaterPerBurst);
             }
             // One person doing everything: moving the arms into the spray / drink pose must not also walk,
-            // and refilling (thumbs-up / hand at the mouth) must not steer.
-            if (all && (Shoot && !IndependentHands || Drink || Ult && !IndependentHands)) Forward = 0;   // VR：手和身体是独立输入，喷水不停车；大招是火箭冲锋，也不停车
+            // and refilling with a thumbs-up must not steer.
+            if (all && (Shoot || Drink || Ult)) Forward = 0;
             if (all && (Drink || Ult)) Turn = 0;
         }
         public void FillTank() { Water = 1; }

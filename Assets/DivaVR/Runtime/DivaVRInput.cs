@@ -59,8 +59,12 @@ namespace Diva.VR
             if (!demo) return;
             var head = DivaVR.Head;
             var frame = autopilot ? autopilot.Read() : simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
-            // 冲刺中：自动全速往前（共用的 DivaShowMeta 也会推 externalForward；这里再保一道）
-            if (dash && dash.Active && show && (show.Phase == Diva.Show.ShowPhase.Play || show.Phase == Diva.Show.ShowPhase.Ult)) frame.go = 1;
+            // 冲刺中：自动全速往前
+            bool racing = show && (show.Phase == Diva.Show.ShowPhase.Play || show.Phase == Diva.Show.ShowPhase.Ult);
+            if (dash && dash.Active && racing) frame.go = 1;
+            // 锁定的控制规则里"喷水 / 大招时不前进"是给电脑版摄像头手势的（摆臂和推手是同一双手）。VR 里身体是油门、手是水炮，
+            // 捏着照样走：这段时间把前倾的油门从 locomotion 的 externalForward 这条旁路送进去，不改锁定的 DivaControlState
+            if (loco) loco.externalForward = Mathf.Max(dash && dash.Active && racing ? 1 : 0, racing && (frame.shoot || frame.ult) ? frame.go : 0);
             // 辅助瞄准：喷水的时候，头看的方向 12° 以内、35 米以内最近的靶子就当作看准了它（头的朝向有一两度误差，远处的靶子很难正好对中）
             // 牌子在管手势的时候（选涂装、结算、暂停）不做辅助瞄准
             bool guideOwns = guide && guide.isActiveAndEnabled && show && (guide.Handles(show.Phase) || guide.PauseHover);

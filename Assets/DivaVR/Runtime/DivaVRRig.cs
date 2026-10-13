@@ -61,7 +61,7 @@ namespace Diva.VR
             if (controller) controller.SetInputMode(InputMode.TestSliders);
             foreach (var preview in FindObjectsByType<DigiPhantCameraPreview>(FindObjectsInactive.Include))
             { preview.StopPreview(); preview.enabled = false; }
-            if (demo) { demo.externalInput = true; demo.cameraHeld = true; demo.State.IndependentHands = true; demo.State.WaterPerBurst = .022f; }   // 水箱约 45 发（6 秒）喷完，要去补水
+            if (demo) { demo.externalInput = true; demo.cameraHeld = true; demo.State.WaterPerBurst = .022f; }   // 水箱约 45 发（6 秒）喷完，要去补水
             // 舒适：跑慢一点、转慢一点、加减速更柔和
             if (loco)
             {
