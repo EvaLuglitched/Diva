@@ -11,9 +11,12 @@ files changed. What players see (details in `DIVA_TRY_IT.md` → "Race extras", 
   and waypoint on the next stop, lap medals (gold ≤50 s / silver ≤80 s / bronze), a PLAY OF THE RACE hero card at the
   finish (replaces the old finish banner), aim assist (the locked target stays locked while spraying), water .022 per
   burst instead of .008.
-- an **ice wall** 14 m before your finish arch (Mei-style; `DivaShowWall.cs`): the elephant is held at it (position
-  clamp in Diva Show's LateUpdate, no collider, your locomotion untouched); only the MEGA BUBBLE smashes it, pushing
-  against it charges the ultimate so nobody gets stuck. Its width is measured from the buildings on each side at start.
+- an **ice wall** 14 m before your finish arch (Mei-style; `DivaShowWall.cs` + `Resources/DivaIce.shader`): procedural
+  crystal columns with a custom URP ice shader (refraction on PC, cracks, frost, reflections, shadows). The elephant is
+  held at it (position clamp in Diva Show's LateUpdate, no collider, your locomotion untouched); only the MEGA BUBBLE
+  smashes it, with a short slow-motion from the ultimate's side-rear camera; pushing against it charges the ultimate so
+  nobody gets stuck. Width is measured from the buildings on each side at start, and a column is only placed where no
+  prop stands (umbrellas, signs, targets), so it never clips through your props. If you move the arch, the wall follows.
 
 Files to read: `Assets/DivaShow/Runtime/DivaShowMeta.cs` (rules), `DivaShowCoach.cs`, `DivaShowHero.cs`,
 `DivaShowPickups.cs`; small hooks in `DivaShowPlay.cs`, `DivaShowHud.cs`, `DivaShowEnd.cs`, `DivaShowDirector.cs`,
