@@ -50,9 +50,26 @@ namespace Diva.Show
             QualitySettings.vSyncCount = previousVSync; Application.targetFrameRate = previousTarget;
         }
 
+        // F2：右上角一行小字（帧率、平均帧时间、渲染分辩率、垂直同步档）——不用看日志就知道现在顺不顺
+        bool showStats; GUIStyle statsStyle; float fpsNow;
+
+        void OnGUI()
+        {
+            if (!showStats) return;
+            statsStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1, 1, 1, .9f) } };
+            string text = $"{fpsNow:0} fps  ·  {AverageMs:0.0} ms  ·  scale {scale:0.00}  ·  vsync {VSync} ({RefreshHz / VSync:0} Hz)  ·  {Screen.width}x{Screen.height}";
+            var size = statsStyle.CalcSize(new GUIContent(text));
+            var r = new Rect(Screen.width - size.x - 24, 8, size.x + 16, size.y + 6);
+            GUI.color = new Color(0, 0, 0, .55f); GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = Color.white;
+            GUI.Label(new Rect(r.x + 8, r.y + 3, size.x, size.y), text, statsStyle);
+        }
+
         void Update()
         {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.f2Key.wasPressedThisFrame) showStats = !showStats;
             float dt = Time.unscaledDeltaTime;
+            fpsNow = Mathf.Lerp(fpsNow, 1 / Mathf.Max(1e-4f, dt), 1 - Mathf.Exp(-dt * 2));
             if (hold > 0) { hold -= dt; return; }
             sum += dt; frames++; worst = Mathf.Max(worst, dt);
             if (sum < 2f) return;

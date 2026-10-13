@@ -45,8 +45,8 @@ All numbers are Inspector fields on the Diva Show object ("Race meta").
 - **Smooth first**: `DivaShowPerf` (added at runtime by Diva Show) turns vSync on so the game runs at the display's rate
   (120 fps on a ProMotion screen) and, only when a frame misses that budget, lowers the URP render scale in 0.1 steps
   (never below 0.6), raising it back when there is headroom; if even 0.6 cannot hold the display's rate it locks to a steady
-  half rate (60 on a 120 Hz screen) instead of juddering between the two. Smoothness first, then detail. It logs `DIVA_SHOW perf:` lines; untick *Adaptive* on the
-  component to keep native resolution.
+  half rate (60 on a 120 Hz screen) instead of juddering between the two. Smoothness first, then detail. It logs `DIVA_SHOW perf:` lines and **F2** shows a small fps / frame-time / scale
+  readout at the top right; untick *Adaptive* on the component to keep native resolution.
 - **3A look** (`DivaLook` on the Diva Show object): a light far-field depth of field during play (Gaussian, from 35 m: the elephant, the
   targets and the road stay sharp, far houses soften) and f/4 cinematic bokeh focus in cutscenes; camera motion blur during play, stronger
   while boosting; 4096 shadow map over 60 m; SSAO at half resolution; the town reflection probe now really renders
