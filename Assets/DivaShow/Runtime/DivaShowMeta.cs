@@ -100,6 +100,7 @@ namespace Diva.Show
         {
             StopDash();
             EndGold();
+            WallDisable();
             if (laser) laser.targetOverride = null;
             if (locomotion) locomotion.externalForward = 0;
         }
@@ -249,9 +250,15 @@ namespace Diva.Show
 
         void StartGold()
         {
+            // 只挑前方 ±60°、6–45 米的靶子：之前侧后方（夹角到 100°）已经跑过去的也算，金了 10 秒白白浪费
             var from = elephant.position; var fwd = Forward;
-            var candidates = DivaTarget.All.Where(t => t && t.IsUp && Vector3.Distance(t.AimPoint, from) < 45 &&
-                                                       Vector3.Dot(fwd, (t.AimPoint - from).normalized) > -.2f).ToList();
+            var candidates = DivaTarget.All.Where(t =>
+            {
+                if (!t || !t.IsUp) return false;
+                var off = Vector3.ProjectOnPlane(t.AimPoint - from, Vector3.up);
+                float d = off.magnitude;
+                return d > 6 && d < 45 && Vector3.Angle(fwd, off) < 60;
+            }).ToList();
             if (candidates.Count == 0) { lastGold = Time.unscaledTime; return; }
             golden = candidates[UnityEngine.Random.Range(0, candidates.Count)];
             goldenPoints = golden.points; golden.points = goldenPoints * 3;

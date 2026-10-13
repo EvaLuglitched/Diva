@@ -30,7 +30,15 @@ namespace Diva.Show
         TextMeshProUGUI pipLabel;
         readonly List<(TextMeshProUGUI text, DivaSlant plate, float born)> feed = new List<(TextMeshProUGUI, DivaSlant, float)>();
         readonly List<(TextMeshProUGUI text, Vector3 world, float born)> popups = new List<(TextMeshProUGUI, Vector3, float)>();
+        // 飘字和事件栏的池子：每次命中、每颗糖都 new 文字物体（还各带一个字体材质实例）再销毁，一局几百次；池子里复用
+        readonly Stack<TextMeshProUGUI> popupPool = new Stack<TextMeshProUGUI>();
+        readonly Stack<(TextMeshProUGUI text, DivaSlant plate)> feedPool = new Stack<(TextMeshProUGUI, DivaSlant)>();
+        // 每帧重写一次的文字只在数值真的变了才写（TMP 重排 + 画布重建不便宜）
+        int lastScore = -1, lastTenths = -1, lastUltPercent = -1, lastFireSeconds = -2, lastCombo = -1; bool lastLimitMode;
+        readonly List<float> taskRowKey = new List<float>();
         float fovKick;
+
+        void ResetHudCaches() { lastScore = lastTenths = lastUltPercent = lastCombo = -1; lastFireSeconds = -2; taskRowKey.Clear(); }
 
         void BuildHud()
         {
@@ -79,10 +87,12 @@ namespace Diva.Show
             // 锁到金靶子时标记下面写 ×3（标记自己在转，字放在旁边不跟着转）
             lockLabel = DivaUi.Text(hudRoot, "Lock Label", new Vector2(.5f, .5f), Vector2.zero, new Vector2(160, 36), 30, GoldColour);
             DivaUi.Glow(lockLabel, new Color(1f, .5f, .1f, .9f), .6f, .4f, .15f);
+            lockLabel.text = "×3";
             lockLabel.gameObject.SetActive(false);
 
             comboText = DivaUi.Text(hudRoot, "Combo", new Vector2(1, .5f), new Vector2(-70, 60), new Vector2(260, 110), 104, Color.white, TextAlignmentOptions.Right);
             comboLabel = DivaUi.Text(hudRoot, "Combo Label", new Vector2(1, .5f), new Vector2(-74, -6), new Vector2(360, 40), 30, Color.white, TextAlignmentOptions.Right);
+            DivaUi.Localize(comboLabel, () => DivaText.Chinese ? "连击" : "COMBO");
 
             var speedRt = DivaUi.Stretch(hudRoot, "Speed Lines");
             speedLines = speedRt.gameObject.AddComponent<RawImage>();
@@ -148,9 +158,8 @@ namespace Diva.Show
         {
             float flash = Mathf.Clamp01(1 - (DivaClock.Time - s.flash) / .6f);
             var top = Color.Lerp(Ink, DivaUi.WithAlpha(color * .7f, .85f), active ? .85f : flash);
-            s.plate.Set(top, DivaUi.WithAlpha(top * .6f, top.a * .5f));
-            s.plate.stripe = color;
-            s.plate.SetVerticesDirty();
+            s.plate.Set(top, DivaUi.WithAlpha(top * .6f, top.a * .5f));   // 颜色没变就不重建
+            s.plate.SetStripe(color);
             s.bar.color = color;
             s.bar.rectTransform.sizeDelta = new Vector2(190 * Mathf.Clamp01(fill), 10);
             s.plate.rectTransform.localScale = Vector3.one * (1 + .08f * flash);
@@ -159,15 +168,26 @@ namespace Diva.Show
         void UpdateHud()
         {
             if (!hudRoot || !hudRoot.gameObject.activeSelf) return;
-            scoreText.text = TotalScore.ToString();
+            int score = TotalScore;
+            if (score != lastScore) { lastScore = score; scoreText.text = score.ToString(); }
             scoreLabel.color = Accent;
             float t = RunTime;
-            timeText.text = timeLimit > 0 ? DivaText.T("hud.left") + "  " + DivaUi.Clock(timeLimit - t) : DivaText.T("hud.time") + "  " + DivaUi.Clock(t);
-            timeText.color = timeLimit > 0 && timeLimit - t < 10 ? new Color(1, .4f, .4f) : Color.white;
-            var tasks = game ? game.tasks : new CourseTask[0];
+            bool limit = timeLimit > 0;
+            int tenths = Mathf.FloorToInt(Mathf.Max(0, limit ? timeLimit - t : t) * 10);
+            if (tenths != lastTenths || limit != lastLimitMode)
+            {
+                lastTenths = tenths; lastLimitMode = limit;
+                timeText.text = limit ? DivaText.T("hud.left") + "  " + DivaUi.Clock(timeLimit - t) : DivaText.T("hud.time") + "  " + DivaUi.Clock(t);
+            }
+            timeText.color = limit && timeLimit - t < 10 ? new Color(1, .4f, .4f) : Color.white;
+            var tasks = game ? game.tasks : System.Array.Empty<CourseTask>();
             for (int i = 0; i < taskRows.Count && i < tasks.Length; i++)
             {
                 bool done = tasks[i].Done;
+                float key = done ? tasks[i].doneAt : -1;
+                while (taskRowKey.Count <= i) taskRowKey.Add(-2);
+                if (taskRowKey[i] == key) continue;   // 这一行没变
+                taskRowKey[i] = key;
                 taskRows[i].mark.text = done ? "<color=#7CFC9A>●</color>" : "<alpha=#88>○";
                 taskRows[i].label.text = DivaText.Task(tasks[i].label) + (done ? $"  <alpha=#88>{tasks[i].doneAt:0.0}s" : "");
                 taskRows[i].label.color = done ? new Color(.75f, 1, .8f) : Color.white;
@@ -182,18 +202,20 @@ namespace Diva.Show
             UpdateSlot(cannonSlot, demo.State.Shoot, demo.State.Water, waterColour);
             UpdateSlot(bubbleSlot, demo.State.Drink, bubbleCooldown, new Color(.85f, .6f, 1f));
             UpdateSlot(fireSlot, OnFire, FireLevel, OnFire ? Color.Lerp(FireColour, Color.white, .3f + .3f * Mathf.Sin(DivaClock.Time * 10)) : FireColour);
-            fireSlot.hint.text = OnFire ? DivaText.F("fire.on", Mathf.CeilToInt(Mathf.Max(0, fireUntil - Time.unscaledTime))) : DivaText.T("fire.hint");
+            int fireSeconds = OnFire ? Mathf.CeilToInt(Mathf.Max(0, fireUntil - Time.unscaledTime)) : -1;
+            if (fireSeconds != lastFireSeconds) { lastFireSeconds = fireSeconds; fireSlot.hint.text = fireSeconds >= 0 ? DivaText.F("fire.on", fireSeconds) : DivaText.T("fire.hint"); }
             fireGlow.color = new Color(1, .45f, .15f, Mathf.Lerp(fireGlow.color.a, OnFire ? .2f + .08f * Mathf.Sin(DivaClock.Time * 6) : 0, 1 - Mathf.Exp(-DivaClock.DeltaTime * 5)));
             ultRing.SetFill(charge / 100f);
             bool ready = charge >= 100;
             float pulse = .5f + .5f * Mathf.Sin(DivaClock.Time * 8);
             ultRing.color = ready ? Color.Lerp(Accent, Color.white, pulse * .6f) : Accent;
             ultBack.color = ready ? DivaUi.WithAlpha(Accent * .5f, .5f + .3f * pulse) : new Color(0, 0, 0, .55f);
-            ultPercent.text = ready ? "<size=70%>100</size>" : Mathf.FloorToInt(charge) + "<size=50%>%</size>";
+            int percent = ready ? 100 : Mathf.FloorToInt(charge);
+            if (percent != lastUltPercent) { lastUltPercent = percent; ultPercent.text = ready ? "<size=70%>100</size>" : percent + "<size=50%>%</size>"; }
             ultPercent.color = ready ? Color.white : new Color(1, 1, 1, .85f);
             ultPrompt.gameObject.SetActive(ready && Phase == ShowPhase.Play);
             ultPromptPlate.gameObject.SetActive(ultPrompt.gameObject.activeSelf);
-            if (ready) { ultPrompt.alpha = .75f + .25f * pulse; ultPrompt.color = Color.Lerp(Accent, Color.white, .55f); ultPromptPlate.stripe = Accent; ultPromptPlate.stripeWidth = 8; ultPromptPlate.SetVerticesDirty(); }
+            if (ready) { ultPrompt.alpha = .75f + .25f * pulse; ultPrompt.color = Color.Lerp(Accent, Color.white, .55f); ultPromptPlate.SetStripe(Accent, 8); }
 
             // 锁定标记：水枪会打的那个靶子（辅助瞄准的同一个判定，DivaShowMeta.AssistTarget）；金靶子金色 + ×3
             var target = Phase == ShowPhase.Play && laser ? AssistTarget(demo.State.Aim * demo.trunkAimDegrees) : null;
@@ -208,7 +230,7 @@ namespace Diva.Show
                 lockRing.SetFill(.85f);
                 lockRing.color = goldLock ? GoldColour : demo.State.Shoot ? new Color(1, .35f, .35f) : DivaUi.WithAlpha(Color.white, .8f);
                 lockMarker.localScale = Vector3.one * (demo.State.Shoot ? .85f : 1) * (goldLock ? 1.25f : 1);
-                if (goldLock) { lockLabel.text = "×3"; lockLabel.rectTransform.anchoredPosition = p + new Vector2(0, -58); }
+                if (goldLock) lockLabel.rectTransform.anchoredPosition = p + new Vector2(0, -58);
             }
 
             float comboAge = DivaClock.Time - lastHitTime;
@@ -216,17 +238,16 @@ namespace Diva.Show
             comboText.gameObject.SetActive(comboOn); comboLabel.gameObject.SetActive(comboOn);
             if (comboOn)
             {
-                comboText.text = "x" + combo;
+                if (combo != lastCombo) { lastCombo = combo; comboText.text = "x" + combo; }
                 comboText.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.4f, 1, DivaUi.EaseOut(comboAge / .25f));
                 comboText.color = Color.Lerp(Color.white, Accent, .3f);
-                comboLabel.text = DivaText.Chinese ? "连击" : "COMBO";
                 comboLabel.alpha = comboText.alpha = 1 - DivaUi.Smooth((comboAge - ComboWindow + .5f) / .5f);
             }
 
-            // 速度线只在推进冲刺时出现（一直跑的时候不挡画面）
+            // 速度线只在推进冲刺时出现（一直跑的时候不挡画面）；看不见的时候不抖它的 UV（抖一下画布就重建）
             float lines = boosting ? Mathf.Clamp01((speed / run - .75f) / .25f) : 0;
             speedLines.color = new Color(1, 1, 1, Mathf.Lerp(speedLines.color.a, lines * .2f, 1 - Mathf.Exp(-DivaClock.DeltaTime * 4)));
-            speedLines.uvRect = new Rect(Random.Range(-.01f, .01f), Random.Range(-.01f, .01f), 1, 1);
+            if (speedLines.color.a > .004f) speedLines.uvRect = new Rect(Random.Range(-.01f, .01f), Random.Range(-.01f, .01f), 1, 1);
             fovKick = Mathf.Lerp(fovKick, boosting ? 8 : 0, 1 - Mathf.Exp(-DivaClock.DeltaTime * 4));
 
             UpdateCoachHud();
@@ -256,13 +277,29 @@ namespace Diva.Show
         void Feed(string text, Color color)
         {
             var right = new Vector2(1, 1);
-            var plate = DivaUi.Panel(hudRoot, "Feed", right, new Vector2(FeedRight, -110), new Vector2(560, 46), DivaUi.WithAlpha(Ink, .7f), DivaUi.WithAlpha(Ink, .3f), 14);
-            plate.stripe = color; plate.stripeWidth = 6;
-            var t = DivaUi.Text(plate.transform, "Text", new Vector2(1, .5f), new Vector2(-18, 0), new Vector2(530, 44), 28, Color.white, TextAlignmentOptions.Right, false);
-            t.text = text;
+            TextMeshProUGUI t = null; DivaSlant plate = null;
+            while (feedPool.Count > 0 && !plate) { var e = feedPool.Pop(); if (e.plate && e.text) { plate = e.plate; t = e.text; } }
+            if (!plate)
+            {
+                plate = DivaUi.Panel(hudRoot, "Feed", right, new Vector2(FeedRight, -110), new Vector2(560, 46), DivaUi.WithAlpha(Ink, .7f), DivaUi.WithAlpha(Ink, .3f), 14);
+                t = DivaUi.Text(plate.transform, "Text", new Vector2(1, .5f), new Vector2(-18, 0), new Vector2(530, 44), 28, Color.white, TextAlignmentOptions.Right, false);
+            }
+            plate.gameObject.SetActive(true); plate.transform.SetAsLastSibling();
+            plate.rectTransform.anchoredPosition = new Vector2(FeedRight, -110); plate.rectTransform.localScale = new Vector3(.6f, 1, 1);
+            plate.Set(DivaUi.WithAlpha(Ink, .7f), DivaUi.WithAlpha(Ink, .3f)); plate.SetStripe(color, 6);
+            t.text = text; t.alpha = 1;
             feed.Insert(0, (t, plate, DivaClock.Time));
-            while (feed.Count > 5) { Destroy(feed[feed.Count - 1].plate.gameObject); feed.RemoveAt(feed.Count - 1); }
+            while (feed.Count > 5) RecycleFeed(feed.Count - 1);
         }
+
+        void RecycleFeed(int i)
+        {
+            var e = feed[i];
+            if (e.plate) { e.plate.gameObject.SetActive(false); feedPool.Push((e.text, e.plate)); }
+            feed.RemoveAt(i);
+        }
+
+        void ClearFeed() { for (int i = feed.Count - 1; i >= 0; i--) RecycleFeed(i); }
 
         void UpdateFeed()
         {
@@ -270,7 +307,7 @@ namespace Diva.Show
             {
                 var (t, plate, born) = feed[i];
                 float age = DivaClock.Time - born;
-                if (age > 5 || !plate) { if (plate) Destroy(plate.gameObject); feed.RemoveAt(i); continue; }
+                if (age > 5 || !plate) { RecycleFeed(i); continue; }
                 var rt = plate.rectTransform;
                 rt.anchoredPosition = Vector2.Lerp(rt.anchoredPosition, new Vector2(FeedRight, -110 - 52 * i), 1 - Mathf.Exp(-DivaClock.DeltaTime * 12));
                 float a = Mathf.Clamp01(age / .15f) * (1 - DivaUi.Smooth((age - 4.4f) / .6f));
@@ -282,9 +319,15 @@ namespace Diva.Show
         // ------------------------------------------------------------------ "+10" popups
         void Popup(string text, Vector3 world, Color color)
         {
-            var t = DivaUi.Text(hudRoot, "Popup", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 80), 60, color);
-            t.text = text;
-            DivaUi.Glow(t, new Color(0, 0, 0, .6f), .4f, .2f, .15f);
+            TextMeshProUGUI t = null;
+            while (popupPool.Count > 0 && !t) t = popupPool.Pop();
+            if (!t)
+            {
+                t = DivaUi.Text(hudRoot, "Popup", new Vector2(.5f, .5f), Vector2.zero, new Vector2(300, 80), 60, color);
+                DivaUi.Glow(t, new Color(0, 0, 0, .6f), .4f, .2f, .15f);   // 字体材质实例只在新建时做一次
+            }
+            t.gameObject.SetActive(true); t.transform.SetAsLastSibling();
+            t.text = text; t.color = color; t.alpha = 1;
             popups.Add((t, world, DivaClock.Time));
         }
 
@@ -294,7 +337,7 @@ namespace Diva.Show
             {
                 var (t, world, born) = popups[i];
                 float age = DivaClock.Time - born;
-                if (age > 1.1f || !t) { if (t) Destroy(t.gameObject); popups.RemoveAt(i); continue; }
+                if (age > 1.1f || !t) { if (t) { t.gameObject.SetActive(false); popupPool.Push(t); } popups.RemoveAt(i); continue; }
                 if (ScreenPoint(world, out var p))
                 {
                     t.rectTransform.anchoredPosition = p + new Vector2(0, 40 + age * 90);

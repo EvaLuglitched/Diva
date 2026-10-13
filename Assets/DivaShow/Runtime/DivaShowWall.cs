@@ -74,7 +74,6 @@ namespace Diva.Show
             float width = wallLeft + wallRight, mid = (wallRight - wallLeft) * .5f;
             // 前排：一根挨一根，中间高、两边矮（圆弧形的轮廓）；后排错开半根，矮一截，墙才有厚度
             // 一整排：中间高、两头稍矮；每根柱子放之前先看那里有没有别的东西（伞、牌子、靶子），有就不放，不和场景的道具穿插
-            float xMin = float.MaxValue, xMax = float.MinValue;
             for (float x = -wallLeft; x <= wallRight;)
             {
                 float edge = Mathf.Abs(x - mid) / Mathf.Max(1f, width * .5f);          // 0 中间 … 1 两端
@@ -85,15 +84,15 @@ namespace Diva.Show
                 {
                     var lean = new Vector2(Mathf.Sign(x - mid) * WRand(.05f, .22f) * r, WRand(-.1f, .1f) * r);   // 两边的柱子往外歪一点
                     Column(at, r, h, lean, true);
-                    xMin = Mathf.Min(xMin, x); xMax = Mathf.Max(xMax, x);
                     float h2 = h * WRand(.5f, .72f);
                     var at2 = wallCentre + wallRight3 * (x + WRand(.3f, .6f)) + wallForward * WRand(.75f, 1.05f);
                     if (Clear(at2, r * .9f, h2)) Column(at2, r * WRand(.7f, .95f), h2, new Vector2(0, WRand(.05f, .2f) * r), false);
                 }
                 x += WRand(.85f, 1.1f);
             }
-            if (xMin > xMax) { xMin = -wallLeft; xMax = wallRight; }
-            float bankWidth = xMax - xMin + 2f; mid = (xMin + xMax) * .5f; wallMid = mid;
+            // 雪堆、地霜和冰晶闪光铺满整个被挡住的宽度（到两边的建筑）而不只是有冰柱的那段：被道具挤掉冰柱的位置也看得出
+            // "这里过不去"，不会撞上一道看不见的墙
+            float bankWidth = wallLeft + wallRight + .6f; mid = (wallRight - wallLeft) * .5f; wallMid = mid;
             // 脚下一道雪堆（前后各一条）
             foreach (float z in new[] { -.9f, 1.9f })
             {
@@ -132,10 +131,37 @@ namespace Diva.Show
                 var fr2 = frost.GetComponent<MeshRenderer>(); fr2.sharedMaterial = snowMat; fr2.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; fr2.receiveShadows = true;
                 wallPieces.Add(new Piece { t = frost.transform, at = fat, rot = frot, scale = fscale });
             }
-            // 折射（透过冰看到后面扭曲的街景）：要不透明纹理，PC 的渲染设置里开着；头显上太贵，不开
-            if (iceMat && iceMat.HasProperty("_Alpha") && !UnityEngine.XR.XRSettings.isDeviceActive) iceMat.EnableKeyword("_REFRACTION");
+            // 折射（透过冰看到后面扭曲的街景）要相机的不透明纹理拷贝——每帧一次全屏拷贝，Retina 屏上不便宜：管线资源里默认关着，
+            // 只在墙在镜头前方 70 米内时给主相机打开（UpdateRefraction）。头显上不用（立体渲染里用的是 Lit 冰）
+            refractionWanted = iceMat && iceMat.HasProperty("_Alpha") && !UnityEngine.XR.XRSettings.isDeviceActive;
             wallUp = true;
-            Debug.Log($"DIVA_SHOW ice wall at {wallCentre} facing {wallForward}, {wallLeft:F1} m left / {wallRight:F1} m right, {wallPieces.Count} pieces, shader {(iceMat ? iceMat.shader.name : "none")}, refraction {(iceMat && iceMat.IsKeywordEnabled("_REFRACTION"))}");
+            Debug.Log($"DIVA_SHOW ice wall at {wallCentre} facing {wallForward}, {wallLeft:F1} m left / {wallRight:F1} m right, {wallPieces.Count} pieces, shader {(iceMat ? iceMat.shader.name : "none")}, refraction {refractionWanted} (on demand)");
+        }
+
+        bool refractionWanted, refractionOn;
+        UnityEngine.Rendering.Universal.UniversalAdditionalCameraData camData;
+
+        /// <summary>折射只在需要时开：墙（或炸开后还在飞的碎冰）在镜头前方 70 米内。开 = 冰材质的 _REFRACTION + 主相机要不透明纹理。</summary>
+        void UpdateRefraction()
+        {
+            if (!refractionWanted || !mainCamera) return;
+            bool want = wallUp || wallBrokeAt >= 0;
+            if (want)
+            {
+                var to = WallFocus - mainCamera.transform.position;
+                want = to.magnitude < 70 && Vector3.Dot(mainCamera.transform.forward, to) > 0;
+            }
+            if (want == refractionOn) return;
+            refractionOn = want;
+            if (want) iceMat.EnableKeyword("_REFRACTION"); else iceMat.DisableKeyword("_REFRACTION");
+            if (!camData) camData = UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(mainCamera);
+            if (camData) camData.requiresColorOption = want ? UnityEngine.Rendering.Universal.CameraOverrideOption.On : UnityEngine.Rendering.Universal.CameraOverrideOption.UsePipelineSettings;
+        }
+
+        void WallDisable()
+        {
+            if (camData && refractionOn) camData.requiresColorOption = UnityEngine.Rendering.Universal.CameraOverrideOption.UsePipelineSettings;
+            refractionOn = false;
         }
 
         static readonly Collider[] overlaps = new Collider[16];
@@ -297,6 +323,7 @@ namespace Diva.Show
         void WallLateUpdate()
         {
             if (wallPieces.Count == 0) return;
+            UpdateRefraction();
             if (wallBrokeAt >= 0) UpdateWallPieces();
             if (!wallUp || Phase != ShowPhase.Play && Phase != ShowPhase.Ult && Phase != ShowPhase.Countdown) return;
             var off = elephant.position - wallCentre;

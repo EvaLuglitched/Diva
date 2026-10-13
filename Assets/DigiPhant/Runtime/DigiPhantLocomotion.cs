@@ -66,6 +66,7 @@ namespace DigiPhant
         public float CurrentSpeed { get; private set; }
         public bool AnimationActive => graph.IsValid();
         DigiPhantController controller;
+        DivaDemo diva;
         PlayableGraph graph;
         AnimationMixerPlayable mixer;
         AnimationClipPlayable[] playables;
@@ -158,7 +159,7 @@ namespace DigiPhant
             dt = Mathf.Clamp(dt, 0, .1f);
             float desiredForward = testForward, desiredTurn = testSteering;
             bool valid = true;
-            var diva = GetComponent<DivaDemo>();
+            if (!diva) diva = GetComponent<DivaDemo>();   // cached: this runs every frame
             bool custom = diva != null && diva.isActiveAndEnabled;
             if (custom)
             {

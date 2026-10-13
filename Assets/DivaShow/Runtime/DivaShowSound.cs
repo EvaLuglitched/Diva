@@ -4,12 +4,23 @@ using UnityEngine;
 
 namespace Diva.Show
 {
-    /// <summary>界面和过场的音效，启动时用程序合成（和机甲音效一样不用录音素材）。</summary>
+    /// <summary>
+    /// 界面和过场的音效，启动时用程序合成（和机甲音效一样不用录音素材）。
+    /// 合成在后台线程做（二十几段、其中一段 7.5 秒的循环曲，主线程算要卡一两百毫秒）；第一次用到某段时才建 AudioClip，
+    /// 还没算完就等那一段（短的先算，几十毫秒内就有）。
+    /// </summary>
     public class DivaShowSound
     {
         const int Rate = 44100;
         readonly AudioSource source, music;
         readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
+        class Pending
+        {
+            public string name; public int samples; public Func<float, float> wave; public bool loop; public float[] data;
+            public readonly System.Threading.ManualResetEventSlim done = new System.Threading.ManualResetEventSlim(false);
+        }
+        readonly Dictionary<string, Pending> pending = new Dictionary<string, Pending>();
+        readonly List<Pending> order = new List<Pending>();
         public float volume = .7f;
         /// <summary>For recording tools (video capture): every clip played, with its gain.</summary>
         public static event Action<AudioClip, float> Played;
@@ -126,6 +137,46 @@ namespace Diva.Show
                 return (Mathf.Sin(2 * Mathf.PI * Phase("rise", f)) * .22f + Mathf.Sin(2 * Mathf.PI * Phase("rise2", f * 1.5f)) * .1f + Noise() * .08f * u)
                        * Mathf.Clamp01(t * 8) * Mathf.Clamp01((1.3f - t) * 4);
             });
+            StartSynth();
+        }
+
+        // 后台合成：短的先算（界面音效马上要用），长的循环曲最后
+        void StartSynth()
+        {
+            order.Sort((a, b) => a.samples.CompareTo(b.samples));
+            var thread = new System.Threading.Thread(() =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                foreach (var p in order)
+                {
+                    try { p.data = Synth(p); }
+                    catch (Exception e) { Debug.LogWarning("DIVA_SHOW sound " + p.name + ": " + e.Message); p.data = new float[p.samples]; }
+                    p.done.Set();
+                }
+                Debug.Log($"DIVA_SHOW sounds synthesised in {sw.ElapsedMilliseconds} ms (background thread)");
+            }) { IsBackground = true, Name = "Diva sound synth" };
+            thread.Start();
+        }
+
+        static float[] Synth(Pending p)
+        {
+            int n = p.samples;
+            var data = new float[n];
+            for (int i = 0; i < n; i++) data[i] = Mathf.Clamp(p.wave(i / (float)Rate), -1, 1);
+            // 循环的：结尾 40 毫秒和开头交叉淡化，接缝处听不出来
+            if (p.loop)
+            {
+                int x = Mathf.Min(n / 4, Rate * 40 / 1000);
+                for (int i = 0; i < x; i++) { float k = i / (float)x; data[n - x + i] = data[n - x + i] * (1 - k) + data[i] * k; }
+            }
+            // 开头 2 毫秒、结尾 6 毫秒淡入淡出：没有归零就截断的声音会"哒"一下（无缝循环的除外）
+            if (p.name != "portal" && !p.loop)
+            {
+                int fadeIn = Mathf.Min(n / 4, Rate / 500), fadeOut = Mathf.Min(n / 4, Rate * 6 / 1000);
+                for (int i = 0; i < fadeIn; i++) data[i] *= i / (float)fadeIn;
+                for (int i = 0; i < fadeOut; i++) data[n - 1 - i] *= i / (float)fadeOut;
+            }
+            return data;
         }
 
         /// <summary>二阶带通（共振峰），合成音色用。</summary>
@@ -147,8 +198,18 @@ namespace Diva.Show
             }
         }
 
-        /// <summary>合成好的音效（VR 开场要放在 3D 声源上循环）。</summary>
-        public AudioClip Clip(string name) => clips.TryGetValue(name, out var clip) ? clip : null;
+        /// <summary>一段音效的 AudioClip（VR 开场要放在 3D 声源上循环）。还在后台算就等它算完（只等这一段）。</summary>
+        public AudioClip Clip(string name)
+        {
+            if (clips.TryGetValue(name, out var clip)) return clip;
+            if (!pending.TryGetValue(name, out var p)) return null;
+            p.done.Wait();
+            clip = AudioClip.Create("Diva Show " + name, p.samples, 1, Rate, false);
+            clip.SetData(p.data, 0);
+            p.data = null;
+            clips[name] = clip;
+            return clip;
+        }
 
         readonly Dictionary<string, double> phases = new Dictionary<string, double>();
         float Phase(string key, float freq)
@@ -169,25 +230,8 @@ namespace Diva.Show
 
         void Make(string name, float seconds, Func<float, float> f, bool loop = false)
         {
-            int n = Mathf.CeilToInt(seconds * Rate);
-            var data = new float[n];
-            for (int i = 0; i < n; i++) data[i] = Mathf.Clamp(f(i / (float)Rate), -1, 1);
-            // 循环的：结尾 40 毫秒和开头交叉淡化，接缝处听不出来
-            if (loop)
-            {
-                int x = Mathf.Min(n / 4, Rate * 40 / 1000);
-                for (int i = 0; i < x; i++) { float k = i / (float)x; data[n - x + i] = data[n - x + i] * (1 - k) + data[i] * k; }
-            }
-            // 开头 2 毫秒、结尾 6 毫秒淡入淡出：没有归零就截断的声音会"哒"一下（无缝循环的除外）
-            if (name != "portal" && !loop)
-            {
-                int fadeIn = Mathf.Min(n / 4, Rate / 500), fadeOut = Mathf.Min(n / 4, Rate * 6 / 1000);
-                for (int i = 0; i < fadeIn; i++) data[i] *= i / (float)fadeIn;
-                for (int i = 0; i < fadeOut; i++) data[n - 1 - i] *= i / (float)fadeOut;
-            }
-            var clip = AudioClip.Create("Diva Show " + name, n, 1, Rate, false);
-            clip.SetData(data, 0);
-            clips[name] = clip;
+            var p = new Pending { name = name, samples = Mathf.CeilToInt(seconds * Rate), wave = f, loop = loop };
+            pending[name] = p; order.Add(p);
         }
 
         public void PlayMusic(AudioClip clip, float gain = 1)
@@ -213,7 +257,8 @@ namespace Diva.Show
         /// </summary>
         public void PlayAt(string name, Vector3 world, float gain = 1, float pitch = 1)
         {
-            if (!source || !clips.TryGetValue(name, out var clip)) return;
+            var clip = source ? Clip(name) : null;
+            if (!clip) return;
             if (spatial.Count == 0)
                 for (int i = 0; i < 8; i++)
                 {
@@ -233,7 +278,8 @@ namespace Diva.Show
 
         public void Play(string name, float gain = 1, float pitch = 1)
         {
-            if (!source || !clips.TryGetValue(name, out var clip)) return;
+            var clip = source ? Clip(name) : null;
+            if (!clip) return;
             if (Mathf.Abs(pitch - 1) < .001f) { source.PlayOneShot(clip, volume * gain); Played?.Invoke(clip, volume * gain); return; }
             // 变调的一次性音：用单独的几个声源轮流（改主声源的音高会把正在播的其他声音一起变调）
             if (pitched.Count == 0)
@@ -258,7 +304,8 @@ namespace Diva.Show
         /// <summary>循环播放一段合成的曲子（比赛的背景乐），走音乐声道，FadeMusic 停。</summary>
         public void PlayLoop(string name, float gain = 1)
         {
-            if (!music || !clips.TryGetValue(name, out var clip)) return;
+            var clip = music ? Clip(name) : null;
+            if (!clip) return;
             music.clip = clip; music.loop = true; music.volume = volume * gain; music.Play();
         }
     }

@@ -119,25 +119,27 @@ namespace Diva.Show
             bool showTip = t < tipUntil && Phase == ShowPhase.Play;
             tipGroup.alpha = Mathf.MoveTowards(tipGroup.alpha, showTip ? 1 : 0, DivaClock.DeltaTime * (showTip ? 4 : 2));
             coachRoot.localScale = Vector3.one * Mathf.Max(.01f, DivaUi.EaseOutBack((t - tipShownAt) / .45f));
-            tipPlate.stripe = tipKey == "coach.water" ? new Color(1, .4f, .4f) : Accent; tipPlate.SetVerticesDirty();
+            tipPlate.SetStripe(tipKey == "coach.water" ? new Color(1, .4f, .4f) : Accent);
             bool way = coachTask != null && Phase == ShowPhase.Play;
             if (wayRect.gameObject.activeSelf != way) wayRect.gameObject.SetActive(way);
             if (!way) return;
             if (!ScreenPointClamped(wayAt + Vector3.up * 3.5f, out var p, out int side)) { wayRect.gameObject.SetActive(false); return; }
             wayRect.anchoredPosition = p;
-            string text;
-            Color colour;
-            if (wayNear)
+            // 路标的文字只在内容变了才重写（整米数、靠近、到了、在左右边外）：每帧拼字符串会让画布每帧重建
+            int metres = Mathf.RoundToInt(wayDist); bool here = wayDist < coachTask.radius;
+            if (metres != wayMetres || wayNear != wayWasNear || here != wayWasHere || side != waySide || coachTask != wayTask)
             {
-                text = (wayDist < coachTask.radius ? DivaText.T("coach.here") + "  ·  " : "") + DivaText.T(wayAct);
-                colour = new Color(1f, .9f, .4f, .75f + .25f * Mathf.Sin(t * 6));
+                wayMetres = metres; wayWasNear = wayNear; wayWasHere = here; waySide = side; wayTask = coachTask;
+                string text = wayNear ? (here ? DivaText.T("coach.here") + "  ·  " : "") + DivaText.T(wayAct)
+                                      : DivaText.Task(coachTask.label) + "  ·  " + metres + " m";
+                if (side < 0) text = "<  " + text; else if (side > 0) text += "  >";
+                wayText.text = text;
             }
-            else { text = DivaText.Task(coachTask.label) + "  ·  " + $"{wayDist:0} m"; colour = Color.white; }
-            if (side < 0) text = "<  " + text; else if (side > 0) text += "  >";
-            wayText.text = text; wayText.color = colour;
-            wayPlate.stripe = wayNear ? new Color(1f, .9f, .4f) : Accent;
+            wayText.color = wayNear ? new Color(1f, .9f, .4f, .75f + .25f * Mathf.Sin(t * 6)) : Color.white;
+            wayPlate.SetStripe(wayNear ? new Color(1f, .9f, .4f) : Accent);
             wayRect.localScale = Vector3.one * (wayNear ? 1.1f : 1);
         }
+        int wayMetres = -1, waySide = 9; bool wayWasNear, wayWasHere; CourseTask wayTask;
 
         /// <summary>世界点换成界面坐标，但不丢掉画面外的点：贴到边上，side 说明它在左（-1）还是右（1）边外面；镜头后面的点也贴到下边。</summary>
         bool ScreenPointClamped(Vector3 world, out Vector2 anchored, out int side)

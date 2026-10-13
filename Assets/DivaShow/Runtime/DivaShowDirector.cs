@@ -150,6 +150,8 @@ namespace Diva.Show
             defaultFov = mainCamera ? mainCamera.fieldOfView : 60;
             sound = new DivaShowSound(gameObject) { volume = volume };
             fx = new DivaShowFx(transform, glowMaterial, bubbleMaterial);
+            // 桌面版的帧率守护：垂直同步跟显示器（ProMotion 120 Hz），跟不上就自动降一点渲染分辩率（DivaShowPerf）
+            if (!Application.isBatchMode) gameObject.AddComponent<DivaShowPerf>();
             replay = new DivaReplay(elephant, elephantSkin ? elephantSkin.bones : new Transform[0], waterGun ? waterGun.transform : null);
             DivaUi.MakeFont(latinFont, sdfShader);
             if (!FindAnyObjectByType<EventSystem>())
@@ -200,7 +202,7 @@ namespace Diva.Show
             foreach (var b in blockers) if (b) Destroy(b);
         }
 
-        void OnLanguage() { DivaUi.RefreshLanguage(); RefreshSelect(); }
+        void OnLanguage() { DivaUi.RefreshLanguage(); RefreshSelect(); ResetHudCaches(); }
 
         // ------------------------------------------------------------------ phases
         void Enter(ShowPhase next)
@@ -232,7 +234,6 @@ namespace Diva.Show
         void Update()
         {
             DivaClock.Tick();
-            CacheTrialState();
             ReadInputs();
             if (raceIntro && raceIntro.Playing && raceIntro.Time < DivaIntro.Go && Phase != ShowPhase.RaceIntro)
             {
@@ -264,7 +265,7 @@ namespace Diva.Show
             UpdateHud();
             UpdateBanners();
             UpdateHero();
-            CacheTrialState();
+            // 试验数据的快照只在 LateUpdate 记一次（DivaDemo 的命中判定之后）
         }
 
         float shake;
@@ -322,7 +323,7 @@ namespace Diva.Show
         readonly List<GameObject> blockers = new List<GameObject>();
         void CollectOccluders()
         {
-            foreach (var mf in FindObjectsByType<MeshFilter>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            foreach (var mf in FindObjectsByType<MeshFilter>(FindObjectsInactive.Exclude))
             {
                 if (!mf || !mf.sharedMesh) continue;
                 var r = mf.GetComponent<MeshRenderer>();
@@ -368,6 +369,7 @@ namespace Diva.Show
         /// </summary>
         float dodgeTarget, dodgeApplied;
         ShowPhase dodgePhase;
+        static readonly float[] DodgeAngles = { 0f, 25f, -25f, 50f, -50f, 80f, -80f }, DodgeRaises = { 1.5f, 3f };
         Vector3 Unblocked(Vector3 target, Vector3 desired)
         {
             if (dodgePhase != Phase) { dodgePhase = Phase; dodgeTarget = dodgeApplied = 0; }
@@ -383,12 +385,12 @@ namespace Diva.Show
             if (!Clear(At(dodgeTarget)))
             {
                 float found = float.NaN;
-                foreach (float a in new[] { 0f, 25f, -25f, 50f, -50f, 80f, -80f })
+                foreach (float a in DodgeAngles)
                     if (Clear(At(a))) { found = a; break; }
                 if (!float.IsNaN(found)) dodgeTarget = found;
                 else
                 {
-                    foreach (float up in new[] { 1.5f, 3f })
+                    foreach (float up in DodgeRaises)
                     {
                         var raised = desired + Vector3.up * up;
                         if (Clear(raised)) return raised;
@@ -573,6 +575,8 @@ namespace Diva.Show
             bool cut = Phase == ShowPhase.Select || Phase == ShowPhase.PowerUp || Phase == ShowPhase.Ult || Phase == ShowPhase.Finish ||
                        Phase == ShowPhase.Highlight || Phase == ShowPhase.Results || introOrbit;
             look.cinematic = cut ? 1 : 0;
+            // 冲刺时镜头动态模糊更明显（DivaLook 的 motionBlur 乘上它）
+            look.boost = Mathf.MoveTowards(look.boost, (boosting || Dashing) && Phase == ShowPhase.Play ? 1 : 0, DivaClock.DeltaTime * 3);
             if (mainCamera) look.focusDistance = Vector3.Distance(mainCamera.transform.position, ElephantCenter);
         }
 

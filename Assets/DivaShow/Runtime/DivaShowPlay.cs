@@ -41,8 +41,7 @@ namespace Diva.Show
             bubbleCooldownUntil = cannonCooldownUntil = 0; boosting = wasShooting = wasDrinking = false; timeUp = false;
             lastPosition = elephant.position; lastYaw = elephant.eulerAngles.y;
             tasksDone = game ? new bool[game.tasks.Length] : new bool[0];
-            foreach (var f in feed) if (f.plate) Destroy(f.plate.gameObject);
-            feed.Clear();
+            ClearFeed(); ResetHudCaches();
             MetaStartRun();
             BeginTrial();
         }
@@ -126,8 +125,9 @@ namespace Diva.Show
 
             // 大招
             if (charge >= 100 && !chargeReadyAnnounced) { chargeReadyAnnounced = true; sound.Play("ready"); }
+            // 键盘放大招用 E（U 是"向左瞄准"，充满时瞄准会误放）
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            bool ultKey = kb != null && kb.uKey.wasPressedThisFrame;
+            bool ultKey = kb != null && kb.eKey.wasPressedThisFrame;
             if (charge >= 100 && (ultEdge || ultKey)) { Enter(ShowPhase.Ult); return; }
 
             replay.Capture(t, boosters ? boosters.Level : 0, locomotion.CurrentSpeed, waterGun && waterGun.IsSpraying,
@@ -137,8 +137,7 @@ namespace Diva.Show
             // Eva: crossing the finish arch ends the run even with tasks left ("finish_line"); all tasks done is still "tasks_completed".
             if (game && game.Finished) { trialEndReason = game.AllTasksDone ? "tasks_completed" : "finish_line"; Enter(ShowPhase.Finish); return; }
             if (timeLimit > 0 && t >= timeLimit) { trialEndReason = "timeout"; timeUp = true; Enter(ShowPhase.Finish); return; }
-            var kb2 = UnityEngine.InputSystem.Keyboard.current;
-            if (kb2 != null && kb2.endKey.wasPressedThisFrame) { trialEndReason = "manual_end"; timeUp = true; Enter(ShowPhase.Finish); }
+            if (kb != null && kb.endKey.wasPressedThisFrame) { trialEndReason = "manual_end"; timeUp = true; Enter(ShowPhase.Finish); }
         }
 
         bool chargeReadyAnnounced;
@@ -162,10 +161,11 @@ namespace Diva.Show
             sound.Play("hit", .8f);
             if (gold) sound.Play("combo", .8f, 1.3f);
             fx.Flash(target.AimPoint, gold ? GoldColour : Accent, 2.2f, .25f);
+            // 燃烧的 ×1.5 大招打中的也算（飘字写的就是乘过的分，之前大招里这一行在 return 后面，显示和实际分不一致）
+            if (ScoreMultiplier > 1) bonus += shown - target.points;
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }
             charge = Mathf.Min(100, charge + chargePerHit);
-            if (ScoreMultiplier > 1) bonus += shown - target.points;
             Heat(.22f);
             combo = DivaClock.Time - lastHitTime <= ComboWindow ? combo + 1 : 1;
             lastHitTime = DivaClock.Time;
