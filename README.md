@@ -22,13 +22,18 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
 
-## Download v1.1
+## Download v1.2 (macOS) · v1.1 (Windows, Vision Pro)
 
-Ready-to-play builds: **https://github.com/EvaLuglitched/Diva/releases/tag/v1.1** (the newest release is always at https://github.com/EvaLuglitched/Diva/releases/latest)
+Ready-to-play builds: macOS **https://github.com/EvaLuglitched/Diva/releases/tag/v1.2**, Windows and Vision Pro
+**https://github.com/EvaLuglitched/Diva/releases/tag/v1.1** (all releases: https://github.com/EvaLuglitched/Diva/releases)
+
+v1.2 (macOS): whoever stays in front of the camera keeps playing (a player who leaves is replaced by the person still in
+view after 1 s), no tracking crash with several people in view, the Mac always uses its own camera (not a nearby iPhone),
+and the tracking restarts by itself if it ever stops. Windows and Vision Pro have not been rebuilt yet and stay on v1.1.
 
 | Platform | File | First start | Camera gestures |
 | --- | --- | --- | --- |
-| macOS, Apple silicon (M1 and newer) | [Diva-v1.1-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
+| macOS, Apple silicon (M1 and newer) | [Diva-v1.2-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.2/Diva-v1.2-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
 | Windows 10 / 11, 64-bit | [Diva-v1.1-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks |
 | Apple Vision Pro | [Diva-VR-v1.1-visionOS.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-VR-v1.1-visionOS.zip) | development-signed: installs on the team's registered headsets | headset hand tracking |
 
