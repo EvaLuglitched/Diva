@@ -1,7 +1,7 @@
 # Diva VR — Vision Pro 第一人称版（分支 `carl/diva-vr`）
 
 Carl 做的 Apple Vision Pro 版本：坐在大象背上的驾驶舱里，第一人称开大象跑 Eva 的糖果小镇赛道。
-玩法说明（怎么开始、怎么操控）在仓库根目录 **`DIVA_TRY_IT.md`** 的 "Vision Pro" 一节；这份文件讲代码、构建和踩过的坑。
+玩法说明（怎么开始、怎么操控）在仓库根目录 **`docs/DIVA_TRY_IT.md`** 的 "Vision Pro" 一节；这份文件讲代码、构建和踩过的坑。
 
 **注意**：这个分支加了 `com.unity.xr.visionos` 3.3.1 和 `com.unity.xr.hands` 1.9.0（`Packages/manifest.json`）。
 visionOS 支持需要 Unity Pro / Enterprise 许可证，所以**先不要把这个分支并进 main**，用 Personal 许可证的人也不要在本机

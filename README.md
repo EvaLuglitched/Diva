@@ -5,6 +5,25 @@ Three people control one elephant on the Savannah course using pretrained MediaP
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read **GESTURES_LOCKED.md** before
 > changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
 
+## Repository map
+
+| Folder | What is in it |
+| --- | --- |
+| `Assets/DigiPhant/` | The DigiPhant starter layer: camera-bridge controller, locomotion, the Diva gesture state (locked) and the scenes; `Scenes/Diva.unity` is the game |
+| `Assets/DivaGame/` | Eva's candy-town game layer: town models, targets, course tasks, race intro, keyboard controls |
+| `Assets/DivaShow/` | The match flow on top of the game: skins, HUD, skills, race extras, ice wall, highlight replay, results, look and frame-rate guard |
+| `Assets/eva大象/` | The D.Va-style mech elephant (skins, water gun, boosters, sounds) |
+| `Assets/DivaVR/` | Apple Vision Pro first-person version (branch `carl/diva-vr` only) |
+| `Assets/SavannahCourse/`, `Assets/StudentWork/` | The earlier savannah course and a student scene (kept for reference) |
+| `Assets/Settings/` | URP pipeline assets (`PC_*` for desktop, `Mobile_*` for the headset) |
+| `TrackingOverrides/` | The Python camera bridge and gesture rules (locked) with their tests |
+| `Art/`, `Tools/` | Blender town-kit script, Mac setup script |
+| `docs/` | Everything written for people: `docs/DIVA_TRY_IT.md` (how to play, what is in the game), `docs/NOTE_FOR_EVA.md` / `docs/NOTE_FOR_VICKY.md` (what changed on Carl's side), `docs/EVA_UPDATES.md` (Eva's log), `docs/ROADMAP.md`, `docs/PLAYTEST_TODO.md`, `docs/FAB_SETUP.md`, `docs/DIGIPHANT_SETUP.md`, `DIGIPHANT_CONTROLS.md` |
+
+The root keeps only this README, `CLAUDE.md` (instructions for the AI assistants) and `GESTURES_LOCKED.md`. Builds, logs, trial data,
+Fab assets, XR settings and the Python environment are ignored by git (see `.gitignore`). The Unity template leftovers
+(sample scene, tutorial readme) were removed on 2026-10-13; the build scene list points at `Diva.unity`.
+
 ## Open and try the newest scene
 
 Use Unity **6000.6.3f1** with Universal Render Pipeline **17.6.0**. Open **Assets/DigiPhant/Scenes/Diva.unity** and press Play. It now holds everything: the three-player gestures, Eva's candy-town game layer (targets, trunk shots, HUD, course tasks) and the D.Va mech elephant. The original DigiPhant scene remains available with the game layer only (no Diva gestures).
@@ -17,23 +36,23 @@ Choose **Try alone** and **All** for the single-player game (one person has ever
 
 For group play, stand left-to-right as you see yourselves in the mirrored preview: P1 movement, P2 turning, P3 water. Keep background people out of view and avoid crossing. Use Reassign players and recalibrate if roles are lost.
 
-The demo includes a third-person camera, the game layer's 16 targets, scoring, a water tank and the course tasks. Course tasks follow the Diva gestures: drink/eat with a thumbs-up near the bush or basin, go around the fallen log by walking past it along the path (no gesture); a floating arrow points at each unfinished task when the elephant comes near it. Refill currently works anywhere. See **DIVA_TRY_IT.md** for details. A first-person **Apple Vision Pro** version lives on branch `carl/diva-vr` (needs a Unity Pro licence; not merged into main) — controls in **DIVA_TRY_IT.md** → "Vision Pro version", code and build notes in **Assets/DivaVR/README.md**.
+The demo includes a third-person camera, the game layer's 16 targets, scoring, a water tank and the course tasks. Course tasks follow the Diva gestures: drink/eat with a thumbs-up near the bush or basin, go around the fallen log by walking past it along the path (no gesture); a floating arrow points at each unfinished task when the elephant comes near it. Refill currently works anywhere. See **docs/DIVA_TRY_IT.md** for details. A first-person **Apple Vision Pro** version lives on branch `carl/diva-vr` (needs a Unity Pro licence; not merged into main) — controls in **docs/DIVA_TRY_IT.md** → "Vision Pro version", code and build notes in **Assets/DivaVR/README.md**.
 
 If the camera panel says **Camera stopped: …**, the text after the colon is the tracker's own error (for example a missing model or file). **Waiting for P2, P3 …** names the players the camera cannot see; for one person choose **Try alone**.
 
 ## Game flow, skins, skills and leaderboard (DivaShow)
 
-Press Play in **Diva.unity** and the game now runs as a full match: choose one of four mech skins on a turntable → Eva's race intro (aerial, rocket, swoop, mech power-up, 3·2·1 GO) with Carl's entrance sting when the elephant appears → play with FPS-style HUD, skill banners, picture-in-picture close-ups, combos and an ultimate (MEGA BUBBLE: hold both hands above your head) → finish cutscene → automatic 8-second highlight replay → results cards and a local leaderboard. It is a single-player game by default: one person has every control (Try alone > **All**); **3 PLAYERS** keeps the original roles. The UI is English by default; the **EN 中文** button (or L) switches to Chinese. F1 or **SETUP** shows the old setup panel. See **Assets/DivaShow/README.md** (Chinese), **PLAYTEST_TODO.md** for what still needs a real-camera test, and **NOTE_FOR_EVA.md** for how the show uses the intro.
+Press Play in **Diva.unity** and the game now runs as a full match: choose one of four mech skins on a turntable → Eva's race intro (aerial, rocket, swoop, mech power-up, 3·2·1 GO) with Carl's entrance sting when the elephant appears → play with FPS-style HUD, skill banners, picture-in-picture close-ups, combos and an ultimate (MEGA BUBBLE: hold both hands above your head) → finish cutscene → automatic 8-second highlight replay → results cards and a local leaderboard. It is a single-player game by default: one person has every control (Try alone > **All**); **3 PLAYERS** keeps the original roles. The UI is English by default; the **EN 中文** button (or L) switches to Chinese. F1 or **SETUP** shows the old setup panel. See **Assets/DivaShow/README.md** (Chinese), **docs/PLAYTEST_TODO.md** for what still needs a real-camera test, and **docs/NOTE_FOR_EVA.md** for how the show uses the intro.
 
 ## Eva's updates
 
 Everything Eva added (candy-town game layer, race intro, rocket and sky, track edges, start pad, Vision Pro intro text,
-Fab fallback) is listed with commit IDs in **EVA_UPDATES.md** (Chinese), including replies to NOTE_FOR_EVA.md. Three-player camera detection work (branch `carl/pc-three-player`) is explained in **NOTE_FOR_VICKY.md**.
+Fab fallback) is listed with commit IDs in **docs/EVA_UPDATES.md** (Chinese), including replies to docs/NOTE_FOR_EVA.md. Three-player camera detection work (branch `carl/pc-three-player`) is explained in **docs/NOTE_FOR_VICKY.md**.
 
 ## Fab rocket and clouds (not in git)
 
 The giant rocket and clouds in the sky are Fab models whose licence does not allow a public repo. Eva shares
-**Diva_Fab_Assets.zip** privately; unzip it into `Assets/DivaGame/ThirdParty/` as described in **FAB_SETUP.md**.
+**Diva_Fab_Assets.zip** privately; unzip it into `Assets/DivaGame/ThirdParty/` as described in **docs/FAB_SETUP.md**.
 Without it the scene shows stand-ins (our kit rocket and Kenney clouds) and a "Missing Prefab" warning.
 
 ## D.Va-style mech elephant (eva大象)
@@ -71,7 +90,7 @@ Unity starts the local camera bridge automatically in Play mode. Stop Play to st
 - Walking remains weak/intermittent for the current user. GO rules are unchanged; archived replay demonstrates a low-cadence limitation, but the live cause is unresolved. A fresh physical trial of thumbs-up refill and restored torso-only steering, full three-person performance and a post-fix live trial-export check remain pending.
 - Camera recovery keeps reopening the same backend every 4 seconds until frames return, and requires recalibration. Native camera operations may block beyond retry timers. Cross-machine restoration/rendering still needs testing.
 
-Camera-mode START opens a large camera check: players turn green when recognised, and after 5 seconds all green the neutral pose is saved and the race intro starts; manual Test controls start immediately. Keep hips visible during neutral capture: Ready alone does not guarantee a fresh hip baseline. F1 exposes **Record performance** below the preview; use **Stop recording and save** to export a silent Game-view MP4. Started runs also export route, events and summary to `TrialData/` on finish or interruption. See [setup and validation record](DIGIPHANT_SETUP.md) for limitations and recovery.
+Camera-mode START opens a large camera check: players turn green when recognised, and after 5 seconds all green the neutral pose is saved and the race intro starts; manual Test controls start immediately. Keep hips visible during neutral capture: Ready alone does not guarantee a fresh hip baseline. F1 exposes **Record performance** below the preview; use **Stop recording and save** to export a silent Game-view MP4. Started runs also export route, events and summary to `TrialData/` on finish or interruption. See [setup and validation record](docs/DIGIPHANT_SETUP.md) for limitations and recovery.
 
 Labeled photos/videos, recordings, trial outputs and local backups are excluded from this repository. See [gesture validation](TrackingOverrides/VALIDATION.md) for reference-fit results; the supplied examples do not establish held-out accuracy.
 
