@@ -12,7 +12,7 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 | | |
 | --- | --- |
 | **Git** | https://github.com/EvaLuglitched/Diva (default branch `main`; Carl's PC work on `carl/race-meta`, Vision Pro on `carl/diva-vr`) |
-| **Drive** (recordings, side-by-side video) | **TODO: paste the shared folder link here** |
+| **Drive** (recordings, side-by-side video) | https://drive.google.com/drive/folders/1NAZGp2xYGU9ZVkIdl9RajQ89eXVgnDBF |
 | **Scene** | `Assets/DigiPhant/Scenes/Diva.unity` |
 | **Unity** | 6000.6.3f1, Universal Render Pipeline 17.6.0 |
 | **Instructor starter** | https://github.com/kommanderpi/studentstarter.git at commit `8f426f675f86d938bf3dbec23d6a7ee2479d2c1d` |
