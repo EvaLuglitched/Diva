@@ -58,7 +58,7 @@ fi
 # ---------- Vision Pro: the development-signed app (installs on the team's registered headsets)
 if [ "$VISION" != "-" ] && [ -d "$VISION" ]; then
   V="$STAGE/Diva VR $VERSION (visionOS)"; mkdir -p "$V"
-  cp -R "$VISION" "$V/"
+  cp -R "$VISION" "$V/Diva VR.app"   # Xcode names it after the Unity product (JIVEDigiphant.app); the READ ME says Diva VR.app
   cp "$ROOT/Tools/release/READ ME (visionOS).txt" "$V/"
   (cd "$STAGE" && ditto -c -k --keepParent "Diva VR $VERSION (visionOS)" "$OUT/Diva-VR-$VERSION-visionOS.zip")
   echo "visionOS: $(du -h "$OUT/Diva-VR-$VERSION-visionOS.zip" | cut -f1)"

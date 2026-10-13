@@ -6,8 +6,8 @@ registered to that team. Anyone else needs to be added to the team, or build it 
 their own team (see Assets/DivaVR/README.md in the repository).
 
 INSTALL (Mac with Xcode, headset paired and unlocked)
-  Xcode > Window > Devices and Simulators > select the Vision Pro > drag JIVEDigiphant.app into "Installed Apps", or:
-      xcrun devicectl device install app --device <headset id> JIVEDigiphant.app
+  Xcode > Window > Devices and Simulators > select the Vision Pro > drag "Diva VR.app" into "Installed Apps", or:
+      xcrun devicectl device install app --device <headset id> "Diva VR.app"
 The app is called "Diva VR" on the headset. It asks for hand tracking the first time: Allow.
 
 CONTROLS (sitting in the cockpit on the elephant's back)
