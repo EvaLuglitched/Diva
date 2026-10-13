@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -63,7 +64,27 @@ namespace Diva.Show
             var em = ps.emission; em.rateOverTime = 0;
             var r = go.GetComponent<ParticleSystemRenderer>();
             r.sharedMaterial = material; r.shadowCastingMode = ShadowCastingMode.Off; r.receiveShadows = false;
-            Object.Destroy(go, lifetime);
+            if (lifetime > 0) Object.Destroy(go, lifetime);
+            return ps;
+        }
+
+        // 命中闪光、泡泡爆开这种一局几百次的小特效从池子里拿：每次 new 一个粒子系统再销毁，头显上一颗糖就是三次（闪光 + 爆开 + 闪光）
+        readonly Dictionary<string, List<ParticleSystem>> pools = new Dictionary<string, List<ParticleSystem>>();
+
+        ParticleSystem Pooled(string name, Vector3 position, Material material)
+        {
+            if (!pools.TryGetValue(name, out var list)) pools[name] = list = new List<ParticleSystem>();
+            for (int i = list.Count - 1; i >= 0; i--)
+            {
+                var p = list[i];
+                if (!p) { list.RemoveAt(i); continue; }
+                if (p.IsAlive(true)) continue;
+                p.transform.position = position;
+                p.Clear(true);
+                return p;
+            }
+            var ps = System(name, position, material, 0);
+            list.Add(ps);
             return ps;
         }
 
@@ -129,7 +150,7 @@ namespace Diva.Show
             if (!glow) return;
             // VR：闪光离眼睛近、占的视野大，一下就是"闪屏"：小一半、暗一半
             if (Diva.VR.DivaVR.Active) { size *= .5f; color *= .5f; }
-            var ps = System("Diva Flash", position, glow, seconds + .5f);
+            var ps = Pooled("Diva Flash", position, glow);
             var main = ps.main; main.startLifetime = seconds; main.startSpeed = 0; main.startSize = size; main.startColor = color; main.maxParticles = 4;
             var sol = ps.sizeOverLifetime; sol.enabled = true; sol.size = new ParticleSystem.MinMaxCurve(1, new AnimationCurve(new Keyframe(0, .4f), new Keyframe(.2f, 1), new Keyframe(1, 1.3f)));
             FadeOut(ps, .1f);
@@ -140,7 +161,7 @@ namespace Diva.Show
         public void Pop(Vector3 position, Color color, float radius)
         {
             if (!bubble) return;
-            var ps = System("Diva Pop", position, bubble, 4);
+            var ps = Pooled("Diva Pop", position, bubble);
             var main = ps.main;
             main.startLifetime = new ParticleSystem.MinMaxCurve(1.2f, 2.4f);
             main.startSpeed = new ParticleSystem.MinMaxCurve(radius * 1.2f, radius * 2.4f);

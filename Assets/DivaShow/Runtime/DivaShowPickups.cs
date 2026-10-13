@@ -71,12 +71,16 @@ namespace Diva.Show
             Debug.Log($"DIVA_SHOW candies: {candies.Count(c => !c.rocket)} candies and {candies.Count(c => c.rocket)} rockets on the course");
         }
 
+        // 同一种颜色共用一个材质（糖只有 4 种颜色；之前每颗糖两个材质实例，几十个材质白占内存、也合不了批）
+        readonly Dictionary<Color, Material> glowCache = new Dictionary<Color, Material>();
         Material Glow(Color c)
         {
+            if (glowCache.TryGetValue(c, out var cached)) return cached;
             var m = new Material(show.glowMaterial);
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
             if (m.HasProperty("_TintColor")) m.SetColor("_TintColor", c);
             if (m.HasProperty("_Color")) m.SetColor("_Color", c);
+            glowCache[c] = m;
             return m;
         }
 

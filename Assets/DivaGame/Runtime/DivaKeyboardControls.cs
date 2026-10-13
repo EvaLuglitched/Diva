@@ -88,9 +88,10 @@ namespace Diva
             {
                 chinese = zh;
                 // Plain letters only: the default fonts may lack arrow glyphs.
+                // Carl 2026-10-13: 大招从 U 换成 E（U 同时是"向左瞄准"，充满时一瞄准就误放）
                 legend.text = zh
-                    ? "<b>键盘</b>  W 前进 · A/D 转向 · U/I 瞄准（方向键也可以）\n空格 喷水 · F 喝水 · 大招充满时 U 也会放大招 · H 隐藏"
-                    : "<b>KEYS</b>  W go · A/D turn · U/I aim (arrow keys too)\nSpace spray · F drink · U also fires a charged ultimate · H hide";
+                    ? "<b>键盘</b>  W 前进 · A/D 转向 · U/I 瞄准（方向键也可以）\n空格 喷水 · F 喝水 · E 放大招（充满时） · H 隐藏"
+                    : "<b>KEYS</b>  W go · A/D turn · U/I aim (arrow keys too)\nSpace spray · F drink · E fires the charged ultimate · H hide";
             }
         }
 

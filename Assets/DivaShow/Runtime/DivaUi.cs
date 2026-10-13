@@ -14,10 +14,12 @@ namespace Diva.Show
         public static TMP_FontAsset Font { get; private set; }
         /// <summary>All plain texts share this material: a soft dark outline so they read on the bright candy town.</summary>
         public static Material Shadowed { get; private set; }
+        /// <summary>Material for every non-text graphic made here (VR sets its stereo-safe UI material before the UI is built; null = uGUI default).</summary>
+        public static Material GraphicMaterial;
         static readonly List<(TMP_Text text, Func<string> source)> localized = new List<(TMP_Text, Func<string>)>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Font = null; Shadowed = null; localized.Clear(); }
+        static void ResetStatics() { Font = null; Shadowed = null; GraphicMaterial = null; localized.Clear(); }
 
         // 拉丁字母用 Saira（项目里自带，OFL），中文用系统字体做后备（不把系统字体放进仓库）
         static readonly (string family, string style)[] CjkFonts =
@@ -97,6 +99,7 @@ namespace Diva.Show
             rt.gameObject.AddComponent<CanvasRenderer>();
             var s = rt.gameObject.AddComponent<DivaSlant>();
             s.color = top; s.bottom = bottom; s.skew = skew; s.raycastTarget = false;
+            if (GraphicMaterial) s.material = GraphicMaterial;
             return s;
         }
 
@@ -166,6 +169,7 @@ namespace Diva.Show
             var rt = Rect(parent, name, anchor, pos, size);
             var img = rt.gameObject.AddComponent<Image>();
             img.color = color; img.sprite = sprite; img.raycastTarget = false;
+            if (GraphicMaterial) img.material = GraphicMaterial;
             return img;
         }
 
