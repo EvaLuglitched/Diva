@@ -207,7 +207,7 @@ namespace Diva.Show
         // ------------------------------------------------------------------ select
         TextMeshProUGUI selectTitle, skinNameText, skinIndexText, statusText;
         readonly List<(DivaSlant a, DivaSlant b, DivaSlant c, Image mark)> chips = new List<(DivaSlant, DivaSlant, DivaSlant, Image)>();
-        Button onePlayer, threePlayers;
+        Button onePlayer, threePlayers, allowCamera;
 
         void BuildSelect()
         {
@@ -251,6 +251,10 @@ namespace Diva.Show
             statusText = DivaUi.Text(selectRoot, "Status", right, new Vector2(-48, -12), new Vector2(720, 60), 32, Color.white, TextAlignmentOptions.Right, false);
             DivaUi.Button(selectRoot, "Start", right, new Vector2(-48, -112), new Vector2(420, 110), () => DivaText.T("select.start"),
                           new Color(1, .33f, .66f, .95f), Color.white, 64, ConfirmSelect, 26);
+            // 发布版 macOS：摄像头权限被拒绝过时出现，点一下打开系统设置里的摄像头开关（打开后游戏自己接上，不用重启）
+            allowCamera = DivaUi.Button(selectRoot, "Allow Camera", right, new Vector2(-48, -214), new Vector2(420, 76), () => DivaText.T("select.allowcamera"),
+                                        new Color(.18f, .72f, .62f, .95f), Color.white, 40, () => { if (cameraPreview) cameraPreview.OpenCameraSettings(); }, 20);
+            allowCamera.gameObject.SetActive(false);
             var hint = DivaUi.Text(selectRoot, "Gesture Hint", bottom, new Vector2(0, 46), new Vector2(1700, 40), 30, new Color(1, 1, 1, .9f), TextAlignmentOptions.Center, false);
             DivaUi.Localize(hint, () => DivaText.T("select.gesture"));
             var keys = DivaUi.Text(selectRoot, "Key Hint", bottom, new Vector2(0, 12), new Vector2(1700, 34), 24, new Color(1, 1, 1, .6f), TextAlignmentOptions.Center, false);

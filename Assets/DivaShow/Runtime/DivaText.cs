@@ -173,6 +173,7 @@ namespace Diva.Show
             ["vr.card.4"] = ("THUMBS-UP", "竖大拇指"), ["vr.card.4b"] = ("eat · drink · refill", "吃 · 喝 · 补水"),
             ["vr.card.5"] = ("HANDS TO EYE LEVEL", "双手举到眼前"), ["vr.card.5b"] = ("MEGA BUBBLE", "超级泡泡"),
             ["select.skin"] = ("SKIN {0}/{1}", "涂装 {0}/{1}"),
+            ["select.allowcamera"] = ("ALLOW CAMERA", "允许摄像头"),
 
             ["status.test"] = ("Test controls: keyboard and sliders", "测试模式：键盘和滑块控制"),
             ["status.waiting"] = ("Step into the camera view", "请站到摄像头前"),

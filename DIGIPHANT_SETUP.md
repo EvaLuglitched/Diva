@@ -36,7 +36,7 @@ Downloads: https://github.com/EvaLuglitched/Diva/releases (built with **Diva > R
 packed by `Tools/release/package_release.sh`). The macOS app carries the tracking bridge itself, frozen with Python 3.13
 and MediaPipe 0.10.35 by `Tools/bridge_app/build_mac_bridge.sh` (the locked `bridge.py` runs unchanged, with the editor's
 options; only the walking diagnostics CSV is off because the app folder is read-only) and asks for camera permission
-on first use. The Windows build carries the bridge sources and models in `DivaTracking/`; `setup_camera.bat` creates the
+as soon as the game opens (one click; if it was denied, the home page shows ALLOW CAMERA, which opens the setting). The Windows build carries the bridge sources and models in `DivaTracking/`; `setup_camera.bat` creates the
 Python environment once. The Vision Pro build is development-signed for the team's headsets.
 
 ## Recording and generated trial data

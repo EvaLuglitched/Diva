@@ -55,6 +55,7 @@ namespace DigiPhant
             if (bytes == null || bytes.Length < 4 || bytes.Length > 2_000_000 || bytes[0] != 0xff || bytes[1] != 0xd8) return false;
             if (texture == null) texture = new Texture2D(2, 2, TextureFormat.RGB24, false);
             if (!ImageConversion.LoadImage(texture, bytes, false)) return false;
+            if (lastFrame < 0) UnityEngine.Debug.Log($"DIGIPHANT camera: first frame {texture.width}x{texture.height}");
             lastFrame = now;
             Status = "Live camera · mirrored";
             return true;
@@ -201,7 +202,13 @@ namespace DigiPhant
             string frozen = Path.Combine(folder, "diva_bridge", windows ? "diva_bridge.exe" : "diva_bridge");
             string python = Path.Combine(folder, windows ? ".venv/Scripts/python.exe" : ".venv/bin/python");
             string Quote(string p) => "\"" + p + "\"";
-            if (Application.platform == RuntimePlatform.OSXPlayer) Application.RequestUserAuthorization(UserAuthorization.WebCam);
+            // macOS: ask for the camera first (the system dialog appears as soon as the game opens; one click on Allow),
+            // then start the bridge. Denied: the home page shows ALLOW CAMERA, which opens the camera setting.
+            if (Application.platform == RuntimePlatform.OSXPlayer && CameraAccess != Access.Allowed)
+            {
+                if (askRoutine == null) askRoutine = StartCoroutine(AskForCameraThenLaunch());
+                return;
+            }
             if (File.Exists(frozen))
             {
                 string data = Path.Combine(folder, "diva_bridge", "_internal");
@@ -218,7 +225,38 @@ namespace DigiPhant
                 Status = windows ? "Camera gestures: run DivaTracking\\setup_camera.bat once (needs Python 3.10+), then restart. Keyboard works now."
                                  : "This build has no camera bridge. Keyboard works now.";
         }
+
+        Coroutine askRoutine;
+
+        System.Collections.IEnumerator AskForCameraThenLaunch()
+        {
+            if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
+            {
+                CameraAccess = Access.Asking;
+                Status = "Click Allow in the camera dialog (Diva reads your movements on this Mac)";
+                yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
+            }
+            // Denied (now or earlier): wait until it is switched on in System Settings, then carry on by itself
+            while (!Application.HasUserAuthorization(UserAuthorization.WebCam))
+            {
+                if (CameraAccess != Access.Denied) UnityEngine.Debug.Log("DIGIPHANT camera access denied");
+                CameraAccess = Access.Denied;
+                Status = "Camera is off for Diva: click ALLOW CAMERA, switch Diva on, come back. The keyboard works meanwhile.";
+                yield return new WaitForSecondsRealtime(1.5f);
+            }
+            CameraAccess = Access.Allowed;
+            UnityEngine.Debug.Log("DIGIPHANT camera access allowed");
+            askRoutine = null;
+            LaunchPackagedBridge();
+        }
 #endif
+
+        public enum Access { Unknown, Asking, Allowed, Denied }
+        /// <summary>macOS release builds: where the camera permission stands (the editor and Windows stay Unknown).</summary>
+        public Access CameraAccess { get; private set; } = Access.Unknown;
+
+        /// <summary>The home page's ALLOW CAMERA button: opens System Settings > Privacy &amp; Security > Camera.</summary>
+        public void OpenCameraSettings() => Application.OpenURL("x-apple.systempreferences:com.apple.preference.security?Privacy_Camera");
 #if UNITY_EDITOR
         bool SyncTrackingOverrides(string folder)
         {
@@ -264,10 +302,16 @@ namespace DigiPhant
             {
                 bridgeOutput += args.Data + "\n";
                 if (bridgeOutput.Length > 4000) bridgeOutput = bridgeOutput.Substring(bridgeOutput.Length - 4000);
+                // Release builds have no console: the bridge's first lines go to Player.log, so camera problems can be read afterwards
+                if (!Application.isEditor && loggedBridgeLines < 60) { loggedBridgeLines++; UnityEngine.Debug.Log("DIGIPHANT bridge: " + args.Data); }
             }
         }
+        int loggedBridgeLines;
         public void StopPreview()
         {
+#if !UNITY_EDITOR
+            if (askRoutine != null) { StopCoroutine(askRoutine); askRoutine = null; }
+#endif
             receiver?.Close(); receiver = null;
             if (ownedBridge != null)
             {

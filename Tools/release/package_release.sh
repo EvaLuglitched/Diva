@@ -22,8 +22,12 @@ if [ -d "$APP" ]; then
   plutil -replace NSCameraUsageDescription -string "Diva reads your body movements from the camera to drive the elephant. Everything runs on this Mac; nothing is uploaded." "$PL"
   plutil -replace CFBundleDisplayName -string "Diva" "$PL"
   plutil -replace CFBundleShortVersionString -string "${VERSION#v}" "$PL"
-  codesign --force --deep --sign - "$M/Diva.app" >/dev/null 2>&1
+  # A real signing identity keeps macOS's camera permission across rebuilds (an ad-hoc signature changes every build,
+  # so a switched-on camera setting stops matching). SIGN_IDENTITY overrides; else the first Apple Development / Developer ID.
+  IDENT="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | grep -E 'Developer ID Application|Apple Development' | head -1 | awk '{print $2}')}"
+  codesign --force --deep --sign "${IDENT:--}" "$M/Diva.app" >/dev/null 2>&1
   codesign --verify --deep "$M/Diva.app"
+  echo "macOS signed with ${IDENT:-ad-hoc}"
   cp "$ROOT/Tools/release/READ ME (macOS).txt" "$M/"
   (cd "$STAGE" && ditto -c -k --keepParent "Diva $VERSION (macOS)" "$OUT/Diva-$VERSION-macOS-AppleSilicon.zip")
   echo "macOS: $(du -h "$OUT/Diva-$VERSION-macOS-AppleSilicon.zip" | cut -f1)"
