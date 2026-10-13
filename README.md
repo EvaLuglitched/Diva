@@ -21,17 +21,19 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
 
-## Download v1.0
+## Download v1.1
 
-Ready-to-play builds: **https://github.com/EvaLuglitched/Diva/releases/tag/v1.0**
+Ready-to-play builds: **https://github.com/EvaLuglitched/Diva/releases/tag/v1.1** (the newest release is always at https://github.com/EvaLuglitched/Diva/releases/latest)
 
-| Platform | File | Camera gestures |
-| --- | --- | --- |
-| macOS, Apple silicon (M1 and newer) | [Diva-v1.0-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.0/Diva-v1.0-macOS-AppleSilicon.zip) | built in: allow the camera when macOS asks |
-| Windows 10 / 11, 64-bit | [Diva-v1.0-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.0/Diva-v1.0-Windows-x64.zip) | run `DivaTracking\setup_camera.bat` once (needs Python 3.10+) |
-| Apple Vision Pro | [Diva-VR-v1.0-visionOS.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.0/Diva-VR-v1.0-visionOS.zip) | headset hand tracking; installs on the team's registered headsets |
+| Platform | File | First start | Camera gestures |
+| --- | --- | --- | --- |
+| macOS, Apple silicon (M1 and newer) | [Diva-v1.1-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
+| Windows 10 / 11, 64-bit | [Diva-v1.1-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks |
+| Apple Vision Pro | [Diva-VR-v1.1-visionOS.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-VR-v1.1-visionOS.zip) | development-signed: installs on the team's registered headsets | headset hand tracking |
 
-The keyboard works in every desktop build without a camera. Each zip has a short READ ME.
+The keyboard works in every desktop build without a camera. Each zip has a short READ ME. The very first camera start
+on a computer takes longer while the tracking prepares itself once (Mac about 17 s, Windows about 6 s); later starts
+take a few seconds.
 
 ## Movement → control mapping
 
@@ -117,7 +119,7 @@ Optional: the sky rocket and clouds are Fab models whose licence does not allow 
 | `Assets/SavannahCourse/`, `Assets/StudentWork/` | The instructor's savannah course package and an earlier student scene, kept for reference |
 | `Assets/Settings/` | URP pipeline assets (`PC_*` desktop, `Mobile_*` headset) |
 | `TrackingOverrides/` | Our modified Python bridge and gesture rules (locked), `requirements.txt` and 93 tests |
-| `Tools/` | `setup_tracking_mac.sh` (the reconstruction script above), `release/` (packing the downloads), `bridge_app/` (the camera bridge inside the macOS app) |
+| `Tools/` | `setup_tracking_mac.sh` (the reconstruction script above), `release/` (packing the downloads), `bridge_app/` (the self-contained camera bridge for the macOS app and the Windows download), `perf_sim/` (checks the frame-rate guard outside Unity) |
 | `Art/` | Blender script that builds the town kit (the `.blend` itself is not tracked) |
 | `docs/` | Notes for people: how to play ([DIVA_TRY_IT](docs/DIVA_TRY_IT.md)), Eva's log ([EVA_UPDATES](docs/EVA_UPDATES.md)), team notes ([NOTE_FOR_EVA](docs/NOTE_FOR_EVA.md), [NOTE_FOR_VICKY](docs/NOTE_FOR_VICKY.md)), [ROADMAP](docs/ROADMAP.md), [PLAYTEST_TODO](docs/PLAYTEST_TODO.md), [FAB_SETUP](docs/FAB_SETUP.md), the starter's [DIGIPHANT_CONTROLS](docs/DIGIPHANT_CONTROLS.md) |
 
@@ -132,18 +134,25 @@ Details in [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md).
 
 ## Verification
 
-Latest checks (2026-10-13, macOS, M1 Max), all automated unless stated:
+v1.1 checks (2026-10-13), automated unless stated:
 
-- 93 Python tests in `TrackingOverrides/` pass, including the gesture-lock test.
-- Unity validators pass: startup / START flow, scene setup, stationary turning, trial export.
-- A full automatic round in batch mode (keyboard path, single player): candy, golden target, ON FIRE, ultimate, ice wall,
-  all four tasks, finish line, gold lap, hero card, highlight, results, play again. A three-player run through the camera
-  check with a fake camera bridge: calibration, P1 walks, P2 turns, P3 sprays and drinks.
-- macOS standalone build at 3456×2168: 106 fps at native resolution, a steady 120 fps with the frame-rate guard
-  (checked by a person at the screen).
-- Not automated: live camera play. Full three-person performance, the latest thumbs-up refill and head-tilt steering
-  on a real camera, and a fresh recording still need a physical test; see [docs/PLAYTEST_TODO.md](docs/PLAYTEST_TODO.md)
-  and the limitations in [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md).
+- 93 Python tests in `TrackingOverrides/` pass, including the gesture-lock test, and the starter's 3 recording tests.
+- Unity validators pass with 0 compile errors: startup / START flow, gesture scene setup, stationary turning, trial export.
+- A full automatic round in batch mode (keyboard path, single player), twice: candy, golden target, ON FIRE, ultimate,
+  ice wall, all four tasks, finish line, gold lap (33.8 s), highlight, results, play again. A three-player run through
+  the camera check with a fake camera bridge: calibration, P1 walks, P2 turns, P3 sprays and drinks.
+- Frame-rate guard: `Tools/perf_sim` runs the real `DivaShowPerf.cs` on four simulated loads (CPU-bound by the camera
+  tracking, GPU-bound, very heavy, light) and all checks pass; the v1.0 guard reproduces the 60 % resolution and 60 fps
+  lock of Carl's live round.
+- macOS (M1 Max, 3456×2168): Carl played a live single-player round with the camera on the release build: camera
+  permission, camera check, calibration, gold lap. About 113 fps at full resolution with the camera tracking running.
+  A copy marked as downloaded is stopped by Gatekeeper until it is allowed; once allowed, its camera bridge loads all
+  three models.
+- Windows, on GitHub's Windows Server 2025 machines (no webcam, software graphics): the v1.1 zip unpacked into
+  Downloads; `Diva.exe` reaches the home page in about 4 s and starts its built-in bridge, which loads the models
+  (first start 4.6 s, later 1.2 s) and reports that there is no camera.
+- Not tested yet: live camera play on a Windows PC, a full three-person live performance and a fresh recording; see
+  [docs/PLAYTEST_TODO.md](docs/PLAYTEST_TODO.md) and the limitations in [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md).
 
 ## Credits and licences
 

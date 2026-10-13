@@ -2,16 +2,14 @@ Diva for Windows (10 or 11, 64-bit)
 Team Diva: Eva, Carl, Vicky · DesComp Project 2 (DigiPhant) · https://github.com/EvaLuglitched/Diva
 
 PLAY
-1. Unzip the whole folder (keep Diva.exe, Diva_Data, DivaTracking and the other files together).
-2. Run Diva.exe. If Windows SmartScreen appears: More info > Run anyway.
-   The keyboard works right away (controls below).
-
-CAMERA GESTURES (once)
-1. Install Python 3.10 or newer from https://www.python.org/downloads/ (tick "Add python.exe to PATH").
-2. Double-click DivaTracking\setup_camera.bat. It installs MediaPipe and OpenCV into DivaTracking\.venv (needs internet).
-3. Start Diva.exe again: the camera starts by itself. If it stays dark: Settings > Privacy & security > Camera >
-   allow camera access and allow desktop apps.
-The tracking runs on this computer; nothing is uploaded.
+1. Unzip the whole folder first (do not run it from inside the zip). Keep Diva.exe, Diva_Data and DivaTracking together.
+2. Run Diva.exe. If Windows SmartScreen appears: More info > Run anyway (the game has no publisher certificate).
+3. The camera starts by itself: the body tracking (MediaPipe) is built in, no Python or setup needed, and nothing is
+   uploaded. If Windows asks whether Diva may use the camera, allow it. The very first camera start takes about
+   20 s (it prepares the tracking once); after that a few seconds.
+   If the picture stays dark: Settings > Privacy & security > Camera > turn on "Camera access" and
+   "Let desktop apps access your camera", close other apps that use the camera (Teams, Zoom), then click Retry.
+The keyboard works at any time, with or without the camera.
 
 CONTROLS (one player does everything; 3 PLAYERS splits them left to right)
   Walk / run ........ pump both arms up and down            keyboard W
@@ -23,4 +21,5 @@ CONTROLS (one player does everything; 3 PLAYERS splits them left to right)
   Menus ............. raise one arm = next skin, both hands up = start    arrows, Enter
   F1 setup panel · F2 frame rate · Esc skip
 
-Note: this Windows build was made on a Mac and has not been played on a Windows PC by the team yet.
+Tested on Windows Server 2025 (GitHub Actions, no webcam): the game, the tracking start-up and the models.
+Live camera play on a Windows PC: not yet tested by the team.

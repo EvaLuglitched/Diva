@@ -52,3 +52,6 @@ Thumbs.db
 /Assets/DigiPhant/Scenes/Diva.meta
 # Written by the Performance Testing package during builds
 /Assets/Resources/PerformanceTestRun*
+# perf_sim (dotnet) build output
+/Tools/perf_sim/bin/
+/Tools/perf_sim/obj/

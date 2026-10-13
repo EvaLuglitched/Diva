@@ -18,6 +18,27 @@ def _here():
     return os.path.dirname(os.path.abspath(__file__))
 
 
+def _keep_font_cache():
+    """PyInstaller's matplotlib hook points MPLCONFIGDIR at a new temporary folder on every launch, so importing
+    mediapipe (which imports matplotlib) rebuilt the font cache every time: about 15 s before the first camera frame.
+    This is a onedir build, so the font paths never move; keep the cache in a lasting folder, one per install location
+    (a moved app gets a fresh cache instead of stale paths). If the folder cannot be written, the hook's temp folder
+    stays: slower, but it still works."""
+    if not getattr(sys, 'frozen', False):
+        return
+    import hashlib
+    if sys.platform == 'darwin':
+        base = os.path.join(os.path.expanduser('~'), 'Library', 'Caches')
+    else:
+        base = os.environ.get('LOCALAPPDATA') or os.path.join(os.path.expanduser('~'), '.cache')
+    path = os.path.join(base, 'Diva', 'matplotlib-' + hashlib.sha1(_here().encode('utf-8')).hexdigest()[:12])
+    try:
+        os.makedirs(path, exist_ok=True)
+        os.environ['MPLCONFIGDIR'] = path
+    except OSError:
+        pass
+
+
 def selftest(folder):
     import numpy as np
     import cv2  # noqa: F401  (the bridge needs it; make sure it loads)
@@ -45,6 +66,7 @@ def selftest(folder):
 
 
 def main():
+    _keep_font_cache()
     folder = _here()
     if folder not in sys.path:
         sys.path.insert(0, folder)

@@ -133,6 +133,11 @@ namespace Diva.Show
             }
 
             // Eva: no calibration on the home page any more; it happens on the camera check after START.
+            if (allowCamera)
+            {
+                bool denied = cameraPreview && cameraPreview.CameraAccess == DigiPhant.DigiPhantCameraPreview.Access.Denied;
+                if (allowCamera.gameObject.activeSelf != denied) allowCamera.gameObject.SetActive(denied);
+            }
             string status;
             if (!controller || controller.inputMode != DigiPhant.InputMode.Camera) status = DivaText.T("status.test");
             else status = CameraProblem() ?? DivaText.T("status.start");

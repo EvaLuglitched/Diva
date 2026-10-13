@@ -79,6 +79,7 @@ namespace Diva.Show
                                   "举起一只手切换  ·  双手举过头顶停一下开始"),
             ["select.keys"] = ("← → switch   ·   Enter start   ·   drag to turn", "← → 切换   ·   回车开始   ·   拖动旋转"),
             ["select.skin"] = ("SKIN {0}/{1}", "涂装 {0}/{1}"),
+            ["select.allowcamera"] = ("ALLOW CAMERA", "允许摄像头"),
 
             ["status.test"] = ("Test controls: keyboard and sliders", "测试模式：键盘和滑块控制"),
             ["status.waiting"] = ("Step into the camera view", "请站到摄像头前"),

@@ -12,7 +12,7 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
 # ---------- macOS (Apple silicon): the bridge goes inside the app, so camera gestures need no Python
-APP="$ROOT/Builds/Release/macOS/Diva.app"
+APP="${MAC_APP:-$ROOT/Builds/Release/macOS/Diva.app}"  # MAC_APP: repackage an app that is not in Builds/ (e.g. after a bridge-only fix)
 if [ -d "$APP" ]; then
   M="$STAGE/Diva $VERSION (macOS)"; mkdir -p "$M"
   cp -R "$APP" "$M/Diva.app"
@@ -22,25 +22,36 @@ if [ -d "$APP" ]; then
   plutil -replace NSCameraUsageDescription -string "Diva reads your body movements from the camera to drive the elephant. Everything runs on this Mac; nothing is uploaded." "$PL"
   plutil -replace CFBundleDisplayName -string "Diva" "$PL"
   plutil -replace CFBundleShortVersionString -string "${VERSION#v}" "$PL"
-  codesign --force --deep --sign - "$M/Diva.app" >/dev/null 2>&1
+  # A real signing identity keeps macOS's camera permission across rebuilds (an ad-hoc signature changes every build,
+  # so a switched-on camera setting stops matching). SIGN_IDENTITY overrides; else the first Apple Development / Developer ID.
+  IDENT="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | grep -E 'Developer ID Application|Apple Development' | head -1 | awk '{print $2}')}"
+  codesign --force --deep --sign "${IDENT:--}" "$M/Diva.app" >/dev/null 2>&1
   codesign --verify --deep "$M/Diva.app"
+  echo "macOS signed with ${IDENT:-ad-hoc}"
   cp "$ROOT/Tools/release/READ ME (macOS).txt" "$M/"
   (cd "$STAGE" && ditto -c -k --keepParent "Diva $VERSION (macOS)" "$OUT/Diva-$VERSION-macOS-AppleSilicon.zip")
   echo "macOS: $(du -h "$OUT/Diva-$VERSION-macOS-AppleSilicon.zip" | cut -f1)"
 fi
 
-# ---------- Windows (64-bit): the bridge sources and models next to Diva.exe; setup_camera.bat makes the Python environment once
+# ---------- Windows (64-bit). With WIN_BRIDGE=<a frozen Windows bridge, Tools/bridge_app/build_windows_bridge.ps1 output
+# dist\diva_bridge> it goes in as DivaTracking/diva_bridge and players need no Python (how v1.1 shipped: that bridge was
+# built on GitHub's Windows machines). Without it: the bridge sources and models, and setup_camera.bat makes a Python
+# environment once on the player's PC.
 WIN="$ROOT/Builds/Release/Windows/Diva"
 if [ -d "$WIN" ]; then
   W="$STAGE/Diva $VERSION (Windows)"; mkdir -p "$W"
   cp -R "$WIN/." "$W/"
-  rm -rf "$W/Diva_BurstDebugInformation_DoNotShip"
+  rm -rf "$W/Diva_BurstDebugInformation_DoNotShip" "$W/Diva_BackUpThisFolder_ButDontShipItWithYourGame"   # Unity: not for players
   T="$W/DivaTracking"; mkdir -p "$T"
+  if [ -n "${WIN_BRIDGE:-}" ]; then cp -R "$WIN_BRIDGE" "$T/diva_bridge"; else
   cp "$ROOT/TrackingOverrides/bridge.py" "$ROOT/TrackingOverrides/diva_gestures.py" "$ROOT/TrackingOverrides/diva_gestures.json" "$ROOT/TrackingOverrides/requirements.txt" "$T/"
   cp "$MODELS/pose_landmarker_full.task" "$MODELS/hand_landmarker.task" "$MODELS/gesture_recognizer.task" "$T/"
-  cp "$ROOT/Tools/release/setup_camera.bat" "$T/"
+  cp "$ROOT/Tools/bridge_app/diva_bridge.py" "$T/"   # setup_camera.bat runs its model check
+  perl -pe 's/\r?\n/\r\n/' "$ROOT/Tools/release/setup_camera.bat" > "$T/setup_camera.bat"   # Windows line endings for cmd
+  fi
   cp "$ROOT/Tools/release/READ ME (Windows).txt" "$W/"
-  (cd "$STAGE" && ditto -c -k --keepParent "Diva $VERSION (Windows)" "$OUT/Diva-$VERSION-Windows-x64.zip")
+  # no macOS extended attributes: they would unpack on Windows as a "._" twin of every file
+  (cd "$STAGE" && ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "Diva $VERSION (Windows)" "$OUT/Diva-$VERSION-Windows-x64.zip")
   echo "Windows: $(du -h "$OUT/Diva-$VERSION-Windows-x64.zip" | cut -f1)"
 fi
 

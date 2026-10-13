@@ -7,8 +7,10 @@ namespace Diva.Show
     /// <summary>
     /// 桌面版的帧率守护（目标机器：M1 / M2 Max 的 MacBook Pro，3456×2234 的 Retina 屏，ProMotion 120 Hz）。
     /// · 开垂直同步、不限帧：画面跟着显示器走（120 Hz 的屏就是 120 fps），没有撕裂，帧与帧之间的节奏均匀，这比"越高越好"更丝滑。
-    /// · 每 2 秒看一次平均帧时间：跟不上显示器的刷新率就把 URP 的渲染分辩率往下调一档（最低 0.7，画面只是略软一点），
-    ///   余量够了再慢慢升回去。改的是内存里的管线资源，退出时还原（编辑器里不会把改动存进工程）。
+    /// · 每 2 秒看一次平均帧时间：跟不上显示器的刷新率就把 URP 的渲染分辩率往下调一档（最低 minScale），余量够了再慢慢升回去。
+    ///   降了一档帧时间却没变好，说明慢在 CPU（摄像头识别在抢处理器），降分辩率只会让画面变软：马上退回去。
+    ///   只差一点（比如 110 fps）就留在全速全分辩率；差很多（不到 96 fps）才锁到半速 60，之后每 30 秒试一次能不能回全速。
+    ///   改的是内存里的管线资源，退出时还原（编辑器里不会把改动存进工程）。
     /// 头显（DivaVRRig 自己管画质）和后台测试不挂它。
     /// </summary>
     public class DivaShowPerf : MonoBehaviour
@@ -29,7 +31,12 @@ namespace Diva.Show
 
         UniversalRenderPipelineAsset urp;
         float baseScale = 1, scale = 1, sum, worst, hold, nextReport;
-        int frames, previousVSync, previousTarget, misses, hits;
+        int frames, previousVSync, previousTarget, misses;
+        // 刚降过一档：降之前的帧时间和分辩率（下一次测量用来判断降分辩率有没有用）
+        bool checkingDrop, probing;
+        float msBeforeDrop, scaleBeforeDrop, noDropUntil, nextProbe;
+        /// <summary>Below 1/1.25 of the display rate (96 fps on 120 Hz) a steady half rate is smoother than judder.</summary>
+        const float SevereMiss = 1.25f;
 
         void Start()
         {
@@ -82,24 +89,60 @@ namespace Diva.Show
             if (Time.unscaledTime > nextReport) { nextReport = Time.unscaledTime + 10; Debug.Log($"DIVA_SHOW perf: {frames / sum:0} fps ({AverageMs:0.0} ms avg, worst {worst * 1000:0} ms) scale {scale:0.00} vsync {VSync} at {Screen.width}x{Screen.height}"); }
             if (adaptive && urp)
             {
-                // 流畅优先：差 8% 就降一档；要升回去得有 30% 的余量，而且是慢慢升
-                float next = scale;
-                bool miss = AverageMs > budget * 1.08f;
-                if (miss) next = Mathf.Max(minScale, scale - .1f);
-                else if (AverageMs < budget * .7f) next = Mathf.Min(baseScale, scale + .05f);
-                if (Mathf.Abs(next - scale) > .001f)
+                if (VSync == 1) AdaptAtFullRate(budget);
+                else if (Time.unscaledTime > nextProbe)
                 {
-                    scale = next; urp.renderScale = scale; hold = 3;   // 改分辩率要重建渲染目标，隔 3 秒再量
-                    Debug.Log($"DIVA_SHOW perf: {AverageMs:0.0} ms/frame (worst {worst * 1000:0}) vs {budget:0.0} ms budget -> render scale {scale:0.00}");
+                    // 半速时帧时间被垂直同步卡在两次刷新上，看不出余量：隔一阵试一次全速，跟得上就留下
+                    VSync = 1; QualitySettings.vSyncCount = 1; probing = true; hold = 1;
                 }
-                // 最低分辩率还是跟不上：锁到显示器的一半刷新率（120 Hz 屏就是稳稳的 60），比在 120 / 60 之间来回抖舒服得多；
-                // 之后在满分辩率下余量很大（平均帧时间不到一半预算）再回到全速
-                misses = miss && scale <= minScale + .001f ? misses + 1 : 0;
-                hits = !miss && scale >= baseScale - .001f && AverageMs < budget * .45f ? hits + 1 : 0;
-                if (halfRateFallback && VSync == 1 && misses >= 2) { VSync = 2; QualitySettings.vSyncCount = 2; misses = 0; hold = 3; Debug.Log($"DIVA_SHOW perf: cannot hold {RefreshHz:0} Hz at scale {scale:0.00} -> steady {RefreshHz / 2:0} fps"); }
-                else if (VSync == 2 && hits >= 5) { VSync = 1; QualitySettings.vSyncCount = 1; hits = 0; hold = 3; Debug.Log($"DIVA_SHOW perf: headroom -> back to {RefreshHz:0} Hz"); }
             }
             sum = worst = 0; frames = 0;
+        }
+
+        void AdaptAtFullRate(float budget)
+        {
+            if (probing)
+            {
+                probing = false;
+                if (AverageMs > budget * SevereMiss) { HalfRate("still cannot hold"); return; }
+                Debug.Log($"DIVA_SHOW perf: headroom ({AverageMs:0.0} ms/frame) -> back to {RefreshHz:0} Hz");
+            }
+            // 降了一档之后帧时间没有变好（不到 4%）：慢在 CPU，不在显卡。退回原来的分辩率，一阵子之内不再因为这个降
+            if (checkingDrop)
+            {
+                checkingDrop = false;
+                if (AverageMs > msBeforeDrop * .96f)
+                {
+                    noDropUntil = Time.unscaledTime + 45;
+                    SetScale(scaleBeforeDrop, $"lower resolution did not help ({msBeforeDrop:0.0} -> {AverageMs:0.0} ms/frame, CPU-bound)");
+                    return;
+                }
+            }
+            // 流畅优先：差 8% 就降一档；要升回去得有 30% 的余量，而且是慢慢升
+            bool miss = AverageMs > budget * 1.08f;
+            if (miss && scale > minScale + .001f && Time.unscaledTime >= noDropUntil)
+            {
+                msBeforeDrop = AverageMs; scaleBeforeDrop = scale; checkingDrop = true;
+                SetScale(Mathf.Max(minScale, scale - .1f), $"{AverageMs:0.0} ms/frame (worst {worst * 1000:0}) vs {budget:0.0} ms budget");
+                return;
+            }
+            if (!miss && AverageMs < budget * .7f && scale < baseScale - .001f) { SetScale(Mathf.Min(baseScale, scale + .05f), "headroom"); return; }
+            // 分辩率降到底了、或者降了也没用，还差很多：锁到显示器一半的刷新率（120 Hz 屏就是稳稳的 60）。只差一点就留在全速
+            bool cannotScale = scale <= minScale + .001f || Time.unscaledTime < noDropUntil;
+            misses = AverageMs > budget * SevereMiss && cannotScale ? misses + 1 : 0;
+            if (halfRateFallback && misses >= 2) HalfRate("cannot hold");
+        }
+
+        void HalfRate(string why)
+        {
+            VSync = 2; QualitySettings.vSyncCount = 2; misses = 0; hold = 3; nextProbe = Time.unscaledTime + 30;
+            Debug.Log($"DIVA_SHOW perf: {why} {RefreshHz:0} Hz ({AverageMs:0.0} ms/frame at scale {scale:0.00}) -> steady {RefreshHz / 2:0} fps");
+        }
+
+        void SetScale(float value, string why)
+        {
+            scale = value; urp.renderScale = value; hold = 3;   // 改分辩率要重建渲染目标，隔 3 秒再量
+            Debug.Log($"DIVA_SHOW perf: {why} -> render scale {value:0.00}");
         }
     }
 }
