@@ -87,9 +87,7 @@ namespace Diva.Show
                 wayAt = coachTask.landmark.position;
                 var to = Vector3.ProjectOnPlane(wayAt - elephant.position, Vector3.up);
                 wayDist = to.magnitude;
-                beacon.position = wayAt + Vector3.up * 7;
-                float pulse = .8f + .2f * Mathf.Sin(t * 3);
-                Tint(beaconMat, new Color(1f, .6f, .9f, .3f * pulse));
+                if (beacon) { beacon.position = wayAt + Vector3.up * 7; Tint(beaconMat, new Color(1f, .6f, .9f, .3f * (.8f + .2f * Mathf.Sin(t * 3)))); }
                 // 吃 / 喝 = 竖拇指；跨木头 = 继续跑过去；终点只要到达
                 wayAct = coachTask.check == TaskCheck.CurlTrunk ? ((coachTask.label ?? "").ToLowerInvariant().Contains("drink") ? "coach.drink" : "coach.eat")
                        : coachTask.check == TaskCheck.LiftLegs ? "coach.log" : null;
