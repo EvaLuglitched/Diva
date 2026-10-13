@@ -12,10 +12,13 @@ import math
 from numbers import Real
 from pathlib import Path
 
-DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
-                go_stop_delay=.35, go_step=.045, go_hand_min_height=-1.25,
+# 2026-10-13 (approved by Eva, GESTURES_LOCKED.md): walking made easier for beginners. One arm swinging go_range
+# while the other moves at least go_range_other walks (was: both arms .14); slower, uneven swings, swings down to
+# the thighs, fast swings that blur the wrists and pumping through the top of the head all keep walking.
+DEFAULTS = dict(min_quality=.30, go_window=1.0, go_range=.10, go_range_other=.05,
+                go_stop_delay=.5, go_step=.03, go_hand_min_height=-1.8,
                 # Wrists unclear for less than this (blur, frame edge) keep the swing history and the walking state.
-                go_dropout=.3,
+                go_dropout=.5,
                 # Steering = tilting the shoulders or the head toward one side (no hips needed). Tilt is the slope of
                 # the shoulder line or the ear (eye) line relative to the calibrated neutral; the larger one counts.
                 steer_tilt_start=.14, steer_tilt_release=.08,
@@ -33,7 +36,8 @@ DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
                 # Aim while spraying: both hands pushed toward one side (shooting keeps hands below aim_height).
                 shoot_aim_full_offset=.35, shoot_aim_deadzone=.06,
                 # Ultimate: both wrists well above the head (torso lengths above the shoulders), held still.
-                ult_height=.85, ult_hold=.8)
+                # Walking stops only once both hands have stayed up ult_walk_hold, so pumping high keeps walking.
+                ult_height=.85, ult_hold=.8, ult_walk_hold=.4)
 
 def val(point,name,default=0.):
     # MediaPipe hand landmarks carry visibility/presence = None (only pose landmarks fill them): use the default,
@@ -261,13 +265,13 @@ class DivaGestureDetector:
         ranges=[max(r[1][i] for r in history)-min(r[1][i] for r in history) for i in (0,1)]
         since_motion=time-self.last_motion.get(slot,-999)
         if (len(history)>=4 and time-history[0][0]>=.25 and min(heights)>cfg['go_hand_min_height']
-                and min(ranges)>cfg['go_range'] and since_motion<cfg['go_stop_delay']):
+                and max(ranges)>cfg['go_range'] and min(ranges)>cfg['go_range_other'] and since_motion<cfg['go_stop_delay']):
             out['go']=1.
         # Why GO is on or off this frame (first failing condition), for the bridge's debug log.
         reason=('go' if out['go'] else 'frame-gap-reset' if gap_reset
                 else 'warming-up' if len(history)<4 or time-history[0][0]<.25
                 else 'hands-too-low' if min(heights)<=cfg['go_hand_min_height']
-                else 'swing-too-small' if min(ranges)<=cfg['go_range']
+                else 'swing-too-small' if max(ranges)<=cfg['go_range'] or min(ranges)<=cfg['go_range_other']
                 else 'paused' )
         go_numbers=dict(left_h=round(heights[0],2),right_h=round(heights[1],2),left_range=round(ranges[0],3),
                         right_range=round(ranges[1],3),since_motion=round(min(since_motion,9.99),2),
@@ -281,12 +285,13 @@ class DivaGestureDetector:
         raised=[h>cfg['aim_height'] for h in heights]
         if raised[0]!=raised[1]:out['aim']=-1. if raised[0] else 1.
         # Ultimate: both hands above the head and held there. Pumping (go) passes through this height
-        # only briefly, so the hold time keeps them apart; the pose itself never walks the elephant.
+        # only briefly, so the hold time keeps them apart: walking stops once the hands stay up ult_walk_hold.
         if min(heights)>cfg['ult_height']:
             since=self.ult_since.setdefault(slot,time)
             out['ult']=time-since>=cfg['ult_hold']
-            if out['go']:reason='hands-above-head'
-            out['go']=0.
+            if time-since>=cfg['ult_walk_hold']:
+                if out['go']:reason='hands-above-head'
+                out['go']=0.
         else:
             self.ult_since.pop(slot,None)
         self.last_go[slot]=out['go']

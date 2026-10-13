@@ -1,5 +1,5 @@
 """Walking (GO) relaxations: a full arm swing down to the hips still walks, a brief wrist dropout (<0.3 s) keeps the
-walking state and swing history, and every frame records why GO is on or off (the bridge logs it)."""
+walking state and swing history (0.5 s since 2026-10-13), and every frame records why GO is on or off (the bridge logs it)."""
 import math
 import unittest
 from diva_gestures import DivaGestureDetector, DEFAULTS
@@ -35,7 +35,7 @@ class RelaxedGoTests(unittest.TestCase):
     def test_long_wrist_dropout_stops_and_clears(self):
         d = DivaGestureDetector()
         for i in range(45): d.update(1, swing(i), i / 30)
-        for i in range(45, 60):                                  # 0.5 s of unclear wrists
+        for i in range(45, 66):                                  # 0.7 s of unclear wrists (hold limit 0.5 s)
             b = swing(i); b[15]['visibility'] = b[16]['visibility'] = .01
             g = d.update(1, b, i / 30)
         self.assertEqual(g['go'], 0.)
@@ -56,8 +56,8 @@ class RelaxedGoTests(unittest.TestCase):
         self.assertEqual(d.go_debug[1]['reason'], 'frame-gap-reset')
 
     def test_defaults(self):
-        self.assertEqual(DEFAULTS['go_hand_min_height'], -1.25)
-        self.assertEqual(DEFAULTS['go_dropout'], .3)
+        self.assertEqual(DEFAULTS['go_hand_min_height'], -1.8)   # 2026-10-13: down to the thighs (was -1.25)
+        self.assertEqual(DEFAULTS['go_dropout'], .5)             # 2026-10-13: 0.5 s (was 0.3 s)
 
 
 if __name__ == '__main__':

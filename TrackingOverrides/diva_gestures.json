@@ -1,10 +1,10 @@
 {
   "min_quality": 0.3,
-  "go_window": 0.8,
-  "go_range": 0.14,
-  "go_stop_delay": 0.35,
-  "go_step": 0.045,
-  "go_hand_min_height": -1.25,
+  "go_window": 1.0,
+  "go_range": 0.1,
+  "go_stop_delay": 0.5,
+  "go_step": 0.03,
+  "go_hand_min_height": -1.8,
   "steer_direction": -1.0,
   "aim_height": 0.65,
   "hand_match_distance": 0.55,
@@ -25,9 +25,11 @@
   "thumb_extension": 0.5,
   "curled_angle_max": 135.0,
   "thumb_model_score": 0.5,
-  "go_dropout": 0.3,
+  "go_dropout": 0.5,
   "steer_tilt_start": 0.14,
   "steer_tilt_release": 0.08,
   "steer_tilt_full": 0.4,
-  "steer_dropout": 0.3
+  "steer_dropout": 0.3,
+  "go_range_other": 0.05,
+  "ult_walk_hold": 0.4
 }
