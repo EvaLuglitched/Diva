@@ -68,7 +68,7 @@ namespace Diva.Show
             bool fast = speed >= locomotion.runSpeed * .88f || Dashing;
             rushTime = fast ? rushTime + dt : 0;
             if (boosting && !fast) boosting = false;
-            if (!boosting && rushTime > 1 && Time.time > rushCooldown)
+            if (boosterRush && !boosting && rushTime > 1 && Time.time > rushCooldown)
             {
                 boosting = true; rushCooldown = Time.time + 8;
                 if (look) look.Pulse(.6f);

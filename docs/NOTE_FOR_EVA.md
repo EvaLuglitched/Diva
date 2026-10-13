@@ -1,9 +1,10 @@
 # Note for Eva (from Carl): how the show uses your intro
 
-## 2026-10-13 (night) — Windows v1.3: your v1.2 / v1.3 changes on Windows, camera switch, 60 fps cap keeps adapting
+## 2026-10-13 (night) — Windows v1.3 and v1.4: your v1.2–v1.4 changes on Windows, camera switch, 60 fps cap keeps adapting
 
 Carl asked to bring Windows up to date: it was still on v1.1 (no re-lock, no recovery, no auto restart, old walking rule).
-Branch `carl/windows-v1.3`, from `main` at your v1.3 (`e9eda40`). Nothing in the gesture rules, the bridge or your intro changed.
+Branch `carl/windows-v1.3`, from `main` at your v1.3 (`e9eda40`), then `carl/windows-v1.4` with your v1.4 merged in (the
+final presentation version). Nothing in the gesture rules, the bridge or your intro changed.
 
 | Where | What | Why |
 | --- | --- | --- |
@@ -13,7 +14,7 @@ Branch `carl/windows-v1.3`, from `main` at your v1.3 (`e9eda40`). Nothing in the
 | `DivaText.cs` | Camera check key hint: "C: next camera" | |
 | `Tools/release/READ ME (Windows).txt` | How to switch cameras; tracking restarts by itself | |
 
-The Windows bridge (`diva_bridge.exe`) was frozen from v1.3's `TrackingOverrides` on GitHub's Windows machines.
+Each Windows bridge (`diva_bridge.exe`) was frozen from that version's `TrackingOverrides` on GitHub's Windows machines.
 Tested there (no webcam, no GPU): self-test, a keyboard race with no errors, auto restart, C and F1 > Next camera.
 Not tested: live camera play on a Windows PC, switching between two real cameras.
 

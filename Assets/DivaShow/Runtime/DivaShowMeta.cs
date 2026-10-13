@@ -19,6 +19,8 @@ namespace Diva.Show
     public partial class DivaShowDirector
     {
         [Header("Race meta (shared by PC and VR)")]
+        [Tooltip("BOOSTER RUSH: after a second near top speed, a banner, a picture-in-picture, a camera FOV kick, speed lines and extra motion blur (no extra speed). Off by default (Eva, 2026-10-13): with the easier walking it fired all the time and felt like the elephant kept speeding up. The dash after the MEGA BUBBLE is separate and stays.")]
+        public bool boosterRush = false;
         [Tooltip("Candy on the course: points per candy (rockets give the same and a dash). Off = no candy.")]
         public bool candies = true;
         public int candyPoints = 15;

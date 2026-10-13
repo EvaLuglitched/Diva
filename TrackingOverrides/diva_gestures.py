@@ -15,8 +15,10 @@ from pathlib import Path
 # 2026-10-13 (approved by Eva, GESTURES_LOCKED.md): walking made easier for beginners. One arm swinging go_range
 # while the other moves at least go_range_other walks (was: both arms .14); slower, uneven swings, swings down to
 # the thighs, fast swings that blur the wrists and pumping through the top of the head all keep walking.
+# 2026-10-13 later (Eva): P1 stops on time. Motion is measured against the wrist 0.2 s ago, so landmark jitter no
+# longer counts as moving (with per-frame steps it kept walking up to 1 s after the arms stopped); pause 0.25 s.
 DEFAULTS = dict(min_quality=.30, go_window=1.0, go_range=.10, go_range_other=.05,
-                go_stop_delay=.5, go_step=.03, go_hand_min_height=-1.8,
+                go_stop_delay=.25, go_step=.04, go_motion_window=.2, go_hand_min_height=-1.8,
                 # Wrists unclear for less than this (blur, frame edge) keep the swing history and the walking state.
                 go_dropout=.5,
                 # Steering = tilting the shoulders or the head toward one side (no hips needed). Tilt is the slope of
@@ -255,10 +257,12 @@ class DivaGestureDetector:
         if gap_reset:
             self.reset(slot,preserve_neutral=True);history=self.history.setdefault(slot,deque())
         if history and min(heights)>cfg['go_hand_min_height']:
-            # go_step is motion over 100 ms, normalized by frame time. A 30 fps
-            # live camera must not need the larger jumps of a 10 fps dataset.
-            motion_step=cfg['go_step']*max(.01,time-history[-1][0])/.1
-            if max(abs(normalized[i]-history[-1][1][i]) for i in (0,1))>motion_step:
+            # go_step is motion over 100 ms, normalized by the time span. It is measured against the sample about
+            # go_motion_window ago (not the previous frame), so landmark jitter, which does not add up, never counts
+            # as motion: standing still is seen sooner and walking stops on time.
+            ref=next((h for h in reversed(history) if time-h[0]>=cfg['go_motion_window']),history[0])
+            motion_step=cfg['go_step']*max(.01,time-ref[0])/.1
+            if max(abs(normalized[i]-ref[1][i]) for i in (0,1))>motion_step:
                 self.last_motion[slot]=time
         history.append((time,normalized))
         while history and time-history[0][0]>cfg['go_window']:history.popleft()
