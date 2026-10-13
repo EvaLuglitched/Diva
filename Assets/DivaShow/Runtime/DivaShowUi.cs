@@ -73,9 +73,11 @@ namespace Diva.Show
         void BuildTop()
         {
             var a = new Vector2(1, 1);
-            DivaUi.Button(topRoot, "Language", a, new Vector2(-28, -24), new Vector2(190, 58), () => DivaText.T("lang"),
-                          Ink, Color.white, 30, DivaText.Toggle, 14);
-            DivaUi.Button(topRoot, "Setup", a, new Vector2(-236, -24), new Vector2(150, 58), () => DivaText.T("setup"),
+            // 中文切换先拿掉（DivaText.LanguageSwitch）；SETUP 挪到右上角原来语言按钮的位置
+            if (DivaText.LanguageSwitch)
+                DivaUi.Button(topRoot, "Language", a, new Vector2(-28, -24), new Vector2(190, 58), () => DivaText.T("lang"),
+                              Ink, Color.white, 30, DivaText.Toggle, 14);
+            DivaUi.Button(topRoot, "Setup", a, new Vector2(DivaText.LanguageSwitch ? -236 : -28, -24), new Vector2(150, 58), () => DivaText.T("setup"),
                           InkLight, new Color(1, 1, 1, .8f), 28, ToggleSetup, 14);
         }
 
