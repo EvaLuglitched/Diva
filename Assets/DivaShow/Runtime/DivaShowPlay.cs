@@ -188,12 +188,13 @@ namespace Diva.Show
         // ------------------------------------------------------------------ ultimate: MEGA BUBBLE
         Transform megaBubble;
         Vector3 ultOrigin, ultDirection, ultBubble;
-        bool ultPopped;
+        bool ultPopped, ultSmashedWall;
+        float ultSmashAt = -1;
         float ultRunStart;
 
         void EnterUlt()
         {
-            charge = 0; chargeReadyAnnounced = false; ultPopped = false;
+            charge = 0; chargeReadyAnnounced = false; ultPopped = false; ultSmashedWall = false;
             stats.ults++;
             ultRunStart = Time.time - runStart;
             replay.Mark(ultRunStart, "ult", 150, "skill.ult");
@@ -242,12 +243,15 @@ namespace Diva.Show
                 }
                 bonus += count * 10;
                 Feed(DivaText.F("feed.ult", DivaText.T("skill.ult"), count), Accent);
-                // 终点前的冰墙：泡泡飞过它就炸碎（DivaShowWall）
-                WallTryBreak(ultOrigin, ultDirection);
+                // 终点前的冰墙：泡泡飞过它就炸碎（DivaShowWall）——炸开那一下几乎定格，然后慢动作看碎冰飞，镜头从侧后方慢慢推进
+                ultSmashedWall = WallTryBreak(ultOrigin, ultDirection);
+                if (ultSmashedWall) { ultSmashAt = t; shake = .55f; sound.Play("whoosh", .7f, .45f); }
             }
-            // 爆开那一刻放慢
-            Time.timeScale = t > 1.45f && t < 2.2f ? .35f : 1;
-            if (t > 2.9f || skipEdge && t > .5f)
+            // 爆开那一刻放慢；炸了冰墙就慢更久（撞上那 0.35 秒几乎定格，之后 0.22 倍速看碎冰飞 2 秒多）
+            if (ultSmashedWall) Time.timeScale = t < 1.45f ? 1 : t < ultSmashAt + .35f ? .1f : t < ultSmashAt + 2.6f ? .22f : 1;
+            else Time.timeScale = t > 1.45f && t < 2.2f ? .35f : 1;
+            float ultEnd = ultSmashedWall ? ultSmashAt + 3.0f : 2.9f;
+            if (t > ultEnd || skipEdge && t > .5f)
             {
                 Time.timeScale = 1;
                 if (megaBubble) megaBubble.gameObject.SetActive(false);
@@ -275,7 +279,17 @@ namespace Diva.Show
                 var a = center + fwd * size * .95f + right * size * .25f + Vector3.down * size * .05f;
                 var b = center - fwd * size * .9f + right * size * 1.4f + Vector3.up * size * .6f;
                 var look = Vector3.Lerp(center + Vector3.up * size * .12f, Vector3.Lerp(center, ultBubble, .55f), k);
-                SetCamera(Vector3.Lerp(a, b, k), look, Mathf.Lerp(46, 58, k));
+                var pos = Vector3.Lerp(a, b, k); float fov = Mathf.Lerp(46, 58, k);
+                if (ultSmashedWall && t > ultSmashAt)
+                {
+                    // 冰墙炸开：就从这个侧后方的机位，慢慢往碎冰那里推，视线转向墙
+                    float st = DivaUi.Smooth((t - ultSmashAt) / 2.8f);
+                    var focus = WallFocus;
+                    pos += (focus - b).normalized * 3.2f * st;
+                    look = Vector3.Lerp(look, focus, .35f + .4f * st);
+                    fov = Mathf.Lerp(fov, 44, st);
+                }
+                SetCamera(pos, look, fov);
             }
         }
     }
