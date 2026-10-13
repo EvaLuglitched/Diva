@@ -33,19 +33,25 @@ if [ -d "$APP" ]; then
   echo "macOS: $(du -h "$OUT/Diva-$VERSION-macOS-AppleSilicon.zip" | cut -f1)"
 fi
 
-# ---------- Windows (64-bit): the bridge sources and models next to Diva.exe; setup_camera.bat makes the Python environment once
+# ---------- Windows (64-bit). With WIN_BRIDGE=<a frozen Windows bridge, Tools/bridge_app/build_windows_bridge.ps1 output
+# dist\diva_bridge> it goes in as DivaTracking/diva_bridge and players need no Python (how v1.1 shipped: that bridge was
+# built on GitHub's Windows machines). Without it: the bridge sources and models, and setup_camera.bat makes a Python
+# environment once on the player's PC.
 WIN="$ROOT/Builds/Release/Windows/Diva"
 if [ -d "$WIN" ]; then
   W="$STAGE/Diva $VERSION (Windows)"; mkdir -p "$W"
   cp -R "$WIN/." "$W/"
-  rm -rf "$W/Diva_BurstDebugInformation_DoNotShip"
+  rm -rf "$W/Diva_BurstDebugInformation_DoNotShip" "$W/Diva_BackUpThisFolder_ButDontShipItWithYourGame"   # Unity: not for players
   T="$W/DivaTracking"; mkdir -p "$T"
+  if [ -n "${WIN_BRIDGE:-}" ]; then cp -R "$WIN_BRIDGE" "$T/diva_bridge"; else
   cp "$ROOT/TrackingOverrides/bridge.py" "$ROOT/TrackingOverrides/diva_gestures.py" "$ROOT/TrackingOverrides/diva_gestures.json" "$ROOT/TrackingOverrides/requirements.txt" "$T/"
   cp "$MODELS/pose_landmarker_full.task" "$MODELS/hand_landmarker.task" "$MODELS/gesture_recognizer.task" "$T/"
   cp "$ROOT/Tools/bridge_app/diva_bridge.py" "$T/"   # setup_camera.bat runs its model check
   perl -pe 's/\r?\n/\r\n/' "$ROOT/Tools/release/setup_camera.bat" > "$T/setup_camera.bat"   # Windows line endings for cmd
+  fi
   cp "$ROOT/Tools/release/READ ME (Windows).txt" "$W/"
-  (cd "$STAGE" && ditto -c -k --keepParent "Diva $VERSION (Windows)" "$OUT/Diva-$VERSION-Windows-x64.zip")
+  # no macOS extended attributes: they would unpack on Windows as a "._" twin of every file
+  (cd "$STAGE" && ditto -c -k --norsrc --noextattr --noqtn --noacl --keepParent "Diva $VERSION (Windows)" "$OUT/Diva-$VERSION-Windows-x64.zip")
   echo "Windows: $(du -h "$OUT/Diva-$VERSION-Windows-x64.zip" | cut -f1)"
 fi
 
