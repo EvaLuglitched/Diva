@@ -242,6 +242,8 @@ namespace Diva.Show
                 }
                 bonus += count * 10;
                 Feed(DivaText.F("feed.ult", DivaText.T("skill.ult"), count), Accent);
+                // 终点前的冰墙：泡泡飞过它就炸碎（DivaShowWall）
+                WallTryBreak(ultOrigin, ultDirection);
             }
             // 爆开那一刻放慢
             Time.timeScale = t > 1.45f && t < 2.2f ? .35f : 1;

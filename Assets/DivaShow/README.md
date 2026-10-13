@@ -82,7 +82,19 @@
 | BUBBLE REFILL 泡泡补给 | 开始喝水（6 秒冷却） | 横幅、画中画拍泡泡炮 |
 | TRIPLE SPLASH 三连击 / SPLASH STORM 水花风暴 | 2.5 秒内连续命中 3 / 5 个 | 横幅、+30 / +60 奖励分 |
 | TASK COMPLETE 任务完成 | Eva 的四个课程任务 | 横幅、大招充能 +25% |
-| MEGA BUBBLE 超级泡泡（大招） | 充满后双手举过头顶（或 U） | 全屏过场：正面特写，彩虹巨型泡泡从背上长出来往前飞，爆开时慢动作，打倒前方 18 米内所有竖着的靶子（每个 +10 奖励分） |
+| MEGA BUBBLE 超级泡泡（大招） | 充满后双手举过头顶（或 U） | 全屏过场：正面特写，彩虹巨型泡泡从背上长出来往前飞，爆开时慢动作，打倒前方 18 米内所有竖着的靶子（每个 +10 奖励分）；回到比赛时接一段冲锋 |
+| CANDY 糖果 +15 | 赛道上的糖果，碰到就吃（`DivaShowPickups`） | 叮一声（连着吃音越来越高）、飘字、充能 +4、火焰条 +.08 |
+| ROCKET DASH 火箭冲刺 | 吃到小火箭（每段直道两枚）；大招放完也会 | 2.5 秒自动全速前冲（1.6 倍速）、推进器喷火、速度线、横幅 |
+| ON FIRE 燃烧 | 打靶 +.22、吃糖 +.08、任务 +.3 攒满火焰条（不操作冷却） | 12 秒得分 ×1.5，横幅，画面四边橙红光，技能栏最右边的条倒计时 |
+| GOLDEN TARGET 黄金靶子 | 每 24 秒左右前方一个靶子变金 10 秒 | 三倍分，靶子后面立金色底盘，锁定标记变金并写 ×3，水炮优先锁它 |
+| WATER LOW 低水量 | 水量低于 25%（每次喷水耗 .022，原来 .008） | 水条红色闪、每 6 秒一声提示、教练提醒补水 |
+| ICE WALL 冰墙 | 终点拱门前 14 米横跨整条路（宽度按两边建筑量，`DivaShowWall`） | 大象顶上去停住；只有超级泡泡能炸碎（+50 分，碎冰飞出去），大招后的冲锋接着冲过去；顶着推每秒充能 10%，教练提示怎么充、什么时候放 |
+| 圈速奖牌 | 冲线：≤50 秒金、≤80 秒银、否则铜（超时没有） | 英雄时刻卡上盖章，结算页一行也写 |
+| PLAY OF THE RACE 英雄时刻卡 | 冲线 | 替代原来的横幅：轰 + 象鸣，卡片砸进来，用时 · 任务 · 涂装，分数嘀嘀嘀涨上去，欢呼，奖牌图章；之后照常高光回放和结算 |
+
+这些"比赛节奏"规则（参考守望先锋）在 `Runtime/DivaShowMeta.cs`，PC 和 Vision Pro 版共用；VR 只在它的事件（`FireChanged`、`GoldenChanged`、`Dashed`、`WorldText`）上加座舱里的呈现。
+教练（`Runtime/DivaShowCoach.cs`）：下一个任务点上一根粉色光柱，界面上一个路标（任务名 + 距离，出画面时贴在边上指方向，靠近换成该做的动作）；没起跑、前方有靶子、到了吃 / 喝 / 木头、水快没了时弹大字提示，三人模式写明是哪位玩家的动作。
+辅助瞄准：喷水期间锁定的靶子不换（`DivaLaserBlaster.targetOverride`），锁定标记指哪就打哪。
 
 大招充能：每命中一个靶子 12%，每完成一个任务 25%，每走 1 米 1.2%。普通技能用画中画小窗特写，不切走主镜头；只有大招全屏。
 
@@ -100,12 +112,26 @@
 | Race Intro | Eva 的 `DivaIntro`（安装时自动填）。空着就用这里自己的启动和倒数 |
 | Entrance Music | 出场音效，可以换成任何有授权的音频 |
 | Hide Debug Panels | 游戏时隐藏 Eva 的 IMGUI HUD 和调试面板 |
+| Race meta：Candies / Candy Points | 赛道糖果开关和分值 |
+| Gold Every / Gold Seconds | 黄金靶子的间隔和持续时间 |
+| Fire Seconds | 燃烧持续时间 |
+| Gold Lap / Silver Lap | 圈速奖牌的秒数门槛 |
+| Dash Seconds / Dash Speed Scale | 冲刺时长和倍速 |
+| Water Per Burst | 每次喷水耗水 |
+| Assist Degrees | 辅助瞄准：锁定的靶子超出水炮锥角多少度以内仍保持锁定 |
+| Ice Wall / Wall Distance / Wall Height / Wall Max Width | 冰墙开关、离终点线的距离、高度、最大宽度 |
+| Wall Push Charge / Wall Break Bonus | 顶墙每秒充能、炸墙奖励分 |
 
 ## 文件
 
 | 路径 | 内容 |
 | --- | --- |
 | `Runtime/DivaShowDirector.cs` | 流程状态机、镜头、输入（其余 `DivaShow*.cs` 是它的分部：界面、选涂装、游戏和技能、结束和结算） |
+| `Runtime/DivaShowMeta.cs` | 比赛节奏：糖果、燃烧、黄金靶子、低水量、奖牌、冲刺、辅助瞄准（PC / VR 共用的规则） |
+| `Runtime/DivaShowCoach.cs` | 教练：光柱、路标、大字提示 |
+| `Runtime/DivaShowWall.cs` | 终点前的冰墙：挡路、顶墙充能、大招炸碎 |
+| `Runtime/DivaShowHero.cs` | 冲线的英雄时刻卡 |
+| `Runtime/DivaShowPickups.cs` | 赛道上的糖果和小火箭（运行时生成） |
 | `Runtime/DivaReplay.cs` | 30 帧/秒录制骨骼、位置、水枪和泡泡状态，挑高光片段，重演 |
 | `Runtime/DivaLeaderboard.cs` | 本机排行榜 `diva_leaderboard.json`（在 `Application.persistentDataPath`） |
 | `Runtime/DivaShowFx.cs` | 圆台光环、烟火、彩带、烟花、巨型泡泡 |
@@ -125,5 +151,6 @@
 
 ## 测试情况
 
+- 已测（2026-10-12）：后台 Play 模式用键盘通路自动开一整局（测试模式、单人）：糖果 6 颗、火箭冲刺、燃烧两次、黄金靶子、大招后冲锋、教练提示（起跑 / 靶子 / 吃 / 喝 / 木头）、金牌圈速、英雄时刻卡、结算页的奖牌、再来一局；四个校验器通过。没测：真人摄像头下的手感（燃烧攒得快不快、奖牌门槛）。
 - 已测：后台 Play 模式模拟一个玩家跑完整局：自动校准、举手切换涂装、双手举高开始、Eva 的开场（出场音效在 9 秒重击）、她的 GO 开始计时、冲刺、喷水打靶和连击、喝水、大招打中 5 个靶子、完成四个任务、结束动画、高光回放、结算、中英文切换、再来一局（分数和靶子都复位），光影层开和关的对比截图。
 - 没测（要在 Unity 里实际玩）：见项目根目录的 **PLAYTEST_TODO.md**。

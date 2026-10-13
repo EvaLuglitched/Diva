@@ -293,6 +293,7 @@ namespace Diva.Show
                 else if (Phase == ShowPhase.Play || Phase == ShowPhase.Countdown)
                     mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, BaseFov + fovKick, 1 - Mathf.Exp(-DivaClock.DeltaTime * 6));
             }
+            WallLateUpdate();   // 大象已经走完这一帧：顶到冰墙就推回去
             UpdatePip();
             UpdateLook();
             // Runs after DivaDemo (order 200), including its LateUpdate target hits.
