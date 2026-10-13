@@ -255,7 +255,7 @@ namespace Diva.Show
             // 教练提示（单人 .b；三人模式 .b3 说明是哪位玩家的动作）
             ["coach.run"] = ("RUN!", "跑起来！"),
             ["coach.run.b"] = ("pump your arms (or W)  ·  follow the beacon", "摆动双臂（或 W）  ·  跟着光柱走"),
-            ["coach.run.b3"] = ("P1: pump your arms  ·  P2: lean to steer", "P1 摆动双臂  ·  P2 身体倾斜转向"),
+            ["coach.run.b3"] = ("P1: pump your arms  ·  P2: tilt your shoulders or head to steer", "P1 摆动双臂  ·  P2 压肩或歪头转向"),
             ["coach.shoot"] = ("TARGET AHEAD", "前方有靶子"),
             ["coach.shoot.b"] = ("push both hands forward (or Space)", "双手往前推（或空格）"),
             ["coach.shoot.b3"] = ("P3: push both hands forward", "P3 双手往前推"),

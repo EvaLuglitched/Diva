@@ -29,6 +29,7 @@ Eva 的代码都在 **`Assets/DivaGame/`**，场景物体都在 `Diva.unity` 的
 | 18 | 木头任务改成"绕过树干"（顺着赛道走过木头就算完成，不需要手势）；接近未完成的任务时，任务点上方出现悬浮发光箭头 | `DivaGameManager`（`TaskCheck.Pass`）、`Runtime/DivaTaskMarkers.cs`、`DivaText.Task` 中文名 |
 | 19 | 摄像头识别页加角色介绍卡：P1 走路 / P2 方向 / P3 攻击 + 吃喝，每张卡下面一句怎么做（和代码一致）；和原来的 P1/P2/P3 按钮一样，识别到这个玩家整张卡变绿并显示"已识别"，没识别到是深色"等待中"；下面一行写大招（任何人双手举过头顶）。单人模式三张卡不写 P 号。只改了界面，没动锁定的手势文件 | `DivaShowCameraCheck.cs`、`DivaText.cs`（`check.role*` / `check.how*` / `check.ult*`） |
 | 20 | 摄像头识别页的火柴人动画（按 Eva 的手绘稿）：进入识别页时在大屏画面中央放 8 秒，P1 · P2 · P3 从左到右（和站位一致；P3 有两个：喷水和喝水），白色线条、没有背景（摄像头画面一直看得到），然后淡出消失。P1 双臂交替上下摆（摆臂）；P2 压肩 + 歪头左右来回，头上有弯箭头（向左 / 向右）；P3 一个双手握拳到胸前再张开往前推（喷水），旁边一个举手竖大拇指（喝水 + 吃东西，同一个手势也补水）。演示的 8 秒里不开始"全员绿色保持 5 秒"的计时，演示结束后才开始，免得大家跟着做动作时被存成站姿。下面一行的角色卡不变 | `Runtime/DivaStickFigure.cs`（uGUI 网格画线，不用贴图）、`DivaShowCameraCheck.cs`、`DivaText.cs`（`check.cap.*`） |
+| 21 | 同步 Carl 的 v1.0（PR #6）后：三人模式教练提示里 P2 的转弯说明从"身体倾斜转向 / lean to steer"改成"压肩或歪头转向 / tilt your shoulders or head to steer"，和锁定的转弯规则一致；GitHub 仓库简介（About）和 topics 按 Carl 的 NOTE 填好；README 的 Drive 链接填上了 Eva 新建的文件夹"Diva — DesComp Project 2 (recordings & video)"（录像和对比视频放这里） | `DivaText.cs`（`coach.run.b3`）、GitHub 仓库设置 |
 
 ## 1. 路线图（`029748d`）
 `ROADMAP.md`：大象射击游戏的玩法和分工计划。
