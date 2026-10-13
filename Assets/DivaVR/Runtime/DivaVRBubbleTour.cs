@@ -93,6 +93,8 @@ namespace Diva.VR
         Transform prompt;
         CanvasGroup promptGroup;
         TextMeshProUGUI promptTitle, promptSub, menuHint, menuStart, menuLang;
+        // 菜单的装饰（Carl：开场菜单可以 fancy 一点）：招牌后面一圈慢慢转的光环、绕着招牌飘的糖果、星光粒子、START 板上的流光
+        Transform menuHalo; readonly List<Transform> menuCandies = new List<Transform>(); ParticleSystem menuSparkle; RectTransform startSheen;
         DivaSlant signFace, signBand;
         RectTransform btnStart, btnLang, menuHovered;
         DivaSlant plateStart, plateLang;
@@ -394,6 +396,63 @@ namespace Diva.VR
             portal.position = wide.from - Vector3.up * 50;
         }
 
+        // 招牌周围的装饰：光环、糖果、星光（都挂在 world 下，每帧跟着招牌走）
+        void BuildMenuDecor()
+        {
+            menuHalo = Quad("Menu Halo", world, Glow(softDot, new Color(1f, .55f, .85f, .55f) * 1.3f));
+            menuHalo.localScale = Vector3.one * 1.9f;
+            var colours = new[] { new Color(1f, .45f, .8f), new Color(1f, .85f, .3f), new Color(.5f, .95f, .85f), new Color(.75f, .6f, 1f), new Color(1f, .6f, .5f), new Color(.6f, .9f, 1f), new Color(1f, .9f, .6f) };
+            for (int i = 0; i < 7; i++)
+            {
+                var c = Quad("Menu Candy " + i, world, Glow(softDot, colours[i] * 1.8f));
+                c.localScale = Vector3.one * (.07f + .02f * (i % 3));
+                menuCandies.Add(c);
+            }
+            if (show && show.glowMaterial)
+            {
+                var go = new GameObject("Menu Sparkle");
+                go.transform.SetParent(world, false);
+                menuSparkle = go.AddComponent<ParticleSystem>();
+                var main = menuSparkle.main; main.startLifetime = 1.6f; main.startSpeed = .05f; main.startSize = new ParticleSystem.MinMaxCurve(.012f, .035f);
+                main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, .95f, 1f, .9f), new Color(1f, .7f, .95f, .7f)); main.maxParticles = 120; main.playOnAwake = false;
+                var em = menuSparkle.emission; em.rateOverTime = 40;
+                var sh = menuSparkle.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(1.3f, .9f, .15f);
+                var vel = menuSparkle.velocityOverLifetime; vel.enabled = true; vel.y = new ParticleSystem.MinMaxCurve(.03f, .09f);
+                var sz = menuSparkle.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1, new AnimationCurve(new Keyframe(0, 0), new Keyframe(.3f, 1), new Keyframe(1, 0)));
+                var r = menuSparkle.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = show.glowMaterial; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                menuSparkle.Stop();
+            }
+            ShowMenuDecor(false);
+        }
+
+        void ShowMenuDecor(bool on)
+        {
+            if (menuHalo) menuHalo.gameObject.SetActive(on);
+            foreach (var c in menuCandies) c.gameObject.SetActive(on);
+            if (menuSparkle) { if (on && !menuSparkle.isPlaying) menuSparkle.Play(); if (!on && menuSparkle.isPlaying) menuSparkle.Stop(); }
+        }
+
+        /// <summary>标题逐字弹进来（带回弹），之后一直轻轻起伏。</summary>
+        static void AnimateTitle(TextMeshProUGUI tmp, float since)
+        {
+            tmp.ForceMeshUpdate();
+            var info = tmp.textInfo;
+            float now = Time.unscaledTime;
+            for (int i = 0; i < info.characterCount; i++)
+            {
+                var ch = info.characterInfo[i];
+                if (!ch.isVisible) continue;
+                int mi = ch.materialReferenceIndex, vi = ch.vertexIndex;
+                var verts = info.meshInfo[mi].vertices;
+                var centre = (verts[vi] + verts[vi + 2]) * .5f;
+                float pop = DivaUi.EaseOutBack(Mathf.Clamp01((since - .2f - i * .06f) / .45f));
+                float sc = Mathf.Max(.01f, pop) * (1 + .035f * Mathf.Sin(now * 3f + i * .7f));
+                var bob = new Vector3(0, 5f * Mathf.Sin(now * 2.1f + i * .55f), 0);
+                for (int k = 0; k < 4; k++) verts[vi + k] = centre + (verts[vi + k] - centre) * sc + bob;
+            }
+            for (int m = 0; m < info.meshInfo.Length; m++) { info.meshInfo[m].mesh.vertices = info.meshInfo[m].vertices; tmp.UpdateGeometry(info.meshInfo[m].mesh, m); }
+        }
+
         void BuildSpark()
         {
             spark = new GameObject("Spark").transform;
@@ -442,6 +501,10 @@ namespace Diva.VR
             menuLang = DivaUi.Text(btnLang, "Label", new Vector2(.5f, .5f), new Vector2(0, 1), new Vector2(280, 66), 34, Color.white);
             if (!DivaText.LanguageSwitch) btnLang.gameObject.SetActive(false);   // 中文先拿掉
             menuHint = DivaUi.Text(rt, "Hint", new Vector2(.5f, 0), new Vector2(0, 16), new Vector2(1000, 56), 24, new Color(.16f, .13f, .25f, .7f), TextAlignmentOptions.Center, false);
+            // START 板上的流光：一道斜的白光条每隔几秒从左扫到右
+            var sheen = DivaUi.Image(btnStart, "Sheen", new Vector2(.5f, .5f), new Vector2(-500, 0), new Vector2(70, 260), new Color(1, 1, 1, .35f));
+            sheen.raycastTarget = false; startSheen = sheen.rectTransform; startSheen.localRotation = Quaternion.Euler(0, 0, 18);
+            BuildMenuDecor();
 
             // 全景里的大标题：浮在镇子上空，正对着人
             var tg = new GameObject("Tour Title", typeof(RectTransform), typeof(Canvas)) { layer = 5 };
@@ -897,7 +960,31 @@ namespace Diva.VR
             if (Vector3.Angle(flat, to) > 22 || Mathf.Abs((prompt.position - h.position).magnitude - 1.33f) > .5f || promptGroup.alpha < .05f)
                 prompt.position = Vector3.Lerp(prompt.position, want, promptGroup.alpha < .05f ? 1 : 1 - Mathf.Exp(-dt * 3));
             prompt.rotation = Quaternion.LookRotation(prompt.position - h.position);
-            if (btnStart) btnStart.localScale = Vector3.one * (menuHovered == btnStart ? 1.06f : 1f);
+            float since = Time.unscaledTime - promptShownAt, now = Time.unscaledTime;
+            // START 板轻轻呼吸，看着它时放大一点；流光每 3.5 秒扫一次
+            if (btnStart) btnStart.localScale = Vector3.one * (menuHovered == btnStart ? 1.06f : 1f + .02f * Mathf.Sin(now * 2.4f));
+            if (startSheen) { float u = Mathf.Repeat(now, 3.5f) / 1.1f; startSheen.anchoredPosition = new Vector2(Mathf.Lerp(-500, 500, Mathf.Clamp01(u)), 0); startSheen.gameObject.SetActive(u <= 1f); }
+            if (promptTitle) AnimateTitle(promptTitle, since);
+            if (promptSub) promptSub.alpha = Mathf.Clamp01((since - .9f) / .5f);
+            // 装饰：光环贴在招牌后面慢慢转、呼吸；糖果绕着招牌飘一圈；星光在招牌前方
+            bool decor = key != null && promptGroup.alpha > .3f;
+            ShowMenuDecor(decor);
+            if (decor)
+            {
+                var back = prompt.forward;   // 招牌的正面朝人，forward 指向远离人的那边 = 后面
+                menuHalo.position = prompt.position + back * .06f;
+                menuHalo.rotation = prompt.rotation * Quaternion.Euler(0, 0, now * 9f);
+                menuHalo.localScale = Vector3.one * 1.9f * (1 + .05f * Mathf.Sin(now * 1.3f));
+                for (int i = 0; i < menuCandies.Count; i++)
+                {
+                    float a = now * .35f + i * Mathf.PI * 2 / menuCandies.Count;
+                    var offset = prompt.right * Mathf.Cos(a) * .78f + prompt.up * (Mathf.Sin(a) * .5f + .05f) - back * (.12f + .06f * Mathf.Sin(now * 1.7f + i));
+                    menuCandies[i].position = prompt.position + offset + Vector3.up * .03f * Mathf.Sin(now * 2.5f + i * 1.3f);
+                    Billboard(menuCandies[i]);
+                    menuCandies[i].localScale = Vector3.one * (.07f + .02f * (i % 3)) * (1 + .12f * Mathf.Sin(now * 3f + i));
+                }
+                if (menuSparkle) { menuSparkle.transform.position = prompt.position - back * .12f; menuSparkle.transform.rotation = prompt.rotation; }
+            }
         }
 
 

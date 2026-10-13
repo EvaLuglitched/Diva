@@ -253,7 +253,8 @@ namespace Diva.Show
         // 冰：自己的 Diva/Ice（Resources 里，VR 的立体渲染也能画）；找不到就退回 URP Lit 半透明
         Material IceMaterial()
         {
-            var ice = Shader.Find("Diva/Ice");
+            // 头显上 Diva/Ice 在立体渲染里画不出来（b28：墙建了但看不见），那里用 URP Lit 的半透明冰；PC 用 Diva/Ice
+            var ice = UnityEngine.XR.XRSettings.isDeviceActive ? null : Shader.Find("Diva/Ice");
             if (ice) return new Material(ice) { name = "Diva Ice Wall" };
             var sh = Shader.Find("Universal Render Pipeline/Lit");
             if (!sh) { var g = glowMaterial ? new Material(glowMaterial) : null; if (g) Tint(g, IceColour * 1.5f); return g; }

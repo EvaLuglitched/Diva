@@ -5,7 +5,7 @@ namespace Diva.VR
 {
     /// <summary>
     /// VR 教学牌上的火柴人（照 Eva 摄像头识别页的画法：白色线条、没有背景），演示 Vision Pro 的五个动作：
-    /// Lean = 坐着身体前倾（侧面看，前面一支箭头）；Tilt = 歪头，左右来回，头上弯箭头；Push = 握拳到胸前再张开往前推；
+    /// Lean = 坐着身体前倾（侧面看，前面一支箭头）；Tilt = 歪头，左右来回，头上弯箭头；Push（看着捏）= 一只手抬到眼前拇指食指捏合，视线连到靶子；
     /// ThumbsUp = 举手竖大拇指；HandsUp = 双手举到眼前举住，手上一条进度条慢慢充满。
     /// 坐标以身高为 1（脚底 0，头顶约 0.97）；像照镜子：往画面左边歪 = 玩家往自己左边歪 = 左转。
     /// uGUI 网格画线，VR 的立体渲染靠 DivaVRUiShaders 把材质换成 Diva/VR UI。
@@ -113,25 +113,27 @@ namespace Diva.VR
             Line(tip, tip + Rotate(back, 35)); Line(tip, tip + Rotate(back, -35));
         }
 
-        /// <summary>喷水：握拳到胸前，然后两只张开的手往前推、停住、收回（和电脑版一样）。</summary>
+        /// <summary>喷水：看着靶子（头转向它，一条虚线视线到右上的靶子），右手抬到眼前拇指食指捏合；捏住时靶子闪。</summary>
         void Push(float t)
         {
             float u = Mathf.Repeat(t, PushPeriod);
-            Body(HeadAt, 0, ShoulderL, ShoulderR);
-            float push = u < .35f ? 0 : u < .65f ? DivaSmooth((u - .35f) / .3f) : u < 1.75f ? 1 : DivaSmooth(1 - (u - 1.75f) / .3f);
-            foreach (var (shoulder, side) in new[] { (ShoulderL, -1f), (ShoulderR, 1f) })
-            {
-                var elbow = Vector2.Lerp(shoulder + new Vector2(side * .05f, -.22f), shoulder + new Vector2(side * .07f, -.17f), push);
-                var hand = Vector2.Lerp(new Vector2(side * .08f, .55f), new Vector2(side * .20f, .58f), push);
-                Chain(shoulder, elbow, hand);
-                if (push < .3f) Dot(hand, .034f);
-                else Palm(hand, Mathf.Lerp(.9f, 1.4f, push), side);
-                if (push > .8f)
-                {
-                    var c = hand + new Vector2(side * .11f, 0);
-                    Chain(c + new Vector2(-side * .02f, .06f), c + new Vector2(side * .005f, 0), c + new Vector2(-side * .02f, -.06f));
-                }
-            }
+            float pinch = u < .5f ? 0 : u < .8f ? DivaSmooth((u - .5f) / .3f) : u < 1.7f ? 1 : DivaSmooth(1 - (u - 1.7f) / .3f);
+            var head = HeadAt;
+            Body(head, -12, ShoulderL, ShoulderR);   // 头稍微转向靶子那边
+            HangingArm(ShoulderL, -1);
+            // 右手抬到眼前：捏合时拇指食指合拢成一个小圈
+            var elbow = ShoulderR + new Vector2(.12f, -.12f);
+            var hand = new Vector2(.19f, .80f);
+            Chain(ShoulderR, elbow, hand);
+            Circle(hand, .022f + .012f * (1 - pinch), thickness * .8f);
+            Line(hand + new Vector2(-.01f, .02f), hand + new Vector2(.02f + .03f * (1 - pinch), .06f), thickness * .8f);
+            Line(hand + new Vector2(.015f, .0f), hand + new Vector2(.05f + .02f * (1 - pinch), .035f), thickness * .8f);
+            // 靶子：右上角三个同心圆；视线虚线从眼睛过去
+            var target = new Vector2(.42f, .95f);
+            Circle(target, .07f, thickness * .8f); Circle(target, .04f, thickness * .6f); Dot(target, .014f);
+            var eye = head + new Vector2(.08f, .02f);
+            for (int k = 0; k < 6; k++) { float a = k / 6f, b = a + .09f; Line(Vector2.Lerp(eye, target, a), Vector2.Lerp(eye, target, b), thickness * .5f); }
+            if (pinch > .8f) for (int k = 0; k < 8; k++) { var dir = Rotate(Vector2.up, k * 45); Line(target + dir * .09f, target + dir * .13f, thickness * .6f); }
         }
 
         /// <summary>竖大拇指：右手举到头旁边竖起拇指，保持，然后放下。</summary>

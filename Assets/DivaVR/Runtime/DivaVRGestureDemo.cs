@@ -62,11 +62,11 @@ namespace Diva.VR
         {
             move = m; shown = true; t0 = Time.unscaledTime;
             stage.gameObject.SetActive(true);
-            bool pinchy = m == Move.Button;
+            bool pinchy = m == Move.Button || m == Move.Push;
             target.gameObject.SetActive(m == Move.Push);
-            button.gameObject.SetActive(pinchy);
+            button.gameObject.SetActive(m == Move.Button);
             thumb.gameObject.SetActive(pinchy || m == Move.ThumbsUp); index.gameObject.SetActive(pinchy);
-            handL.gameObject.SetActive(m == Move.Push || m == Move.HandsUp || m == Move.Lean || m == Move.Tilt);
+            handL.gameObject.SetActive(m == Move.HandsUp || m == Move.Lean || m == Move.Tilt);
             handR.gameObject.SetActive(true);
             seat.gameObject.SetActive(m == Move.Lean);
             arrow.gameObject.SetActive(m == Move.Lean || m == Move.Push || m == Move.HandsUp || pinchy);
@@ -100,13 +100,18 @@ namespace Diva.VR
                     break;
                 }
                 case Move.Push:
-                    // 两只手从胸前张开往前推，推出去时前面的靶子闪白
-                    handL.localPosition = Vector3.Lerp(new Vector3(-.04f, .0f, -.02f), new Vector3(-.06f, .02f, .10f), ease);
-                    handR.localPosition = Vector3.Lerp(new Vector3(.04f, .0f, -.02f), new Vector3(.06f, .02f, .10f), ease);
-                    handL.localScale = handR.localScale = Vector3.one * (.028f + .012f * ease);
-                    arrow.localPosition = new Vector3(0, .02f, .06f + .06f * ease); arrow.localRotation = Quaternion.identity; arrow.localScale = new Vector3(.006f, .006f, .05f);
-                    Tint(targetMat, (ease > .85f ? Color.white : new Color(1f, .4f, .4f)) * 1.5f);
+                {
+                    // 看着靶子（头朝向它，一条视线），拇指食指捏合，捏下去那一刻靶子闪白
+                    handR.localPosition = new Vector3(.03f, .02f, .05f);
+                    float pinch = ease;
+                    thumb.localPosition = handR.localPosition + new Vector3(-.02f + .012f * pinch, .005f, .02f);
+                    index.localPosition = handR.localPosition + new Vector3(.02f - .012f * pinch, .012f, .022f);
+                    head.localRotation = Quaternion.LookRotation(target.localPosition - head.localPosition);
+                    arrow.localPosition = Vector3.Lerp(head.localPosition, target.localPosition, .5f);
+                    arrow.localRotation = head.localRotation; arrow.localScale = new Vector3(.003f, .003f, Vector3.Distance(head.localPosition, target.localPosition));
+                    Tint(targetMat, (pinch > .9f ? Color.white : new Color(1f, .4f, .4f)) * 1.5f);
                     break;
+                }
                 case Move.Button:
                 {
                     // 看着按钮（头朝向它，一条视线），拇指食指捏合，捏下去那一刻它闪白

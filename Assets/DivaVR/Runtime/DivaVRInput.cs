@@ -34,6 +34,9 @@ namespace Diva.VR
 
         /// <summary>这一帧人的操作（开场时游戏拿到的是空的，见 DivaVRBubbleTour.Drive）。</summary>
         public DivaVRFrame Current { get; private set; }
+        [Tooltip("VR 里大象的转速上限（度/秒）：转向输入很灵敏，但画面转得慢一点才不晕（电脑版是 60）。")]
+        public float turnDegreesPerSecond = 40f;
+        float baseTurn = -1;
 
         void Start()
         {
@@ -46,7 +49,10 @@ namespace Diva.VR
             guide = GetComponent<DivaVRGuide>();
             dash = GetComponent<DivaVRDash>();
             show = FindAnyObjectByType<Diva.Show.DivaShowDirector>();
+            if (loco) { baseTurn = loco.turnDegreesPerSecond; loco.turnDegreesPerSecond = turnDegreesPerSecond; }
         }
+
+        void OnDestroy() { if (loco && baseTurn > 0) loco.turnDegreesPerSecond = baseTurn; }
 
         void Update()
         {

@@ -10,7 +10,7 @@ namespace Diva.VR
     /// · 前进：身体前倾（脖子根相对坐好时往前 7 厘米开始走、22 厘米跑满；坐回去就停，不倒车）。灵敏度故意低一点，
     ///   油门有平滑，头小幅晃动不会一顿一顿地改变速度——之前的版本就是因为太灵敏才晕。
     /// · 转弯：歪头（相对坐好时的侧倾 8° 开始、22° 转满，往自己左边歪 = 左转）。
-    /// · 喷水：双手张开往前推（两只手腕都在头前方 30 厘米以外、胸口高度，手指伸直），伸着就一直喷，收回来就停；瞄准看哪打哪。
+    /// · 喷水：看着靶子捏一下 / 捏住（系统的"看 + 捏"，或拇指食指捏合）；双手前推那版 Carl 觉得不好用，改回来了。
     /// · 吃喝 / 补水：竖大拇指保持 0.4 秒；手放到嘴边也可以。
     /// · 大招 / 确认：双手举到眼前（眼睛高度附近、身前）保持 0.4 秒。举过头顶手会出摄像头视野，所以是眼前不是头顶。
     /// · 按钮：看着按钮捏一下（系统的"看 + 捏"），和喷水分开。
@@ -20,10 +20,8 @@ namespace Diva.VR
     {
         [Tooltip("前倾：脖子根往前移多少米开始走、多少米跑满。")]
         public float leanStart = .07f, leanFull = .22f;
-        [Tooltip("歪头转弯：头相对坐好时侧倾多少度开始转、多少度转满。")]
-        public float tiltStart = 8f, tiltFull = 22f;
-        [Tooltip("双手前推喷水：两只手腕都在头前方多少米以外算推出去了（松一点的距离用来保持）。")]
-        public float pushDistance = .30f, pushHold = .25f;
+        [Tooltip("歪头转弯：头相对坐好时侧倾多少度开始转、多少度转满（灵敏一点，小幅歪头就转满；转得快不快由 DivaVRInput 的转速上限管）。")]
+        public float tiltStart = 5f, tiltFull = 15f;
         [Tooltip("拇指尖和食指尖小于这个距离（米）算捏合（按按钮）。")]
         public float pinchDistance = .02f;
         [Tooltip("手（掌心、指尖或手腕）离嘴小于这个距离（米）算喝水。")]
@@ -89,7 +87,7 @@ namespace Diva.VR
         public int HandsUp { get; private set; }
         /// <summary>双手举高保持了多久（0–1，1 = 够了）。</summary>
         public float UltProgress => ultSince < 0 ? 0 : Mathf.Clamp01((Time.unscaledTime - ultSince) / Mathf.Max(.01f, ultHold));
-        /// <summary>现在双手前推着（喷水）。</summary>
+        /// <summary>现在捏着（喷水）。</summary>
         public bool Pushing { get; private set; }
         /// <summary>前倾了多少米（给教学的反馈条）。</summary>
         public float Lean { get; private set; }
@@ -137,16 +135,6 @@ namespace Diva.VR
             return Vector3.Distance(space.TransformPoint(index.position), p) < .055f && Vector3.Distance(space.TransformPoint(middle.position), p) < .055f;
         }
 
-        /// <summary>手张开：至少两根手指伸直（指尖离掌心 7 厘米以上）。</summary>
-        static bool OpenHand(XRHand hand)
-        {
-            if (!hand.GetJoint(XRHandJointID.Palm).TryGetPose(out var palm)) return false;
-            int open = 0;
-            foreach (var id in new[] { XRHandJointID.IndexTip, XRHandJointID.MiddleTip, XRHandJointID.RingTip })
-                if (hand.GetJoint(id).TryGetPose(out var tip) && Vector3.Distance(tip.position, palm.position) > .07f) open++;
-            return open >= 2;
-        }
-
         /// <summary>
         /// head：主摄像机；space：追踪空间（摄像机的父节点，手的关节位置也在这个空间里）。
         /// </summary>
@@ -167,28 +155,27 @@ namespace Diva.VR
             float goT = Mathf.InverseLerp(leanStart, leanFull, Lean);
             if (now < freezeGoUntil) goT = go;   // 刚推出手去喷水的一瞬间身体会跟着往前一点，这 0.3 秒油门不动
             go = Mathf.MoveTowards(go, goT, dt * (goT > go ? 2.5f : 2f));   // 慢一点的油门：不会一顿一顿
-            steer = Mathf.MoveTowards(steer, HeadTilt(head), dt * 3f);
+            steer = Mathf.MoveTowards(steer, HeadTilt(head), dt * 6f);   // 转向跟手一点（Carl：转的时候可以再快一点）
             f.go = go; f.steer = steer;
 
-            // ---- 按钮：系统的"看 + 捏"
+            // ---- 看 + 捏：按按钮，比赛里就是开炮（看哪打哪）
             if (GazePinch(space, out var gaze)) { f.pinch = true; f.look = gaze; }
-            if (hands == null || !hands.running) { Pushing = false; return f; }
+            if (hands == null || !hands.running) { f.shoot = f.pinch; Pushing = false; return f; }
 
             var mouth = head.position - head.up * .09f + head.forward * .04f;
             var fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
-            int up = 0, i = 0, ahead = 0, openAhead = 0;
+            int up = 0, i = 0;
             foreach (var hand in new[] { hands.leftHand, hands.rightHand })
             {
                 if (!hand.isTracked)
                 {
-                    // 追踪丢了一下：这只手刚才举着就当还举着；刚才推着也当还推着
+                    // 追踪丢了一下：这只手刚才举着就当还举着
                     if (now - lastUpAt[i] < blipSeconds) up++;
-                    if (Pushing) { ahead++; openAhead++; }
                     i++; continue;
                 }
                 bool thumb = hand.GetJoint(XRHandJointID.ThumbTip).TryGetPose(out var thumbPose);
                 bool index = hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var indexPose);
-                // 捏合 = 按按钮（和喷水分开）
+                // 捏合 = 按按钮 / 开炮
                 if (thumb && index && Vector3.Distance(thumbPose.position, indexPose.position) < pinchDistance) f.pinch = true;
                 // 竖大拇指保持 0.4 秒 = 补水 / 吃喝（和电脑版一样）
                 if (ThumbsUp(hand, space)) { if (thumbsUpSince[i] < 0) thumbsUpSince[i] = now; if (now - thumbsUpSince[i] >= thumbsUpHold) f.drink = true; }
@@ -206,21 +193,18 @@ namespace Diva.VR
                     float forward = Vector3.Dot(w - head.position, fwd);
                     // 举手 = 手腕到眼睛高度附近、在身前（不用举过头顶：那里摄像头看不到手）
                     if (w.y > head.position.y - ultBelowEye && forward > .08f) { up++; lastUpAt[i] = now; }
-                    // 推手 = 手腕在头前方 30 厘米外、胸口高度（比眼睛低 18 厘米以上）
-                    else if (forward > (Pushing ? pushHold : pushDistance) && w.y < head.position.y - .18f && w.y > head.position.y - .6f) { ahead++; if (OpenHand(hand)) openAhead++; }
                 }
                 i++;
             }
-            if (f.drink) { f.pinch = false; up = 0; ahead = openAhead = 0; }   // 手在嘴边 / 竖拇指：不算捏、不算举手、不算推
+            if (f.drink) { f.pinch = false; up = 0; }   // 手在嘴边 / 竖拇指：不算捏、不算举手
             HandsUp = up;
             if (up == 2) { if (ultSince < 0) ultSince = now; }
             else ultSince = -1;
             f.ult = ultSince >= 0 && now - ultSince >= ultHold;
-            // 双手张开往前推 = 喷水（伸着就一直喷）；刚开始推的 0.3 秒油门冻住
-            bool push = ahead == 2 && openAhead >= 1 && up < 2;
-            if (push && !Pushing) freezeGoUntil = now + .3f;
-            Pushing = push;
-            f.shoot = push;
+            // 捏 = 喷水（看哪打哪）；刚捏下去的 0.3 秒油门冻住（抬手时身体会跟着动一下）
+            if (f.pinch && !Pushing) freezeGoUntil = now + .3f;
+            Pushing = f.pinch;
+            f.shoot = f.pinch;
             return f;
         }
     }

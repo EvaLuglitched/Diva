@@ -63,7 +63,10 @@ namespace Diva.VR
         readonly Image[] dotsLearn = new Image[4];
         Sprite tick, circle;
 
-        class Btn { public string key; public RectTransform rt; public DivaSlant plate; public TextMeshProUGUI label; public Action press; public bool primary; public float pressedAt = -10; public Color baseTop, baseBottom; }
+        class Btn { public string key; public RectTransform rt; public DivaSlant plate; public TextMeshProUGUI label; public Action press; public bool primary; public float pressedAt = -10; public Color baseTop, baseBottom; public RectTransform holdFill; }
+        // 防误触：看着一个按钮 0.35 秒以上捏才算；主按钮要捏住 0.5 秒（按钮上有进度条）
+        const float HoverDwell = .35f, HoldSeconds = .5f;
+        Btn holdTarget; float holdSince = -1, hoveredSince = -1; Btn hoveredLast; bool pinchUsed;
         readonly List<Btn> buttons = new List<Btn>();
 
         DivaVRGestureDemo demo;
@@ -267,6 +270,12 @@ namespace Diva.VR
             b.plate = DivaUi.Panel(b.rt, "Plate", new Vector2(.5f, .5f), Vector2.zero, new Vector2(width, h), b.baseTop, b.baseBottom, 18);
             b.label = DivaUi.Text(b.rt, "Label", new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(width - 20, 90 * scale), (primary ? 44 : 40) * scale, Color.white);
             b.label.text = DivaText.T(key);
+            if (primary)
+            {
+                // 捏住确认的进度条：按钮底边一条白线从左往右长
+                var fillImg = DivaUi.Image(b.rt, "Hold", new Vector2(0, 0), new Vector2(14, 8), new Vector2(width - 28, 8), new Color(1, 1, 1, .9f));
+                b.holdFill = fillImg.rectTransform; b.holdFill.pivot = new Vector2(0, 0); b.holdFill.localScale = new Vector3(0, 1, 1);
+            }
             buttons.Add(b);
         }
 
@@ -509,16 +518,23 @@ namespace Diva.VR
                 }
                 else { Fill(); UpdateDemo(); if (show.Sound != null) show.Sound.Play("tick", .35f); }
             }
-            // 头朝向哪个按钮哪个就高亮；捏一下按下它（眼睛看的方向有的话优先）
+            // 头朝向哪个按钮哪个就高亮（眼睛看的方向有的话优先）；看着它 0.35 秒以上，捏才算按——扫一眼时捏的是别的意思
             var headT = DivaVR.Head;
-            hovered = headT ? HitButton(headT.position, headT.forward) : null;
+            var gazeHit = headT && f.look.sqrMagnitude > .01f ? HitButton(headT.position, f.look) : null;
+            hovered = gazeHit ?? (headT ? HitButton(headT.position, headT.forward) : null);
+            if (hovered != hoveredLast) { hoveredLast = hovered; hoveredSince = Time.unscaledTime; }
+            bool dwelt = hovered != null && Time.unscaledTime - hoveredSince >= HoverDwell;
+            if (!f.pinch) { holdTarget = null; holdSince = -1; pinchUsed = false; }
             if (pinch && headT)
             {
-                var head = headT;
-                var b = (f.look.sqrMagnitude > .01f ? HitButton(head.position, f.look) : null) ?? hovered;
-                if (b != null) Press(b);
-                else if (step == Step.Pick) show.VrStepSkin(1);   // 捏一下 = 下一个涂装（不用先找按钮）
+                var b = dwelt ? hovered : null;
+                if (b == null) { if (step == Step.Pick && hovered == null) show.VrStepSkin(1); }   // 没看着按钮捏一下 = 下一个涂装
+                else if (!b.primary) Press(b);
+                else { holdTarget = b; holdSince = Time.unscaledTime; }   // 主按钮：捏住 0.5 秒才算（见下面）
             }
+            // 主按钮捏住中：松开或看向别处就取消
+            if (holdTarget != null && (!f.pinch || hovered != holdTarget)) { holdTarget = null; holdSince = -1; }
+            if (holdTarget != null && !pinchUsed && Time.unscaledTime - holdSince >= HoldSeconds) { pinchUsed = true; var b = holdTarget; holdTarget = null; Press(b); }
             if (step == Step.Learn) Practice(f);
         }
 
@@ -634,6 +650,7 @@ namespace Diva.VR
                 bool hov = b == hovered;
                 b.rt.localScale *= hov ? 1.08f : 1f;
                 b.plate.Set(Color.Lerp(b.baseTop, Color.white, Mathf.Max(lit * .5f, hov ? .28f : 0)), Color.Lerp(b.baseBottom, Color.white, Mathf.Max(lit * .3f, hov ? .18f : 0)));
+                if (b.holdFill) b.holdFill.localScale = new Vector3(b == holdTarget && holdSince > 0 ? Mathf.Clamp01((t - holdSince) / HoldSeconds) : 0, 1, 1);
             }
 
             if (step == Step.Learn)
@@ -714,8 +731,10 @@ namespace Diva.VR
             {
                 if (b == null || !head) return;
                 if (demoTarget != b) { demoTarget = b; demoPressAt = t; }
-                // 捏 0.2 秒，看着按钮
-                if (t - demoPressAt < .2f) { f.pinch = true; f.look = (ButtonWorld(b) - head.position).normalized; }
+                // 先看着按钮 0.5 秒（防误触的停留），再捏住 0.8 秒（主按钮要捏住 0.5 秒）
+                float since = t - demoPressAt;
+                f.look = (ButtonWorld(b) - head.position).normalized;
+                if (since > .5f && since < 1.3f) f.pinch = true;
             }
             switch (step)
             {
