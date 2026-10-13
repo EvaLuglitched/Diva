@@ -211,8 +211,14 @@ namespace DigiPhant
             {
                 var mac = DigiPhantMacCameras.List();
                 if (mac != null) return Mathf.Clamp(mac.Count, 1, 9);
+#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+                // No WebCamTexture on the Mac: a macOS player that references it fails to build without a Player Settings
+                // camera usage text (the release adds NSCameraUsageDescription after the build), and the Mac list above is exact.
+                return 1;
+#else
                 try { return Mathf.Clamp(WebCamTexture.devices.Length, 1, 9); }
                 catch (Exception) { return 1; }
+#endif
             }
         }
 
