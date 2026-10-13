@@ -5,26 +5,30 @@
       <path d="M512 24 C 820 24 1000 204 1000 512 C 1000 820 820 1000 512 1000 C 204 1000 24 820 24 512 C 24 204 204 24 512 24 Z"/>
     </clipPath>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff8fd0"/>
-      <stop offset="0.55" stop-color="#ff4fa3"/>
+      <stop offset="0" stop-color="#ff9ad6"/>
+      <stop offset="0.55" stop-color="#ff55a8"/>
       <stop offset="1" stop-color="#b8228a"/>
     </linearGradient>
     <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
       <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="armor" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffd6ef"/>
-      <stop offset="1" stop-color="#ff9bd6"/>
+    <!-- 大象的皮：淡粉（机甲涂装色），下面稍深 -->
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd9ef"/>
+      <stop offset="1" stop-color="#ffa6d8"/>
     </linearGradient>
-    <linearGradient id="armorDark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ff7fc6"/>
+    <linearGradient id="skinDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8fcb"/>
       <stop offset="1" stop-color="#e2409a"/>
     </linearGradient>
-    <linearGradient id="visor" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#1b2a44"/>
-      <stop offset="0.5" stop-color="#2f4f7a"/>
-      <stop offset="1" stop-color="#1b2a44"/>
+    <linearGradient id="earInner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffc2e4"/>
+      <stop offset="1" stop-color="#ff7fc6"/>
+    </linearGradient>
+    <linearGradient id="armor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffc7e6"/>
     </linearGradient>
     <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#4dfff0"/>
@@ -37,7 +41,7 @@
       <stop offset="1" stop-color="#ffffff" stop-opacity="0.9"/>
     </radialGradient>
     <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="14"/>
+      <feGaussianBlur stdDeviation="12"/>
     </filter>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#5a0a40" flood-opacity="0.45"/>
@@ -58,42 +62,58 @@
       <circle cx="238" cy="118" r="30" fill="url(#bubble)"/>
       <circle cx="880" cy="170" r="46" fill="url(#bubble)"/>
       <circle cx="930" cy="300" r="26" fill="url(#bubble)"/>
-      <circle cx="120" cy="560" r="24" fill="url(#bubble)"/>
+      <circle cx="110" cy="620" r="24" fill="url(#bubble)"/>
     </g>
 
-    <!-- 机甲大象的头（正面）：两只大耳 = 装甲板，粉色头盔，青色发光面罩，鼻子往下卷，鼻尖一滴水 -->
+    <!-- 大象（正面）：大扇耳、宽额头的圆脑袋、中间垂下来再卷起的长鼻子、两颗小象牙；机甲只是额头上的一片装甲和发光眼 -->
     <g filter="url(#shadow)">
-      <!-- 耳朵 -->
-      <path d="M268 420 C 150 400 92 500 118 620 C 140 720 240 760 320 720 L 320 470 Z" fill="url(#armorDark)"/>
-      <path d="M756 420 C 874 400 932 500 906 620 C 884 720 784 760 704 720 L 704 470 Z" fill="url(#armorDark)"/>
-      <path d="M286 450 C 200 440 160 520 178 610 C 192 690 262 720 318 695 L 318 480 Z" fill="#ffb3e0" fill-opacity="0.55"/>
-      <path d="M738 450 C 824 440 864 520 846 610 C 832 690 762 720 706 695 L 706 480 Z" fill="#ffb3e0" fill-opacity="0.55"/>
-      <!-- 头盔 -->
-      <path d="M512 300 C 650 300 730 390 730 520 C 730 640 650 720 512 720 C 374 720 294 640 294 520 C 294 390 374 300 512 300 Z" fill="url(#armor)"/>
-      <!-- 头顶的 D.Va 式兔耳小天线 -->
-      <path d="M430 318 C 400 250 390 200 410 160 C 440 200 452 260 452 300 Z" fill="url(#armorDark)"/>
-      <path d="M594 318 C 624 250 634 200 614 160 C 584 200 572 260 572 300 Z" fill="url(#armorDark)"/>
-      <!-- 头盔分缝线 -->
-      <path d="M330 470 Q 512 410 694 470" fill="none" stroke="#e2409a" stroke-opacity="0.55" stroke-width="10" stroke-linecap="round"/>
-      <!-- 面罩（发光青色带） -->
-      <path d="M338 512 C 400 470 624 470 686 512 C 690 580 652 612 512 612 C 372 612 334 580 338 512 Z" fill="url(#visor)"/>
-      <path d="M352 522 C 410 490 614 490 672 522 C 672 566 648 590 512 590 C 376 590 352 566 352 522 Z" fill="url(#glow)" fill-opacity="0.18"/>
-      <!-- 两只眼睛：青色发光 -->
-      <ellipse cx="438" cy="540" rx="46" ry="30" fill="url(#glow)"/>
-      <ellipse cx="586" cy="540" rx="46" ry="30" fill="url(#glow)"/>
-      <ellipse cx="438" cy="540" rx="46" ry="30" fill="#4dfff0" fill-opacity="0.5" filter="url(#soft)"/>
-      <ellipse cx="586" cy="540" rx="46" ry="30" fill="#4dfff0" fill-opacity="0.5" filter="url(#soft)"/>
-      <ellipse cx="424" cy="530" rx="14" ry="8" fill="#ffffff" fill-opacity="0.85"/>
-      <ellipse cx="572" cy="530" rx="14" ry="8" fill="#ffffff" fill-opacity="0.85"/>
-      <!-- 象鼻：从面罩下方往下、往右卷 -->
-      <path d="M470 640 C 470 720 480 800 520 850 C 560 900 640 900 668 850 C 690 812 660 770 620 790 C 596 802 600 836 626 836" fill="none" stroke="url(#armor)" stroke-width="96" stroke-linecap="round"/>
-      <path d="M470 640 C 470 720 480 800 520 850 C 560 900 640 900 668 850 C 690 812 660 770 620 790 C 596 802 600 836 626 836" fill="none" stroke="#e2409a" stroke-opacity="0.35" stroke-width="8" stroke-dasharray="2 38" stroke-linecap="round"/>
+      <!-- 耳朵：大扇形，贴在头两侧 -->
+      <path d="M312 330 C 170 290 70 420 100 570 C 122 690 240 730 330 660 Z" fill="url(#skinDark)"/>
+      <path d="M712 330 C 854 290 954 420 924 570 C 902 690 784 730 694 660 Z" fill="url(#skinDark)"/>
+      <!-- 耳廓里面浅一层 -->
+      <path d="M322 372 C 220 350 150 440 172 560 C 190 650 272 684 332 630 Z" fill="url(#earInner)"/>
+      <path d="M702 372 C 804 350 874 440 852 560 C 834 650 752 684 692 630 Z" fill="url(#earInner)"/>
+      <!-- 头：宽额头，往下收成脸 -->
+      <path d="M512 262 C 660 262 760 360 760 490 C 760 600 680 680 600 690 L 424 690 C 344 680 264 600 264 490 C 264 360 364 262 512 262 Z" fill="url(#skin)"/>
+      <!-- 额头的机甲装甲片（D.Va 的头盔，只占额头）+ 兔耳小天线 -->
+      <path d="M322 372 C 360 292 664 292 702 372 C 690 400 334 400 322 372 Z" fill="url(#armor)"/>
+      <path d="M335 372 Q 512 332 689 372" fill="none" stroke="#ff7fc6" stroke-opacity="0.8" stroke-width="8" stroke-linecap="round"/>
+      <path d="M432 300 C 404 240 396 196 418 150 C 448 190 462 246 456 290 Z" fill="url(#skinDark)"/>
+      <path d="M592 300 C 620 240 628 196 606 150 C 576 190 562 246 568 290 Z" fill="url(#skinDark)"/>
+      <!-- 发光的小面罩条：额头装甲下沿一道青光 -->
+      <path d="M352 392 Q 512 362 672 392" fill="none" stroke="url(#glow)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M352 392 Q 512 362 672 392" fill="none" stroke="#4dfff0" stroke-opacity="0.6" stroke-width="18" stroke-linecap="round" filter="url(#soft)"/>
+      <!-- 眼睛：大黑眼睛，青色发光的虹膜，白高光 -->
+      <ellipse cx="428" cy="470" rx="42" ry="48" fill="#1f2340"/>
+      <ellipse cx="596" cy="470" rx="42" ry="48" fill="#1f2340"/>
+      <circle cx="428" cy="478" r="24" fill="url(#glow)"/>
+      <circle cx="596" cy="478" r="24" fill="url(#glow)"/>
+      <circle cx="428" cy="478" r="24" fill="#4dfff0" fill-opacity="0.5" filter="url(#soft)"/>
+      <circle cx="596" cy="478" r="24" fill="#4dfff0" fill-opacity="0.5" filter="url(#soft)"/>
+      <circle cx="414" cy="454" r="12" fill="#ffffff"/>
+      <circle cx="582" cy="454" r="12" fill="#ffffff"/>
+      <!-- 腮红 -->
+      <ellipse cx="352" cy="548" rx="34" ry="22" fill="#ff8fcb" fill-opacity="0.55"/>
+      <ellipse cx="672" cy="548" rx="34" ry="22" fill="#ff8fcb" fill-opacity="0.55"/>
+      <!-- 象牙：鼻子根两边两颗小月牙 -->
+      <path d="M452 612 C 430 650 436 690 462 714 C 448 680 452 646 470 616 Z" fill="#fff6e9"/>
+      <path d="M572 612 C 594 650 588 690 562 714 C 576 680 572 646 554 616 Z" fill="#fff6e9"/>
+      <!-- 鼻子：从脸中间垂下来、往右卷；上粗下细（两段描边） -->
+      <path d="M512 560 C 506 650 492 740 516 810 C 540 880 626 896 664 848 C 690 814 662 770 628 788 C 606 800 610 834 636 836" fill="none" stroke="url(#skin)" stroke-width="118" stroke-linecap="round"/>
+      <path d="M516 790 C 540 880 626 896 664 848 C 690 814 662 770 628 788 C 606 800 610 834 636 836" fill="none" stroke="url(#skin)" stroke-width="92" stroke-linecap="round"/>
+      <!-- 鼻子上的褶皱环 -->
+      <g fill="none" stroke="#e2409a" stroke-opacity="0.32" stroke-width="9" stroke-linecap="round">
+        <path d="M462 640 Q 510 626 560 640"/>
+        <path d="M458 700 Q 506 686 554 700"/>
+        <path d="M466 758 Q 512 744 558 758"/>
+        <path d="M492 812 Q 532 804 566 818"/>
+      </g>
       <!-- 鼻尖的一滴水 / 泡泡 -->
       <circle cx="652" cy="846" r="40" fill="url(#bubble)"/>
       <circle cx="652" cy="846" r="40" fill="#8cffe6" fill-opacity="0.35"/>
     </g>
 
-    <!-- 底部的小标 DIVA（细细一行，可选） -->
+    <!-- 底部的小标 DIVA -->
     <text x="512" y="958" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" font-weight="900" font-size="74" letter-spacing="14" fill="#ffffff" fill-opacity="0.92" font-style="italic">DIVA</text>
   </g>
 </svg>
