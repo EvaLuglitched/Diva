@@ -1,55 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <!-- macOS 图标形状：大圆角方（Big Sur 起的 squircle 近似） -->
     <clipPath id="squircle">
       <path d="M512 24 C 820 24 1000 204 1000 512 C 1000 820 820 1000 512 1000 C 204 1000 24 820 24 512 C 24 204 204 24 512 24 Z"/>
     </clipPath>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff9ad6"/>
-      <stop offset="0.55" stop-color="#ff55a8"/>
-      <stop offset="1" stop-color="#b8228a"/>
+      <stop offset="0" stop-color="#ff9ad6"/><stop offset="0.55" stop-color="#ff55a8"/><stop offset="1" stop-color="#b8228a"/>
     </linearGradient>
     <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
-      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
-    <!-- 大象的皮：淡粉（机甲涂装色），下面稍深 -->
     <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffd9ef"/>
-      <stop offset="1" stop-color="#ffa6d8"/>
+      <stop offset="0" stop-color="#ffdcf0"/><stop offset="1" stop-color="#ffa6d8"/>
+    </linearGradient>
+    <linearGradient id="skinSide" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffc4e5"/><stop offset="1" stop-color="#ff8fcb"/>
     </linearGradient>
     <linearGradient id="skinDark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ff8fcb"/>
-      <stop offset="1" stop-color="#e2409a"/>
+      <stop offset="0" stop-color="#ff8fcb"/><stop offset="1" stop-color="#e2409a"/>
     </linearGradient>
     <linearGradient id="earInner" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffc2e4"/>
-      <stop offset="1" stop-color="#ff7fc6"/>
+      <stop offset="0" stop-color="#ffc2e4"/><stop offset="1" stop-color="#ff7fc6"/>
     </linearGradient>
     <linearGradient id="armor" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#ffc7e6"/>
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffc7e6"/>
     </linearGradient>
     <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#4dfff0"/>
-      <stop offset="1" stop-color="#8cffe6"/>
+      <stop offset="0" stop-color="#4dfff0"/><stop offset="1" stop-color="#8cffe6"/>
     </linearGradient>
     <radialGradient id="bubble" cx="0.35" cy="0.3" r="0.75">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
-      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.12"/>
-      <stop offset="0.9" stop-color="#8cffe6" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/><stop offset="0.45" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="0.9" stop-color="#8cffe6" stop-opacity="0.55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.9"/>
     </radialGradient>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="12"/>
-    </filter>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="12"/></filter>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#5a0a40" flood-opacity="0.45"/>
     </filter>
   </defs>
 
   <g clip-path="url(#squircle)">
-    <!-- 底：糖果粉渐变 + 光扫 + 远处的霓虹拱门光晕 -->
     <rect width="1024" height="1024" fill="url(#bg)"/>
     <circle cx="512" cy="1180" r="620" fill="#ffffff" fill-opacity="0.10"/>
     <circle cx="512" cy="1140" r="520" fill="none" stroke="#8cffe6" stroke-opacity="0.55" stroke-width="22"/>
@@ -62,55 +50,47 @@
       <circle cx="238" cy="118" r="30" fill="url(#bubble)"/>
       <circle cx="880" cy="170" r="46" fill="url(#bubble)"/>
       <circle cx="930" cy="300" r="26" fill="url(#bubble)"/>
-      <circle cx="110" cy="620" r="24" fill="url(#bubble)"/>
+      <circle cx="110" cy="640" r="24" fill="url(#bubble)"/>
     </g>
 
-    <!-- 大象（正面）：大扇耳、宽额头的圆脑袋、中间垂下来再卷起的长鼻子、两颗小象牙；机甲只是额头上的一片装甲和发光眼 -->
+    <!-- 大象（四分之三侧面，脸朝右）：左边一只大扇耳、右后方露一点远耳，圆脑袋，鼻子从脸的右下垂下来、鼻尖轻轻上翘，一颗近侧象牙 -->
     <g filter="url(#shadow)">
-      <!-- 耳朵：大扇形，贴在头两侧 -->
-      <path d="M312 330 C 170 290 70 420 100 570 C 122 690 240 730 330 660 Z" fill="url(#skinDark)"/>
-      <path d="M712 330 C 854 290 954 420 924 570 C 902 690 784 730 694 660 Z" fill="url(#skinDark)"/>
-      <!-- 耳廓里面浅一层 -->
-      <path d="M322 372 C 220 350 150 440 172 560 C 190 650 272 684 332 630 Z" fill="url(#earInner)"/>
-      <path d="M702 372 C 804 350 874 440 852 560 C 834 650 752 684 692 630 Z" fill="url(#earInner)"/>
-      <!-- 头：宽额头，往下收成脸 -->
-      <path d="M512 262 C 660 262 760 360 760 490 C 760 600 680 680 600 690 L 424 690 C 344 680 264 600 264 490 C 264 360 364 262 512 262 Z" fill="url(#skin)"/>
-      <!-- 额头的机甲装甲片（D.Va 的头盔，只占额头）+ 兔耳小天线 -->
-      <path d="M322 372 C 360 292 664 292 702 372 C 690 400 334 400 322 372 Z" fill="url(#armor)"/>
-      <path d="M335 372 Q 512 332 689 372" fill="none" stroke="#ff7fc6" stroke-opacity="0.8" stroke-width="8" stroke-linecap="round"/>
-      <path d="M432 300 C 404 240 396 196 418 150 C 448 190 462 246 456 290 Z" fill="url(#skinDark)"/>
-      <path d="M592 300 C 620 240 628 196 606 150 C 576 190 562 246 568 290 Z" fill="url(#skinDark)"/>
-      <!-- 发光的小面罩条：额头装甲下沿一道青光 -->
-      <path d="M352 392 Q 512 362 672 392" fill="none" stroke="url(#glow)" stroke-width="10" stroke-linecap="round"/>
-      <path d="M352 392 Q 512 362 672 392" fill="none" stroke="#4dfff0" stroke-opacity="0.6" stroke-width="18" stroke-linecap="round" filter="url(#soft)"/>
-      <!-- 眼睛：大黑眼睛，青色发光的虹膜，白高光 -->
-      <ellipse cx="428" cy="470" rx="42" ry="48" fill="#1f2340"/>
-      <ellipse cx="596" cy="470" rx="42" ry="48" fill="#1f2340"/>
-      <circle cx="428" cy="478" r="24" fill="url(#glow)"/>
-      <circle cx="596" cy="478" r="24" fill="url(#glow)"/>
-      <circle cx="428" cy="478" r="24" fill="#4dfff0" fill-opacity="0.5" filter="url(#soft)"/>
-      <circle cx="596" cy="478" r="24" fill="#4dfff0" fill-opacity="0.5" filter="url(#soft)"/>
-      <circle cx="414" cy="454" r="12" fill="#ffffff"/>
-      <circle cx="582" cy="454" r="12" fill="#ffffff"/>
+      <!-- 耳朵：远耳（头后面）和近耳（大扇形） -->
+      <path d="M690 360 C 760 330 830 370 836 450 C 840 530 790 580 724 566 Z" fill="url(#skinDark)"/>
+      <path d="M702 388 C 752 368 800 400 804 456 C 806 512 772 548 730 538 Z" fill="url(#earInner)"/>
+      <path d="M330 320 C 180 270 70 400 96 560 C 116 690 242 740 338 666 Z" fill="url(#skinDark)"/>
+      <path d="M338 366 C 230 334 150 430 170 556 C 186 650 272 694 336 636 Z" fill="url(#earInner)"/>
+      <!-- 头：四分之三侧面的蛋形，额头宽、脸往右下收 -->
+      <path d="M300 440 C 300 320 400 246 520 250 C 660 254 742 350 734 470 C 728 590 646 672 530 676 C 408 680 300 600 300 480 Z" fill="url(#skin)"/>
+      <path d="M560 262 C 666 276 742 360 734 470 C 728 590 646 672 530 676 C 600 640 650 560 652 470 C 654 380 620 300 560 262 Z" fill="url(#skinSide)" fill-opacity="0.55"/>
+      <!-- 额头的机甲装甲片 + 兔耳小天线 + 装甲下沿的青光 -->
+      <path d="M318 408 C 350 312 600 262 716 392 C 700 416 340 432 318 408 Z" fill="url(#armor)"/>
+      <path d="M334 404 Q 530 346 700 396" fill="none" stroke="#ff7fc6" stroke-opacity="0.8" stroke-width="8" stroke-linecap="round"/>
+      <path d="M456 290 C 428 232 420 190 444 146 C 474 186 488 240 480 282 Z" fill="url(#skinDark)"/>
+      <path d="M576 276 C 604 220 612 178 590 134 C 560 174 548 230 554 270 Z" fill="url(#skinDark)"/>
+      <path d="M350 426 Q 530 372 696 414" fill="none" stroke="url(#glow)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M350 426 Q 530 372 696 414" fill="none" stroke="#4dfff0" stroke-opacity="0.6" stroke-width="18" stroke-linecap="round" filter="url(#soft)"/>
+      <!-- 眼睛：近眼大、远眼小，青色发光的虹膜，白高光 -->
+      <ellipse cx="440" cy="486" rx="42" ry="48" fill="#1f2340"/>
+      <ellipse cx="626" cy="478" rx="26" ry="34" fill="#1f2340"/>
+      <circle cx="444" cy="494" r="24" fill="url(#glow)"/>
+      <circle cx="628" cy="484" r="15" fill="url(#glow)"/>
+      <circle cx="444" cy="494" r="24" fill="#4dfff0" fill-opacity="0.5" filter="url(#soft)"/>
+      <circle cx="430" cy="470" r="12" fill="#ffffff"/>
+      <circle cx="620" cy="466" r="7" fill="#ffffff"/>
       <!-- 腮红 -->
-      <ellipse cx="352" cy="548" rx="34" ry="22" fill="#ff8fcb" fill-opacity="0.55"/>
-      <ellipse cx="672" cy="548" rx="34" ry="22" fill="#ff8fcb" fill-opacity="0.55"/>
-      <!-- 象牙：鼻子根两边两颗小月牙 -->
-      <path d="M452 612 C 430 650 436 690 462 714 C 448 680 452 646 470 616 Z" fill="#fff6e9"/>
-      <path d="M572 612 C 594 650 588 690 562 714 C 576 680 572 646 554 616 Z" fill="#fff6e9"/>
-      <!-- 鼻子：从脸中间垂下来、往右卷；上粗下细（两段描边） -->
-      <path d="M512 560 C 506 650 492 740 516 810 C 540 880 626 896 664 848 C 690 814 662 770 628 788 C 606 800 610 834 636 836" fill="none" stroke="url(#skin)" stroke-width="118" stroke-linecap="round"/>
-      <path d="M516 790 C 540 880 626 896 664 848 C 690 814 662 770 628 788 C 606 800 610 834 636 836" fill="none" stroke="url(#skin)" stroke-width="92" stroke-linecap="round"/>
-      <!-- 鼻子上的褶皱环 -->
-      <g fill="none" stroke="#e2409a" stroke-opacity="0.32" stroke-width="9" stroke-linecap="round">
-        <path d="M462 640 Q 510 626 560 640"/>
-        <path d="M458 700 Q 506 686 554 700"/>
-        <path d="M466 758 Q 512 744 558 758"/>
-        <path d="M492 812 Q 532 804 566 818"/>
+      <ellipse cx="372" cy="566" rx="34" ry="22" fill="#ff8fcb" fill-opacity="0.55"/>
+      <!-- 近侧的象牙 -->
+      <path d="M520 606 C 486 650 482 700 508 736 C 500 696 510 652 540 618 Z" fill="#fff6e9"/>
+      <!-- 鼻子：闭合的渐细轮廓 + 褶皱 -->
+      <path d="M 532.2 564.5 L 533.4 573.0 L 534.7 581.7 L 536.1 590.4 L 537.7 599.0 L 539.3 607.5 L 541.1 615.9 L 543.0 624.2 L 544.9 632.4 L 547.1 640.6 L 549.3 648.6 L 551.6 656.5 L 554.1 664.3 L 556.7 672.0 L 559.4 679.6 L 562.3 687.1 L 565.2 694.5 L 568.3 701.8 L 571.5 708.9 L 574.8 715.9 L 578.3 722.8 L 581.8 729.6 L 585.5 736.2 L 589.4 742.7 L 593.3 749.0 L 597.4 755.2 L 601.6 761.3 L 605.9 767.2 L 610.4 773.0 L 615.0 778.6 L 619.7 784.1 L 624.5 789.3 L 629.5 794.5 L 634.6 799.4 L 639.8 804.1 L 645.2 808.7 L 650.7 813.1 L 656.3 817.3 L 662.1 821.2 L 667.9 825.0 L 673.9 828.5 L 680.0 831.8 L 686.2 834.9 L 692.6 837.7 L 699.0 840.3 L 705.5 842.7 L 712.1 844.8 L 718.9 846.6 L 725.6 848.2 L 731.1 849.2 L 736.1 849.9 L 741.1 850.4 L 746.0 850.8 L 750.9 851.1 L 755.7 851.2 L 760.5 851.2 L 765.2 851.1 L 769.9 850.8 L 774.4 850.3 L 779.0 849.7 L 783.4 849.0 L 787.8 848.1 L 792.1 847.1 L 796.3 845.9 L 800.4 844.6 L 804.5 843.2 L 808.5 841.6 L 812.3 839.9 L 816.1 838.1 L 819.8 836.1 L 823.4 833.9 L 826.8 831.7 L 830.2 829.3 L 833.4 826.7 L 836.5 824.1 L 839.4 821.3 L 842.2 818.4 L 844.9 815.3 L 847.3 812.2 L 849.7 808.9 L 851.8 805.6 L 853.8 802.1 L 855.6 798.6 L 857.2 794.9 L 858.7 791.2 L 859.9 787.5 L 860.9 783.6 L 861.8 779.8 L 862.4 775.9 L 862.9 771.9 L 863.1 768.0 L 863.2 764.0 L 863.1 760.1 L 862.7 756.1 L 862.2 752.1 L 861.5 748.2 L 860.8 744.7 A 23.0 23.0 0 0 1 815.2 751.3 L 815.3 753.8 L 815.2 755.7 L 815.0 757.5 L 814.7 759.2 L 814.4 760.9 L 813.9 762.4 L 813.5 763.8 L 812.9 765.2 L 812.3 766.4 L 811.6 767.6 L 810.9 768.7 L 810.2 769.8 L 809.4 770.8 L 808.6 771.7 L 807.7 772.6 L 806.8 773.4 L 805.8 774.2 L 804.8 774.9 L 803.7 775.6 L 802.6 776.3 L 801.4 777.0 L 800.2 777.6 L 798.9 778.2 L 797.6 778.7 L 796.2 779.2 L 794.7 779.7 L 793.1 780.2 L 791.5 780.6 L 789.8 780.9 L 788.1 781.2 L 786.2 781.5 L 784.3 781.7 L 782.3 781.9 L 780.2 782.0 L 778.1 782.0 L 775.9 782.0 L 773.6 781.9 L 771.2 781.8 L 768.8 781.5 L 766.3 781.2 L 763.7 780.9 L 761.1 780.4 L 758.4 779.8 L 755.6 779.2 L 752.8 778.5 L 749.9 777.6 L 746.9 776.7 L 744.4 775.8 L 740.6 774.4 L 736.9 772.9 L 733.3 771.3 L 729.8 769.5 L 726.4 767.5 L 723.0 765.5 L 719.6 763.3 L 716.4 760.9 L 713.1 758.5 L 710.0 755.8 L 706.9 753.1 L 703.8 750.2 L 700.8 747.1 L 697.9 743.9 L 695.0 740.6 L 692.1 737.1 L 689.3 733.5 L 686.6 729.7 L 683.9 725.8 L 681.3 721.7 L 678.7 717.5 L 676.2 713.1 L 673.8 708.6 L 671.4 704.0 L 669.1 699.2 L 666.9 694.3 L 664.8 689.2 L 662.7 684.0 L 660.7 678.7 L 658.8 673.2 L 656.9 667.7 L 655.1 661.9 L 653.5 656.1 L 651.9 650.2 L 650.4 644.1 L 649.0 637.9 L 647.7 631.6 L 646.4 625.2 L 645.3 618.7 L 644.3 612.1 L 643.3 605.4 L 642.5 598.6 L 641.8 591.7 L 641.1 584.7 L 640.6 577.6 L 640.2 570.4 L 639.9 563.2 L 639.8 555.5 Z" fill="url(#skin)"/>
+      <path d="M 532.2 564.5 L 533.4 573.0 L 534.7 581.7 L 536.1 590.4 L 537.7 599.0 L 539.3 607.5 L 541.1 615.9 L 543.0 624.2 L 544.9 632.4 L 547.1 640.6 L 549.3 648.6 L 551.6 656.5 L 554.1 664.3 L 556.7 672.0 L 559.4 679.6 L 562.3 687.1 L 565.2 694.5 L 568.3 701.8 L 571.5 708.9 L 574.8 715.9 L 578.3 722.8 L 581.8 729.6 L 585.5 736.2 L 589.4 742.7 L 593.3 749.0 L 597.4 755.2 L 601.6 761.3 L 605.9 767.2 L 610.4 773.0 L 615.0 778.6 L 619.7 784.1 L 624.5 789.3 L 629.5 794.5 L 634.6 799.4 L 639.8 804.1 L 645.2 808.7 L 650.7 813.1 L 656.3 817.3 L 662.1 821.2 L 667.9 825.0 L 673.9 828.5 L 680.0 831.8 L 686.2 834.9 L 692.6 837.7 L 699.0 840.3 L 705.5 842.7 L 712.1 844.8 L 718.9 846.6 L 725.6 848.2 L 731.1 849.2 L 736.1 849.9 L 741.1 850.4 L 746.0 850.8 L 750.9 851.1 L 755.7 851.2 L 760.5 851.2 L 765.2 851.1 L 769.9 850.8 L 774.4 850.3 L 779.0 849.7 L 783.4 849.0 L 787.8 848.1 L 792.1 847.1 L 796.3 845.9 L 800.4 844.6 L 804.5 843.2 L 808.5 841.6 L 812.3 839.9 L 816.1 838.1 L 819.8 836.1 L 823.4 833.9 L 826.8 831.7 L 830.2 829.3 L 833.4 826.7 L 836.5 824.1 L 839.4 821.3 L 842.2 818.4 L 844.9 815.3 L 847.3 812.2 L 849.7 808.9 L 851.8 805.6 L 853.8 802.1 L 855.6 798.6 L 857.2 794.9 L 858.7 791.2 L 859.9 787.5 L 860.9 783.6 L 861.8 779.8 L 862.4 775.9 L 862.9 771.9 L 863.1 768.0 L 863.2 764.0 L 863.1 760.1 L 862.7 756.1 L 862.2 752.1 L 861.5 748.2 L 860.8 744.7 A 23.0 23.0 0 0 1 815.2 751.3 L 815.3 753.8 L 815.2 755.7 L 815.0 757.5 L 814.7 759.2 L 814.4 760.9 L 813.9 762.4 L 813.5 763.8 L 812.9 765.2 L 812.3 766.4 L 811.6 767.6 L 810.9 768.7 L 810.2 769.8 L 809.4 770.8 L 808.6 771.7 L 807.7 772.6 L 806.8 773.4 L 805.8 774.2 L 804.8 774.9 L 803.7 775.6 L 802.6 776.3 L 801.4 777.0 L 800.2 777.6 L 798.9 778.2 L 797.6 778.7 L 796.2 779.2 L 794.7 779.7 L 793.1 780.2 L 791.5 780.6 L 789.8 780.9 L 788.1 781.2 L 786.2 781.5 L 784.3 781.7 L 782.3 781.9 L 780.2 782.0 L 778.1 782.0 L 775.9 782.0 L 773.6 781.9 L 771.2 781.8 L 768.8 781.5 L 766.3 781.2 L 763.7 780.9 L 761.1 780.4 L 758.4 779.8 L 755.6 779.2 L 752.8 778.5 L 749.9 777.6 L 746.9 776.7 L 744.4 775.8 L 740.6 774.4 L 736.9 772.9 L 733.3 771.3 L 729.8 769.5 L 726.4 767.5 L 723.0 765.5 L 719.6 763.3 L 716.4 760.9 L 713.1 758.5 L 710.0 755.8 L 706.9 753.1 L 703.8 750.2 L 700.8 747.1 L 697.9 743.9 L 695.0 740.6 L 692.1 737.1 L 689.3 733.5 L 686.6 729.7 L 683.9 725.8 L 681.3 721.7 L 678.7 717.5 L 676.2 713.1 L 673.8 708.6 L 671.4 704.0 L 669.1 699.2 L 666.9 694.3 L 664.8 689.2 L 662.7 684.0 L 660.7 678.7 L 658.8 673.2 L 656.9 667.7 L 655.1 661.9 L 653.5 656.1 L 651.9 650.2 L 650.4 644.1 L 649.0 637.9 L 647.7 631.6 L 646.4 625.2 L 645.3 618.7 L 644.3 612.1 L 643.3 605.4 L 642.5 598.6 L 641.8 591.7 L 641.1 584.7 L 640.6 577.6 L 640.2 570.4 L 639.9 563.2 L 639.8 555.5 Z" fill="url(#skinSide)" fill-opacity="0.35"/>
+      <g fill="none" stroke="#e2409a" stroke-opacity="0.32" stroke-width="8" stroke-linecap="round">
+        <path d="M 567.1 668.9 Q 606.1 666.7 640.0 647.2"/><path d="M 610.0 755.9 Q 643.8 744.8 667.8 718.5"/><path d="M 678.6 821.0 Q 702.8 799.5 711.7 768.4"/><path d="M 751.8 843.1 Q 763.6 816.4 757.5 787.9"/><path d="M 809.9 833.4 Q 809.5 807.2 792.3 787.5"/><path d="M 846.8 801.9 Q 834.5 782.2 811.8 777.0"/>
       </g>
-      <!-- 鼻尖的一滴水 / 泡泡 -->
-      <circle cx="652" cy="846" r="40" fill="url(#bubble)"/>
-      <circle cx="652" cy="846" r="40" fill="#8cffe6" fill-opacity="0.35"/>
+      <!-- 鼻尖前的一滴水 -->
+      <circle cx="872" cy="702" r="26" fill="url(#bubble)"/>
+      <circle cx="872" cy="702" r="26" fill="#8cffe6" fill-opacity="0.35"/>
     </g>
 
     <!-- 底部的小标 DIVA -->
