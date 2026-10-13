@@ -97,7 +97,7 @@ namespace Diva.Show
             ["check.cap.left"] = ("LEFT", "向左"),
             ["check.cap.right"] = ("RIGHT", "向右"),
             ["check.cap.shoot"] = ("SHOOT", "喷水"),
-            ["check.cap.eat"] = ("DRINK + EAT", "吃喝"),
+            ["check.cap.drink"] = ("DRINK + EAT", "喝水 + 吃东西"),
             ["check.ult1"] = ("Both hands above your head = MEGA BUBBLE (when charged)", "双手举过头顶 = 超级泡泡（充满后）"),
             ["check.ult3"] = ("Anyone: both hands above your head = MEGA BUBBLE (when charged)", "任何人：双手举过头顶 = 超级泡泡（充满后）"),
             ["check.ok"] = ("READY", "已识别"),

@@ -5,17 +5,17 @@ namespace Diva.Show
 {
     /// <summary>
     /// 摄像头识别页的火柴人动画（Eva 的手绘稿）：白色线条、没有背景，演示每个玩家要做的动作。
-    /// Walk = 双臂交替上下摆；Turn = 压肩 + 歪头，左右来回；Action = 双手往前推（张开手掌）→ 竖大拇指。
+    /// Walk = 双臂交替上下摆；Turn = 压肩 + 歪头，左右来回；Shoot = 握拳到胸前再张开往前推；Drink = 举手竖大拇指（喝水 / 吃）。
     /// 坐标以身高为 1（脚底 0，头顶约 0.97）；像照镜子：往画面左边歪 = 玩家往自己左边歪 = 左转。
     /// </summary>
     public class DivaStickFigure : MaskableGraphic
     {
-        public enum Act { Walk, Turn, Action }
+        public enum Act { Walk, Turn, Shoot, Drink }
         public Act act;
         [Tooltip("Line width in pixels.")]
         public float thickness = 5;
 
-        const float WalkHz = 1.5f, TurnPeriod = 3.2f, ActionPeriod = 4.6f, ShootPart = 2.3f;
+        const float WalkHz = 1.5f, TurnPeriod = 3.2f, ShootPeriod = 2.3f, DrinkPeriod = 2.6f;
         const float Head = .11f;
 
         /// <summary>When the moves start from their first pose (Time.unscaledTime).</summary>
@@ -27,7 +27,7 @@ namespace Diva.Show
         /// <summary>Text key for the move being shown right now (the caption under the figure).</summary>
         public string CaptionKey => act == Act.Walk ? "check.cap.swing"
                                   : act == Act.Turn ? (TurnTilt(Now) < 0 ? "check.cap.left" : "check.cap.right")
-                                  : Mathf.Repeat(Now, ActionPeriod) < ShootPart ? "check.cap.shoot" : "check.cap.eat";
+                                  : act == Act.Shoot ? "check.cap.shoot" : "check.cap.drink";
 
         VertexHelper vh;
         Vector2 origin;
@@ -45,11 +45,12 @@ namespace Diva.Show
             float t = Now;
             if (act == Act.Walk) Walk(t);
             else if (act == Act.Turn) Turn(t);
-            else Action(t);
+            else if (act == Act.Shoot) Shoot(t);
+            else Drink(t);
             vh = null;
         }
 
-        // ------------------------------------------------------------------ the three moves
+        // ------------------------------------------------------------------ the moves
         // Proportions favour the upper body (big head, long arms, short legs): every move happens above the hips.
 
         static readonly Vector2 ShoulderL = new Vector2(-.16f, .68f), ShoulderR = new Vector2(.16f, .68f), HeadAt = new Vector2(0, .86f);
@@ -108,45 +109,55 @@ namespace Diva.Show
             Line(tip, tip + Rotate(back, 35)); Line(tip, tip + Rotate(back, -35));
         }
 
-        /// <summary>P3: fists at the chest, push both open hands forward (spray); then hold a thumbs-up (eat / drink / refill).</summary>
-        void Action(float t)
+        /// <summary>P3, spray: fists at the chest, then both open hands pushed forward, held, and back.</summary>
+        void Shoot(float t)
         {
-            float u = Mathf.Repeat(t, ActionPeriod);
+            float u = Mathf.Repeat(t, ShootPeriod);
             Body(HeadAt, 0, ShoulderL, ShoulderR);
-            if (u < ShootPart)
+            float push = u < .35f ? 0 : u < .65f ? DivaUi.Smooth((u - .35f) / .3f) : u < 1.75f ? 1 : DivaUi.Smooth(1 - (u - 1.75f) / .3f);
+            foreach (var (shoulder, side) in new[] { (ShoulderL, -1f), (ShoulderR, 1f) })
             {
-                float push = u < .35f ? 0 : u < .65f ? DivaUi.Smooth((u - .35f) / .3f) : u < 1.75f ? 1 : DivaUi.Smooth(1 - (u - 1.75f) / .3f);
-                foreach (var (shoulder, side) in new[] { (ShoulderL, -1f), (ShoulderR, 1f) })
+                var elbow = Vector2.Lerp(shoulder + new Vector2(side * .05f, -.22f), shoulder + new Vector2(side * .07f, -.17f), push);
+                var hand = Vector2.Lerp(new Vector2(side * .08f, .55f), new Vector2(side * .20f, .58f), push);
+                Chain(shoulder, elbow, hand);
+                if (push < .3f) Dot(hand, .034f);
+                else Palm(hand, Mathf.Lerp(.9f, 1.4f, push), side);
+                // "push!" marks beside the hands once they are out
+                if (push > .8f)
                 {
-                    var elbow = Vector2.Lerp(shoulder + new Vector2(side * .05f, -.22f), shoulder + new Vector2(side * .07f, -.17f), push);
-                    var hand = Vector2.Lerp(new Vector2(side * .08f, .55f), new Vector2(side * .20f, .58f), push);
-                    Chain(shoulder, elbow, hand);
-                    if (push < .3f) Dot(hand, .034f);
-                    else Palm(hand, Mathf.Lerp(.9f, 1.4f, push), side);
-                    // "push!" marks beside the hands once they are out
-                    if (push > .8f)
-                    {
-                        var c = hand + new Vector2(side * .11f, 0);
-                        Chain(c + new Vector2(-side * .02f, .06f), c + new Vector2(side * .005f, 0), c + new Vector2(-side * .02f, -.06f));
-                    }
+                    var c = hand + new Vector2(side * .11f, 0);
+                    Chain(c + new Vector2(-side * .02f, .06f), c + new Vector2(side * .005f, 0), c + new Vector2(-side * .02f, -.06f));
                 }
             }
-            else
-            {
-                float raise = DivaUi.Smooth(Mathf.Min((u - ShootPart) / .3f, (ActionPeriod - u) / .3f));
-                // left arm hangs; right arm comes up beside the head with the thumb up
-                HangingArm(ShoulderL, -1);
-                var elbowR = Vector2.Lerp(ShoulderR + new Vector2(.045f, -.19f), ShoulderR + new Vector2(.12f, -.15f), raise);
-                var handR = Vector2.Lerp(elbowR + new Vector2(.005f, -.16f), new Vector2(.27f, .80f), raise);
-                Chain(ShoulderR, elbowR, handR);
-                if (raise < .5f) Dot(handR, .032f);
-                else
-                {
-                    Dot(handR, .045f);
-                    float pulse = 1 + .12f * Mathf.Sin(u * 9);
-                    Line(handR + new Vector2(-.012f, .046f), handR + new Vector2(-.02f, .046f + .1f * pulse * raise), thickness * 1.3f);
-                }
-            }
+        }
+
+        /// <summary>P3, drink (and eat / refill): the right arm comes up beside the head and holds a thumbs-up; drops briefly each loop.</summary>
+        void Drink(float t)
+        {
+            float u = Mathf.Repeat(t, DrinkPeriod);
+            float raise = DivaUi.Smooth(Mathf.Min(u / .3f, (DrinkPeriod - u) / .3f));
+            Body(HeadAt, 0, ShoulderL, ShoulderR);
+            HangingArm(ShoulderL, -1);
+            var elbowR = Vector2.Lerp(ShoulderR + new Vector2(.045f, -.19f), ShoulderR + new Vector2(.12f, -.15f), raise);
+            var handR = Vector2.Lerp(elbowR + new Vector2(.005f, -.16f), new Vector2(.27f, .80f), raise);
+            Chain(ShoulderR, elbowR, handR);
+            if (raise < .5f) Dot(handR, .032f);
+            else ThumbsUp(handR, 1 + .12f * Mathf.Sin(u * 9));
+        }
+
+        /// <summary>A fist seen from the front (rounded box, curled fingers toward the head) with the thumb sticking up.</summary>
+        void ThumbsUp(Vector2 c, float thumb)
+        {
+            float w = thickness * .8f, hw = .055f, hh = .044f, r = .02f;
+            var box = new System.Collections.Generic.List<Vector2>();
+            foreach (var (cx, cy, a0) in new[] { (hw - r, hh - r, 0f), (-hw + r, hh - r, 90f), (-hw + r, -hh + r, 180f), (hw - r, -hh + r, 270f) })
+                for (int k = 0; k <= 3; k++)
+                    box.Add(c + new Vector2(cx, cy) + Rotate(new Vector2(r, 0), a0 + 30 * k));
+            box.Add(box[0]);
+            for (int i = 1; i < box.Count; i++) Line(box[i - 1], box[i], w);
+            Line(c + new Vector2(-hw, .01f), c + new Vector2(-.01f, .01f), w);
+            Line(c + new Vector2(-hw, -.015f), c + new Vector2(-.01f, -.015f), w);
+            Line(c + new Vector2(-.028f, hh), c + new Vector2(-.033f, hh + .09f * thumb), thickness * 1.5f);
         }
 
         // ------------------------------------------------------------------ body parts

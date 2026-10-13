@@ -60,22 +60,23 @@ namespace Diva.Show
             checkImage = checkImageRect.gameObject.AddComponent<RawImage>();
             checkImage.raycastTarget = false;
             // Stick-figure demo in the middle of the picture (P1 · P2 · P3 left to right, as players stand in the mirrored
-            // preview): white lines only, no background, fades out after DemoSeconds.
+            // preview; P3 has two: spray and drink): white lines only, no background, fades out after DemoSeconds.
             checkDemo = DivaUi.Rect(checkRoot, "Moves Demo", centre, new Vector2(0, CheckY), new Vector2(CheckWidth, CheckHeight));
             checkDemoGroup = checkDemo.gameObject.AddComponent<CanvasGroup>();
             checkDemoGroup.blocksRaycasts = false; checkDemoGroup.interactable = false;
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 4; i++)
             {
-                float x = (i - 1) * 340;
+                float x = (i - 1.5f) * 270;
                 var spot = DivaUi.Rect(checkDemo, "Figure " + (i + 1), centre, new Vector2(x, -14), new Vector2(260, 300));
                 spot.gameObject.AddComponent<CanvasRenderer>();
                 var figure = spot.gameObject.AddComponent<DivaStickFigure>();
                 figure.act = (DivaStickFigure.Act)i; figure.thickness = 7; figure.color = Color.white; figure.raycastTarget = false;
-                var caption = DivaUi.Text(checkDemo, "Figure Caption " + (i + 1), centre, new Vector2(x, -186), new Vector2(320, 44), 34, Color.white);
-                var label = DivaUi.Text(checkDemo, "Figure Label " + (i + 1), centre, new Vector2(x, 186), new Vector2(200, 50), 40, Color.white);
+                var caption = DivaUi.Text(checkDemo, "Figure Caption " + (i + 1), centre, new Vector2(x, -186), new Vector2(260, 44), 34, Color.white);
                 checkFigures.Add((figure, caption));
-                checkFigureLabels.Add(label);
             }
+            // P1 over the walker, P2 over the turner, P3 over both of P3's figures
+            foreach (float x in new[] { -405f, -135f, 270f })
+                checkFigureLabels.Add(DivaUi.Text(checkDemo, "Figure Label " + (checkFigureLabels.Count + 1), centre, new Vector2(x, 186), new Vector2(200, 50), 40, Color.white));
             checkStatus = DivaUi.Text(checkRoot, "Camera Status", centre, picture, new Vector2(1000, 200), 38, new Color(1, .85f, .7f), TextAlignmentOptions.Center, false);
             checkStatus.textWrappingMode = TextWrappingModes.Normal;
             checkCount = DivaUi.Text(checkRoot, "Countdown", centre, picture, new Vector2(1100, 300), 150, Color.white);
@@ -153,11 +154,8 @@ namespace Diva.Show
             if (demoing)
             {
                 checkDemoGroup.alpha = Mathf.Clamp01(demoAge / .3f) * Mathf.Clamp01((DemoSeconds - demoAge) / .5f);
-                for (int i = 0; i < checkFigures.Count; i++)
-                {
-                    checkFigures[i].caption.text = DivaText.T(checkFigures[i].figure.CaptionKey);
-                    checkFigureLabels[i].text = singlePlayer ? "" : "P" + (i + 1);
-                }
+                foreach (var (figure, caption) in checkFigures) caption.text = DivaText.T(figure.CaptionKey);
+                for (int i = 0; i < checkFigureLabels.Count; i++) checkFigureLabels[i].text = singlePlayer ? "" : "P" + (i + 1);
             }
             bool all = problem == null && seen == count;
             var frame = all ? Recognised : Waiting;
