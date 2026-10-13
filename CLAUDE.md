@@ -21,9 +21,9 @@ Rules for agents:
 4. After an approved change, run all Python tests
    (`DigiPhantStarter/Tracking/.venv/bin/python -m unittest discover -s TrackingOverrides -p "test_*.py"`) and the
    four Unity validators (**DigiPhant > Diva > Validate Startup / Gestures / Stationary Turn / Trial Export**),
-   update `GESTURES_LOCKED.md`, `test_gesture_lock.py` and `EVA_UPDATES.md`, and ask for a live camera test.
+   update `GESTURES_LOCKED.md`, `test_gesture_lock.py` and `docs/EVA_UPDATES.md`, and ask for a live camera test.
 
 ## Other project notes
-- Fab rocket / cloud files are not in git (licence); see `FAB_SETUP.md`. Never commit `Assets/DivaGame/ThirdParty/Fab/`.
+- Fab rocket / cloud files are not in git (licence); see `docs/FAB_SETUP.md`. Never commit `Assets/DivaGame/ThirdParty/Fab/`.
 - Do not commit `ProjectSettings/VersionControlSettings.asset` (Unity keeps switching it) or `.vscode/`.
 - The Vision Pro branch `carl/diva-vr` needs a Unity Pro licence; do not merge it into `main`.
