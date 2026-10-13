@@ -167,7 +167,8 @@ kbd { font-family: var(--display); font-weight: 800; font-size: 15px; background
 .date { font-family: var(--display); font-weight: 900; font-size: 28px; text-transform: uppercase; line-height: 1; }
 .date small { display: block; font-size: 15px; color: var(--mist); letter-spacing: .1em; margin-top: 6px; font-weight: 800; }
 .day ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-.day li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.day li { position: relative; padding-left: 20px; }
+.day li::before { content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 7px; background: var(--teal); transform: rotate(45deg); }
 .who { font-family: var(--display); font-weight: 800; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; text-align: center; padding: 1px 0; transform: skewX(var(--slant)); }
 .who.eva { background: #8a5cff; color: #fff; } .who.carl { background: var(--pink); color: #fff; } .who.vicky { background: var(--teal); color: var(--night); } .who.team { background: var(--gold); color: var(--night); }
 .day li p { color: var(--mist); font-size: 16px; }
@@ -185,7 +186,8 @@ kbd { font-family: var(--display); font-weight: 800; font-size: 15px; background
 /* install */
 .install { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 900px) { .install { grid-template-columns: minmax(0, 1fr); } }
-.install .panel h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.install .panel h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; text-transform: none; }
+.install .panel h3 a { text-transform: uppercase; }
 .install .panel h3 a { font-size: 16px; letter-spacing: .08em; }
 .install code { font-size: 13px; background: var(--night); padding: 2px 6px; border-radius: 3px; overflow-wrap: anywhere; }
 
@@ -369,23 +371,23 @@ footer .wrap { display: grid; gap: 10px; }
       </div>
       <div class="timeline">
         <div class="day"><p class="date">Oct 8<small>Foundations</small></p><ul>
-          <li><span class="who vicky">Vicky</span><p><b>Set up the DigiPhant Unity project</b> with the savannah course and the camera setup, then a first three-player gesture demo with camera recovery.</p></li>
-          <li><span class="who eva">Eva</span><p><b>Wrote the game roadmap and built Candy Town:</b> targets, the rocket, the HUD, the race intro with its starry sky and orbiting rocket, neon track edges.</p></li>
-          <li><span class="who carl">Carl</span><p><b>Put a D.Va-style mech suit on the elephant</b>, wired the gestures to it, and built the match flow on Eva's intro: four skins, the ultimate, highlight replay and leaderboard.</p></li>
+          <li><p><b>Set up the DigiPhant Unity project</b> with the savannah course and the webcam, and got a first three-player gesture demo running.</p></li>
+          <li><p><b>Built Candy Town</b> around the course: pastel streets, targets, a rocket, the HUD and a race intro under a starry sky.</p></li>
+          <li><p><b>Put a D.Va-style mech suit on the elephant</b>, wired the gestures to it and built the match flow: four skins, the ultimate, a highlight replay and a leaderboard.</p></li>
         </ul></div>
         <div class="day"><p class="date">Oct 9–11<small>Two ways to play</small></p><ul>
-          <li><span class="who carl">Carl</span><p><b>Built the first-person Vision Pro version</b> on its own branch: a cockpit on the elephant's back, driven by hand and head tracking. 127 commits by Oct 13.</p></li>
-          <li><span class="who eva">Eva</span><p><b>Added keyboard play</b> next to the gestures, so anyone can try the game without a camera.</p></li>
-          <li><span class="who vicky">Vicky</span><p><b>Synced the gesture controls in Unity</b> and added trial export: every run writes its route and events for analysis.</p></li>
+          <li><p><b>Started the first-person Vision Pro version</b> on its own branch: a cockpit on the elephant's back, driven by hands and head.</p></li>
+          <li><p><b>Added keyboard play</b> next to the gestures, so anyone can try the game without a camera.</p></li>
+          <li><p><b>Added trial export:</b> every run writes its route and events for analysis.</p></li>
         </ul></div>
         <div class="day"><p class="date">Oct 12<small>Three players, one camera</small></p><ul>
-          <li><span class="who carl">Carl</span><p><b>Rebuilt three-player detection</b> so all three bodies are found every frame without stalls, tuned for Apple silicon. Added candy, ON FIRE, golden targets and the ice wall.</p></li>
-          <li><span class="who vicky">Vicky</span><p><b>Thumbs-up refill and body-lean turning</b>, plus a fix for a crash on low hand confidence.</p></li>
-          <li><span class="who eva">Eva</span><p><b>The camera check page:</b> role cards for P1, P2 and P3, a stick-figure demo of every move, the finish arch and the log task. Then she locked the gesture settings for one and three players.</p></li>
+          <li><p><b>Rebuilt three-player detection</b> so all three bodies are found every frame without stalls, tuned for Apple silicon.</p></li>
+          <li><p><b>Made the gestures feel right:</b> thumbs-up refill, steering by tilting the shoulders or head, and a camera check page with role cards and a stick-figure demo of every move.</p></li>
+          <li><p><b>Filled the race:</b> candy, ON FIRE, golden targets, the log task, the finish arch and the ice wall. Then we locked the gesture settings for one and three players.</p></li>
         </ul></div>
         <div class="day"><p class="date">Oct 13<small>Polish and release</small></p><ul>
-          <li><span class="who carl">Carl</span><p><b>A console-style look at 120 fps</b> on M1 and M2 Max MacBook Pros, the app icon, and release builds that ask for the camera themselves.</p></li>
-          <li><span class="who team">Team</span><p><b>Version 1.1:</b> the camera tracking is built into the Mac and Windows downloads. Tested with 93 automated gesture tests, an automatic gold lap, a three-player run, a live camera round and a clean Windows machine.</p></li>
+          <li><p><b>A console-style look at 120 fps</b> on M1 and M2 Max MacBook Pros, and the app icon.</p></li>
+          <li><p><b>Version 1.1:</b> the camera tracking is built into the Mac and Windows downloads. Tested with 93 automated gesture tests, an automatic gold lap, a three-player run, a live camera round and a clean Windows machine.</p></li>
         </ul></div>
       </div>
     </div>
@@ -450,10 +452,11 @@ footer .wrap { display: grid; gap: 10px; }
         <h2><span class="skew">Made by</span></h2>
       </div>
       <div class="team">
-        <div class="member" style="--who:#8a5cff"><h3>Eva</h3><a href="https://github.com/EvaLuglitched">@EvaLuglitched</a><p>Candy Town, the race intro, the course tasks, the camera check and the gesture lock. Owner of the repository.</p></div>
-        <div class="member" style="--who:var(--pink)"><h3>Carl</h3><a href="https://github.com/jchen60-bot">@jchen60-bot</a><p>The mech elephant, the match flow, three-player detection, the Vision Pro version, the look and the releases.</p></div>
-        <div class="member" style="--who:var(--teal)"><h3>Vicky</h3><a href="https://github.com/vickyyan-rgb">@vickyyan-rgb</a><p>The DigiPhant project setup and camera setup, gesture controls, thumbs-up refill, body-lean turning and trial export.</p></div>
+        <div class="member" style="--who:#8a5cff"><h3>Eva</h3><a href="https://github.com/EvaLuglitched">@EvaLuglitched</a></div>
+        <div class="member" style="--who:var(--pink)"><h3>Carl</h3><a href="https://github.com/jchen60-bot">@jchen60-bot</a></div>
+        <div class="member" style="--who:var(--teal)"><h3>Vicky</h3><a href="https://github.com/vickyyan-rgb">@vickyyan-rgb</a></div>
       </div>
+      <p class="lede" style="margin-top:22px">We designed, built and tested Diva together as one team, from the first webcam test to the release.</p>
     </div>
   </section>
 </main>
