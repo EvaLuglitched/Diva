@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-STARTER_COMMIT=4e6dab5271c618d1c0bfb2022c41c0d37cd8d69f
+STARTER_COMMIT=8f426f675f86d938bf3dbec23d6a7ee2479d2c1d
 POSE_URL=https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task
 HAND_URL=https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
 PYTHON=${PYTHON:-python3}

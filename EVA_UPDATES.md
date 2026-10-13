@@ -19,6 +19,12 @@ Eva 的代码都在 **`Assets/DivaGame/`**，场景物体都在 `Diva.unity` 的
 | 8 | 缺少 Fab 文件时显示替身火箭和云；Fab 安装说明 | `c451181` `aa9dcf2` `f7fc1fb` `9d9d5fd` |
 | 9 | 太空星空夜景；主摄像机显示天空盒 | `91a52e7` `0d4aa3f` |
 | 10 | 倒数时火箭从大象正前方飞过；火箭镜头里保留带光环的星球 | `c6fb9cd` `26a125f` |
+| 11 | 键盘操作玩法（和手势同时可用，不需要摄像头） | 见下方第 11 条 |
+| 12 | 终点：拱门移到终点线、冲线即结束、结束画面显示完成任务数、终点圆台 | 见下方第 12 条 |
+| 13 | 摄像头修复、竖拇指用 Gesture Recognizer、新开始流程（主页 → 大屏摄像头识别 → 自动开始） | 见下方第 13 条 |
+| 14 | 走路（摆臂 GO）放宽 + 每帧诊断记录 | 见下方第 14 条 |
+| 15 | 镜像摄像头画面、转弯改为压肩/歪头（不需要髋部）、遮挡不再全员中断 | 见下方第 15 条 |
+| 16 | 🔒 **单人和三人动作识别锁定**（`GESTURES_LOCKED.md`，修改前必须 double check） | 见下方第 16 条 |
 
 ## 1. 路线图（`029748d`）
 `ROADMAP.md`：大象射击游戏的玩法和分工计划。
@@ -84,6 +90,70 @@ DivaLook、机甲皮肤），再在上面重建 `Diva Game Layer`。之后每次
 - 开场时转动星空，让带光环的星球固定出现在火箭特写镜头的左上角，月亮在右上角。
 - Esc 跳过时火箭和星空都会对齐到相同的时间点。
 - **Render Intro Frames** 会在 Console 输出火箭和星球在画面中的真实位置（`DIVA_INTRO_ROCKET` / `DIVA_INTRO_PLANET`）。
+
+## 11. 键盘操作玩法
+- `Runtime/DivaKeyboardControls.cs`：键盘相当于多一个玩家，合并进 DivaDemo 的控制状态，和手势**同时**可用，
+  没有摄像头、没校准也能玩。移动、喷水（水柱 + 激光打靶）、喝水、Diva Show 的 HUD/技能、赛道任务都和手势一样响应。
+- 按键：**W/↑** 前进、**A/D 或 ←/→** 转向、**U/I** 瞄准（U 左、I 右）、**按住空格** 喷水、**F（或 R）** 喝水、**U** 同时也是 Diva Show 的大招键（大招充满时按 U 会放出大招）、
+  **H** 显示/隐藏右下角的按键提示（中英文跟随 Diva Show 的 L 键）。
+- 菜单和过场里键盘和手势一样被锁住；激光原来的"空格单发"在这时关掉，避免空格打两次。
+- **给 Carl / Vicky：** 这次改了 `Assets/DigiPhant/Runtime/DivaControlState.cs`（你们的文件），只加了一个
+  `Keys` 字段，并把 `Step` 拆成 `StepGestures` + 合并键盘 + 原来的连发逻辑。**没按键时（`Keys == null`）行为和原来完全一样**；
+  用 11 个逻辑测试核对过（只有键盘、键盘+手势、锁定菜单、连发节奏、喝水补水、松开按键）。
+
+## 12. 终点和游戏结束
+- 原来终点前约 14 米的那座彩虹拱门移到了终点线上，代替老师赛道的小终点门（只隐藏了它的模型，位置不变；
+  **Restore Course Colours** 可恢复）。拱门下面有粉白棋盘格终点线，过线后是一个和起点一样的圆形**终点台**（柠檬黄外圈、薄荷绿中心、粉色虚线圈）。
+- **大象从拱门穿过终点线就结束这一局，不管其他任务有没有完成**（从侧面走进终点区不算）。
+- 结束动画的横幅显示：用时 · 分数 · **完成任务 x/4**；结算卡片原来就有任务数。
+- **给 Carl / Vicky：** 改了你们的三个文件，各只有一两行：
+  - `DivaShowPlay.cs`：结束原因在没做完所有任务时记为新的 `finish_line`，全部完成仍是 `tasks_completed`（TrialData 的 reason 会出现这个新值）。
+  - `DivaShowEnd.cs`：结束横幅后面加了"完成任务 x/4"。
+  - `DivaText.cs`：新增 `finish.tasks` 中英文文字。
+  - Carl 的 VR 分支里的 `ForceFinish()` 也是"到拱门就结束"，以后合并时两边逻辑一致，注意 `DivaGameManager.cs` 的冲突。
+
+## 13. 摄像头和开始流程
+- **修了"摄像头自动关闭"**：手部关键点的 visibility/presence 是 `None`，竖拇指判断一比较就报错，整个追踪程序退出。
+  `diva_gestures.val()` 现在把 `None` 当默认值（`test_hand_none_quality.py` 用 MediaPipe 格式的数据复现并验证）。
+- **摄像头没画面时不再放弃**：每 4 秒重连一次直到恢复（原来 12 秒内 3 次失败就永久退出）。
+- **合并了 Carl 的 `carl/pc-three-player`**：多人模式每 0.5 秒全画面找新人、按进入顺序从左到右分配角色、门槛放宽。
+- **竖拇指改用 MediaPipe Gesture Recognizer**（预训练 `Thumb_Up`，这是我们的"额外 MediaPipe 视觉任务"），原来的几何规则作为备用；
+  第一次运行自动下载模型，下载失败就退回原来的方法。`test_thumb_model.py` 测试。
+- 摄像头画面里**识别到的玩家骨架都是绿色**，没分配的是灰色，P1/P2/P3 标签表示角色。
+- 摄像头预览改成约 960×540、15 帧/秒（拆成多个 UDP 包，Unity 拼回），识别页清晰很多；主页不再显示小摄像头窗口；
+  游戏中摄像头画面移到右上角按钮下方并放大到 0.8 倍（原来左下角 0.6 倍），技能提示条移到它左边（`DivaShowUi.cs` / `DivaShowHud.cs`）。
+- **新开始流程**（`Assets/DivaShow/Runtime/DivaShowCameraCheck.cs`）：主页选颜色和人数 → START（不再需要先校准）→
+  大屏摄像头识别页（每个玩家识别到就变绿）→ 全员绿色保持 5 秒自动保存站姿 → Eva 的开场。回车跳过（键盘玩），Esc 返回；Test controls 直接进开场。
+- **给 Carl / Vicky：** 改了 `DivaShowDirector.cs`（新阶段 `CameraCheck`，各加一行）、`DivaShowSelect.cs`（START 不再拦、主页不再自动校准）、
+  `DivaShowUi.cs`（建页面和显示）、`DivaText.cs`（新文字）、`DigiPhantCameraPreview.cs`（缺手势模型时自动下载）、
+  `bridge.py`、`diva_gestures.py/json`，以及 Vicky 的 `DivaStartupValidation.cs`（新规则：摄像头模式 START → 识别页，测试模式 → 开场）。
+
+## 14. 走路（摆臂前进）
+- 问题：TrialData 显示一局里大象起步/停下上百次，每段只走约 0.3 秒，约每秒一次，和摆臂节奏一致。
+- **放宽**（`diva_gestures.py/json`，Vicky 的阈值）：`go_hand_min_height` -0.85 → **-1.25**（摆到髋部也算）；
+  新增 `go_dropout` 0.3 秒：手腕短暂看不清（模糊、出画面边缘）不清空摆臂记录，保持原来的走/停状态。
+  同一个"摆到髋部"的模拟动作：改前 73% 的帧在走、4 秒断 8 次；改后 100%、不断。`test_go_relaxed.py`。
+- **诊断**：追踪程序每帧把 P1"为什么走/不走"写到 `DigiPhantStarter/Tracking/go_debug/go_<时间>.csv`（保留最近 10 个，
+  `--no-go-log` 可关）。玩一局后运行 `python TrackingOverrides/go_debug_report.py` 看统计：走/停切换次数、
+  每段走多久、追踪帧率、以及"手臂在摆但判为不走"时是哪条规则（手太低 / 幅度不够 / 停顿 / 手腕看不清 / 两帧间隔太长）。
+- 没改 Unity 的移动代码（急停还在，按 Eva 的决定先不改）。
+
+## 15. 三人遮挡和转弯
+- **摄像头画面改成镜像**（像照镜子）：P1/P2/P3 按镜像画面从左到右分配，和识别页下面的 P1 · P2 · P3 一一对应。
+  动作判断仍用原始画面，左右含义不变（往自己左边 = 左）。`bridge.py`。
+- **转弯改成压肩或歪头**（`diva_gestures.py`）：肩线或耳线（看不到耳朵用眼睛）相对校准姿势的斜率，取较大者；
+  0.14 开始、0.08 释放、0.40 满转向；**完全不用髋部**；肩膀短暂看不清（被旁边的人挡）保持当前转向 0.3 秒（`steer_dropout`）。
+  原来的大幅度"倾斜躯干"需要髋部可见，三人一排时很容易被挡。
+- **分不清时只暂停那个人**（`PerformerTracker`）：两个人靠得太近分不清时，只暂停这两个人，其他人照常（原来是这一帧三个人全部取消）。
+- **给 Vicky：** 你的倾身转弯测试改成了压肩/歪头：测试里的 `body(lean=…)` 现在也会让肩线和头倾斜；
+  "看不到髋部就停止转弯"的 3 个测试改成了新规则（髋部不影响、肩膀短暂遮挡保持 0.3 秒）；新增 `test_tilt_steer.py`。
+  Carl 的分配歧义测试改成"只暂停有歧义的人"。
+
+## 16. 🔒 动作识别锁定
+- 单人和三人模式的动作、参数、角色分配从 2026-10-12 起**锁定，不允许随意修改**。完整规格和修改流程见根目录 **`GESTURES_LOCKED.md`**。
+- 要改必须：群里说明并得到 Eva 同意 → 新分支 + Pull Request → 全部 Python 测试和 4 个 Unity 检查通过 → 单人和三人真人测试 → 更新文档。
+- 保护措施：`TrackingOverrides/test_gesture_lock.py`（参数或关键规则一改就失败）、根目录 `CLAUDE.md`（组员的 Claude 会读到，
+  不会擅自修改）、锁定文件开头的注释、`.github/CODEOWNERS`（这些文件的 PR 需要 Eva review；需要在 GitHub 分支保护里开启才强制）。
 
 ## 回复 Carl 的 NOTE_FOR_EVA.md
 

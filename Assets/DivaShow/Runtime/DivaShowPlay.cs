@@ -31,6 +31,7 @@ namespace Diva.Show
 
         void StartRun()
         {
+            FlushTrial("restarted");
             if (Diva.VR.DivaVR.Active && sound != null) sound.PlayLoop("race", .45f);
             if (game) game.ResetRun();
             demo.State.FillTank();
@@ -43,6 +44,7 @@ namespace Diva.Show
             tasksDone = game ? new bool[game.tasks.Length] : new bool[0];
             foreach (var f in feed) if (f.plate) Destroy(f.plate.gameObject);
             feed.Clear();
+            BeginTrial();
         }
 
         void UpdatePlay()
@@ -118,7 +120,7 @@ namespace Diva.Show
                         string label = DivaText.Task(game.tasks[i].label);
                         Banner(DivaText.T("skill.task"), label, new Color(.45f, 1f, .6f));
                         Feed(DivaText.T("skill.task") + " · " + label, new Color(.45f, 1f, .6f));
-                        replay.Mark(t, "task", 45, "skill.task");
+                        replay.MarkTask(t, i, game.tasks[i].label);
                     }
 
             // 大招
@@ -131,10 +133,11 @@ namespace Diva.Show
                            bubbles && bubbles.IsBlowing, waterGun ? waterGun.jetSpeed : 0);
 
             // 结束：Eva 的四个任务全部完成，或者超时
-            if (game && game.Finished) { Enter(ShowPhase.Finish); return; }
-            if (timeLimit > 0 && t >= timeLimit) { timeUp = true; Enter(ShowPhase.Finish); return; }
+            // Eva: crossing the finish arch ends the run even with tasks left ("finish_line"); all tasks done is still "tasks_completed".
+            if (game && game.Finished) { trialEndReason = game.AllTasksDone ? "tasks_completed" : "finish_line"; Enter(ShowPhase.Finish); return; }
+            if (timeLimit > 0 && t >= timeLimit) { trialEndReason = "timeout"; timeUp = true; Enter(ShowPhase.Finish); return; }
             var kb2 = UnityEngine.InputSystem.Keyboard.current;
-            if (kb2 != null && kb2.endKey.wasPressedThisFrame) { timeUp = true; Enter(ShowPhase.Finish); }
+            if (kb2 != null && kb2.endKey.wasPressedThisFrame) { trialEndReason = "manual_end"; timeUp = true; Enter(ShowPhase.Finish); }
         }
 
         bool chargeReadyAnnounced;

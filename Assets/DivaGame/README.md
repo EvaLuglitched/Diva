@@ -44,7 +44,7 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 
 - P3's spray gesture calls `DivaLaserBlaster.Fire(aim)` on every water burst, aimed by P3; the trunk water
   jet shows the shot and the beam is hidden (`showBeam`). Space and the HUD button still work.
-- Course tasks use the gestures (the body sliders are not driven in Diva mode): hands to mouth (P3 drink)
+- Course tasks use the gestures (the body sliders are not driven in Diva mode): a 0.4-second thumbs-up (P3 drink)
   counts as curling the trunk for the eat/drink tasks, P1 pumping counts as lifting the legs at the log.
 - DivaDemo no longer spawns its own five placeholder spheres when these targets exist.
 
@@ -57,6 +57,36 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 | Elephant travel radius 15 → **30** | DigiPhant Controls → Locomotion → Stage Radius |
 | Purple-blue procedural sky, trilight ambient, linear fog, warm soft-shadow sun (colour 1/.9/.78, intensity 1.5) | Lighting settings, Key Light |
 | Post-processing on the main camera; far clip ≥ 400 | Main Camera |
+
+## Finish and ending
+
+The last neon arch stands on the course's finish point, in place of the course's small finish gate (its renderers
+are hidden, its position kept; **Restore Course Colours** shows it again). Under the arch is a candy checkered line, and
+just past it a round **finish pad** like the start pad (lemon rim, mint centre, pink dashes) where the elephant stops.
+
+**Crossing the line through the arch ends the run, whether or not the other tasks are done** (`DivaGameManager.finishLine`;
+walking into the area past the line from the side does not count). The finish banner shows time, points and
+"TASKS x/4"; the results cards already showed the task count. Trial exports end with reason `finish_line`, or
+`tasks_completed` when every task was done first.
+
+## Keyboard play (`Runtime/DivaKeyboardControls.cs`)
+
+The keyboard works at the same time as the gestures, with or without a camera (no calibration needed). The keys act as one
+more player merged into DivaDemo's control state (`DivaControlState.Keys`), so movement, the water jet and laser,
+drinking, Diva Show's HUD and skills, and the course tasks all respond exactly as they do to gestures.
+
+| Key | Action |
+| --- | --- |
+| W / ↑ | Go forward |
+| A / D, ← / → | Turn left / right |
+| U / I | Aim the trunk left / right |
+| Space (hold) | Spray water; each burst fires at the best target in the aimed direction |
+| F (or R) | Drink / refill |
+| U | Also Diva Show's ultimate key: once the ultimate is charged, pressing U (aim left) fires it |
+| H | Hide / show the key legend (bottom right during play; EN/中文 follows Diva Show's L key) |
+
+Keys do nothing in locked menus and cutscenes, like gestures. The blaster's own Space shot is turned off while
+this component runs, so Space does not fire twice.
 
 ## Race intro (`Runtime/DivaIntro.cs`)
 
@@ -111,8 +141,7 @@ by you, not analysed or imitated by an AI tool.
 - This project's render pipeline uses the **GPU Resident Drawer**. After large asset changes the
   editor can keep showing deleted objects or magenta materials; reopen the scene or restart Unity.
 - **Diva > Game > Render Preview Shots** saves stills to `Recordings/preview/` (git-ignored).
-- Press Play: HUD at the top right (score, time, four tasks); **Space** fires the trunk laser at the
-  nearest standing target ahead.
+- Press Play: HUD at the top right (score, time, four tasks; crossing the finish arch ends the run); hold **Space** to spray (see Keyboard play).
 
 ## Files
 

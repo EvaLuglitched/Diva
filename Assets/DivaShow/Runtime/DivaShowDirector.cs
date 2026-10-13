@@ -11,7 +11,7 @@ using Diva.VR;
 
 namespace Diva.Show
 {
-    public enum ShowPhase { Intro, Select, RaceIntro, PowerUp, Countdown, Play, Ult, Finish, Highlight, Results }
+    public enum ShowPhase { Intro, Select, CameraCheck, RaceIntro, PowerUp, Countdown, Play, Ult, Finish, Highlight, Results }
 
     /// <summary>
     /// 整局流程：（Eva 的开场）→ 选涂装 → 机甲启动 → 3·2·1 → 游戏（技能、大招）→ 结束 → 本局高光 → 结算和排行榜。
@@ -183,6 +183,7 @@ namespace Diva.Show
 
         void OnDisable()
         {
+            FlushTrial("interrupted");
             DivaTarget.Hit -= OnTargetHit;
             DivaText.Changed -= OnLanguage;
             if (skins) skins.Changed -= OnSkinChanged;
@@ -217,6 +218,7 @@ namespace Diva.Show
             {
                 case ShowPhase.Intro: EnterIntro(); break;
                 case ShowPhase.Select: EnterSelect(); break;
+                case ShowPhase.CameraCheck: EnterCameraCheck(); break;
                 case ShowPhase.RaceIntro: EnterRaceIntro(); break;
                 case ShowPhase.PowerUp: EnterPowerUp(); break;
                 case ShowPhase.Countdown: EnterCountdown(); break;
@@ -234,6 +236,7 @@ namespace Diva.Show
         void Update()
         {
             DivaClock.Tick();
+            CacheTrialState();
             ReadInputs();
             if (raceIntro && raceIntro.Playing && raceIntro.Time < DivaIntro.Go && Phase != ShowPhase.RaceIntro)
             {
@@ -251,6 +254,7 @@ namespace Diva.Show
             {
                 case ShowPhase.Intro: UpdateIntro(); break;
                 case ShowPhase.Select: UpdateSelect(); break;
+                case ShowPhase.CameraCheck: UpdateCameraCheck(); break;
                 case ShowPhase.RaceIntro: UpdateRaceIntro(); break;
                 case ShowPhase.PowerUp: if (PhaseTime > 2.7f || skipEdge) Enter(ShowPhase.Countdown); break;
                 case ShowPhase.Countdown: UpdateCountdown(); break;
@@ -264,6 +268,7 @@ namespace Diva.Show
             UpdateBanners();
             if (DivaVR.Active) ShowRoots();   // VR 的大面板逐帧淡入淡出
             UpdateVrCard();
+            CacheTrialState();
         }
 
         float shake;
@@ -275,6 +280,7 @@ namespace Diva.Show
             switch (Phase)
             {
                 case ShowPhase.Select: CameraSelect(); break;
+                case ShowPhase.CameraCheck: CameraSelect(); break;
                 case ShowPhase.PowerUp: CameraPowerUp(); break;
                 case ShowPhase.Ult: CameraUlt(); break;
                 case ShowPhase.Finish: PoseFinish(); break;
@@ -294,6 +300,8 @@ namespace Diva.Show
             }
             UpdatePip();
             UpdateLook();
+            // Runs after DivaDemo (order 200), including its LateUpdate target hits.
+            CacheTrialState();
         }
 
         void SetCamera(Vector3 position, Vector3 lookAt, float fov)
@@ -508,7 +516,8 @@ namespace Diva.Show
             bool panel = controller && controller.showControls;
             bool inIntro = raceIntro && raceIntro.Playing;
             if (!inIntro) cameraPreview.showPreview = panel;   // 面板打开时照常画在面板里；Eva 的开场自己管
-            ShowCameraFeed(!DivaVR.Active && !panel && !inIntro && (Phase == ShowPhase.Select || Phase == ShowPhase.Play));
+            // Eva: not on the home page any more (the camera check after START shows the camera full size); small in play. VR 没有摄像头画面。
+            ShowCameraFeed(!DivaVR.Active && !panel && !inIntro && Phase == ShowPhase.Play);
         }
 
         // ------------------------------------------------------------------ intro (Timeline, optional)

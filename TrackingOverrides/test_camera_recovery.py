@@ -32,4 +32,14 @@ class CameraRecoveryTests(unittest.TestCase):
         r.read(3.1);r.read(3.2);r.read(13.3)
         self.assertEqual(r.reopens,0)
 
+    def test_unlimited_attempts_keep_trying_and_recover(self):
+        cameras=[FakeCamera()]
+        def reopen():
+            cameras.append(FakeCamera([(True,'late frame')] if len(cameras)==5 else []));return cameras[-1]   # the 5th reconnect works
+        r=CameraRecovery(cameras[0],reopen,0,timeout=3,max_reopens=None)
+        t=0
+        for _ in range(5):t+=3.1;self.assertTrue(r.read(t)[2])   # never raises
+        self.assertEqual(r.read(t+.1),(True,'late frame',False))
+        self.assertTrue(all(c.released for c in cameras[:-1]))
+
 if __name__=='__main__':unittest.main()

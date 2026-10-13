@@ -24,6 +24,8 @@ Thumbs.db
 **/__pycache__/
 /Recordings/
 /recordings/
+/TrialData/
+/UpdateBackups/
 /DigiPhantStarter/
 /Assets/Elephant/
 /Assets/Elephant.meta

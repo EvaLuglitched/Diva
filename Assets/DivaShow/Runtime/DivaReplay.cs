@@ -27,6 +27,8 @@ namespace Diva.Show
             public float weight;
             public DivaTarget target;
             public string label;    // 文字表的 key（显示时翻译）
+            public string taskLabel, targetName, targetPath;
+            public int taskIndex; public string targetEntityId;
         }
 
         public const float Hz = 30;
@@ -65,8 +67,21 @@ namespace Diva.Show
             }
         }
 
-        public void Mark(float t, string kind, float weight, string label, DivaTarget target = null) =>
-            events.Add(new Event { t = t, kind = kind, weight = weight, label = label, target = target });
+        public void Mark(float t, string kind, float weight, string label, DivaTarget target = null)
+        {
+            string path = "";
+            if (target)
+                for (var node = target.transform; node; node = node.parent)
+                    path = node.name + "[" + node.GetSiblingIndex() + "]" + (path.Length == 0 ? "" : "/" + path);
+            events.Add(new Event { t = t, kind = kind, weight = weight, label = label, target = target,
+                taskIndex = -1, targetName = target ? target.name : "", targetPath = path,
+                targetEntityId = target ? target.GetEntityId().ToString() : "" });
+        }
+
+        public void MarkTask(float t, int index, string rawLabel)
+        {
+            events.Add(new Event { t = t, kind = "task", weight = 45, label = "skill.task", taskIndex = index, taskLabel = rawLabel });
+        }
 
         /// <summary>找分数最高的一段：事件分数之和，加一点平均速度分（没打中东西时也能选出跑得最快的一段）。</summary>
         public (float start, float end, float key, string label) Best(float window)

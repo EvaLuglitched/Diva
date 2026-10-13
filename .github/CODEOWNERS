@@ -1,0 +1,9 @@
+# 🔒 Locked gesture controls (see GESTURES_LOCKED.md): changes need Eva's review.
+# (GitHub enforces this only when "Require review from Code Owners" is on in the main branch protection.)
+/TrackingOverrides/diva_gestures.py            @EvaLuglitched
+/TrackingOverrides/diva_gestures.json          @EvaLuglitched
+/TrackingOverrides/bridge.py                   @EvaLuglitched
+/TrackingOverrides/test_gesture_lock.py        @EvaLuglitched
+/Assets/DigiPhant/Runtime/DivaControlState.cs  @EvaLuglitched
+/Assets/DigiPhant/Runtime/DivaDemo.cs          @EvaLuglitched
+/GESTURES_LOCKED.md                            @EvaLuglitched

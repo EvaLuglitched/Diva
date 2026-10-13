@@ -64,7 +64,7 @@ namespace Diva.Show
             countdownRoot = DivaUi.Stretch(root, "Countdown");
             bannerRoot = DivaUi.Stretch(root, "Banner");
             topRoot = DivaUi.Stretch(root, "Top");
-            BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildCameraFeed();
+            BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildCameraFeed(); BuildCameraCheck();
             if (DivaVR.Active && DivaVR.MomentsAnchor) MoveMomentsForward();
             if (DivaVR.Active && DivaVR.DashAnchor) MoveSkillsToDash();
         }
@@ -171,6 +171,7 @@ namespace Diva.Show
         {
             if (!canvas) return;
             Show(selectRoot, Phase == ShowPhase.Select && !VrSelectHidden);
+            if (checkRoot) checkRoot.gameObject.SetActive(Phase == ShowPhase.CameraCheck);   // Eva 的摄像头识别页（VR 里不会进这个阶段）
             Show(hudRoot, Phase == ShowPhase.Play || Phase == ShowPhase.Countdown);
             countdownRoot.gameObject.SetActive(Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 1);
             highlightRoot.gameObject.SetActive(Phase == ShowPhase.Highlight);
@@ -299,16 +300,23 @@ namespace Diva.Show
             feedRoot.gameObject.SetActive(false);
         }
 
-        /// <summary>选涂装时右上角大一点（方便校准时看到自己），游戏中缩小放在左下角。</summary>
+        const float PlayFeedScale = .8f;
+
+        /// <summary>Right edge offset for the skill feed: left of the camera picture while it is showing in play.</summary>
+        float FeedRight => feedRoot && feedRoot.gameObject.activeSelf && Phase == ShowPhase.Play ? -30 - 380 * PlayFeedScale - 18 : -30;
+
+        /// <summary>游戏中在右上角（按钮下方，0.8 倍）；技能提示条移到它左边。</summary>
         void ShowCameraFeed(bool on)
         {
             if (!feedRoot) return;
             if (feedRoot.gameObject.activeSelf != on) feedRoot.gameObject.SetActive(on);
             if (!on) return;
             bool play = Phase == ShowPhase.Play;
-            feedRoot.anchorMin = feedRoot.anchorMax = feedRoot.pivot = play ? new Vector2(0, 0) : new Vector2(1, 1);
-            feedRoot.anchoredPosition = play ? new Vector2(40, 40) : new Vector2(-48, -100);
-            feedRoot.localScale = Vector3.one * (play ? .6f : 1);
+            // Eva: in play the camera sits at the top right under the language/SETUP buttons, a little bigger than
+            // before (was bottom left at 60%); the skill feed moves to its left (see FeedRight).
+            feedRoot.anchorMin = feedRoot.anchorMax = feedRoot.pivot = new Vector2(1, 1);
+            feedRoot.anchoredPosition = play ? new Vector2(-30, -96) : new Vector2(-48, -100);
+            feedRoot.localScale = Vector3.one * (play ? PlayFeedScale : 1);
             feedFrame.stripe = Accent;
             var tex = cameraPreview ? cameraPreview.PreviewTexture : null;
             feedImage.texture = tex;

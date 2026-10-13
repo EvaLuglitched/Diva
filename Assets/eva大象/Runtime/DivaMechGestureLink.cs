@@ -6,7 +6,7 @@ namespace Diva
     /// <summary>
     /// 把 Diva 三人手势（DivaDemo.State）接到机甲大象的动画上：
     ///   P3 双手张开往前推（Shoot）-> 鼻尖水枪喷水，方向和弹道跟 DivaDemo 的打靶水滴一致，P3 举手瞄准时跟着左右转；
-    ///   P3 双手放到嘴边（Drink）-> 泡泡炮冒泡泡；
+    ///   P3 任一手竖起拇指保持0.4秒（Drink）-> 泡泡炮冒泡泡；
     ///   P1 摆臂 / P2 倾身 -> 通过移动速度驱动推进器火焰和脚步声（DivaBoosters、DivaMechAudio 自己读速度，这里不用管）。
     /// 用反射读 DivaDemo，这个包放在没有 DivaDemo 的普通 DigiPhant 项目里也能编译，那时本组件什么都不做。
     /// 在 DivaDemo（执行顺序 200）之后运行，读到的是同一帧的手势状态。

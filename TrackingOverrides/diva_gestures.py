@@ -1,4 +1,7 @@
-"""Diva gesture rules on pretrained MediaPipe landmarks (no action network training).
+"""🔒 LOCKED (2026-10-12): single-player and three-player gesture controls are final. Do not change rules or
+thresholds without the double check in GESTURES_LOCKED.md (team + Eva approval, PR, all tests, live test).
+
+Diva gesture rules on pretrained MediaPipe landmarks (no action network training).
 
 Coordinates are UNMIRRORED. Recorded LEFT reaches camera-right; RIGHT reaches
 camera-left. Thresholds are in torso/shoulder units and configurable in JSON.
@@ -6,39 +9,52 @@ camera-left. Thresholds are in torso/shoulder units and configurable in JSON.
 from collections import deque
 import json
 import math
+from numbers import Real
 from pathlib import Path
 
-DEFAULTS = dict(min_quality=.30, go_window=.65, go_range=.16,
-                go_stop_delay=.28, go_step=.045, go_hand_min_height=-.85,
-                steer_hand_offset=.12, steer_joint_distance=.80,
-                steer_full_offset=.45, steer_direction=-1.,
+DEFAULTS = dict(min_quality=.30, go_window=.80, go_range=.14,
+                go_stop_delay=.35, go_step=.045, go_hand_min_height=-1.25,
+                # Wrists unclear for less than this (blur, frame edge) keep the swing history and the walking state.
+                go_dropout=.3,
+                # Steering = tilting the shoulders or the head toward one side (no hips needed). Tilt is the slope of
+                # the shoulder line or the ear (eye) line relative to the calibrated neutral; the larger one counts.
+                steer_tilt_start=.14, steer_tilt_release=.08,
+                steer_tilt_full=.40, steer_direction=-1.,
+                # Shoulders briefly unclear (occluded by a neighbour) keep the current turn this long, then stop.
+                steer_dropout=.3,
                 aim_height=.65, hand_match_distance=.55,
                 finger_angle=145., finger_extension=1.2,
                 shoot_min_height=-.55, shoot_max_height=.65,
                 shoot_forward_z=.20, shoot_elbow_angle=140.,
-                drink_min_height=-.03, drink_max_height=.65,
-                drink_separation=1.45, drink_mouth_distance=.38,
-                drink_below_mouth=.22, steer_opposing_lean=.12,
-                # Steering hysteresis: once turning, keep turning while the hands stay offset by the
-                # smaller release distance, and ride through tracking blips up to steer_hold seconds.
-                steer_release_offset=.07, steer_hold=.25,
+                thumb_hold=.4, thumb_max_gap=.6, thumb_angle_min=150.,
+                thumb_up_cos=.70, thumb_extension=.5, curled_angle_max=135.,
+                # MediaPipe Gesture Recognizer's pretrained 'Thumb_Up' (when the bridge runs it) also counts.
+                thumb_model_score=.5,
                 # Aim while spraying: both hands pushed toward one side (shooting keeps hands below aim_height).
                 shoot_aim_full_offset=.35, shoot_aim_deadzone=.06,
-                # Hands in front of the face hide the mouth landmarks; reuse its last seen place for a while.
-                mouth_memory=3.,
                 # Ultimate: both wrists well above the head (torso lengths above the shoulders), held still.
                 ult_height=.85, ult_hold=.8)
 
 def val(point,name,default=0.):
-    return point.get(name,default) if isinstance(point,dict) else getattr(point,name,default)
+    # MediaPipe hand landmarks carry visibility/presence = None (only pose landmarks fill them): use the default,
+    # or comparisons such as quality(p) < min_quality crash the bridge (and Unity shows "Camera stopped").
+    v=point.get(name,default) if isinstance(point,dict) else getattr(point,name,default)
+    return default if v is None else v
 
 def xyz(point): return tuple(val(point,k) for k in ('x','y','z'))
 def xy(point): return xyz(point)[:2]
-def quality(point): return min(val(point,'visibility',1.),val(point,'presence',1.))
+def confidence_value(value):
+    # MediaPipe hand landmarks omit these optional scores (None). Explicit low
+    # scores remain authoritative; malformed scores must never become confidence.
+    if value is None:return 1.
+    if isinstance(value,bool) or not isinstance(value,Real) or not math.isfinite(value) or not 0<=value<=1:return 0.
+    return float(value)
+
+def quality(point): return min(confidence_value(val(point,'visibility',1.)),confidence_value(val(point,'presence',1.)))
 def scale_body(points,aspect):
     """Convert x/z into image-height units so portrait/landscape agree."""
     return [dict(x=val(p,'x')*aspect,y=val(p,'y'),z=val(p,'z')*aspect,
-                 visibility=val(p,'visibility',1.),presence=val(p,'presence',1.)) for p in points]
+                 visibility=confidence_value(val(p,'visibility',1.)),presence=confidence_value(val(p,'presence',1.))) for p in points]
 def midpoint(a,b):return tuple((x+y)/2 for x,y in zip(xyz(a),xyz(b)))
 def angle(a,b,c):
     u=[x-y for x,y in zip(xyz(a),xyz(b))]; v=[x-y for x,y in zip(xyz(c),xyz(b))]
@@ -56,6 +72,27 @@ def open_fingers(landmarks,config=None):
             opened+=1
     return opened
 
+def thumbs_up(points,config):
+    """Image-up extended thumb and four positively folded fingers, not just 'not open'."""
+    if len(points)!=21 or any(not all(math.isfinite(c) for c in xyz(p)) or quality(p)<config['min_quality'] for p in points):return False
+    palm=max(.015,math.dist(xyz(points[0]),xyz(points[9])))
+    delta=tuple(a-b for a,b in zip(xyz(points[4]),xyz(points[2])))
+    length=math.sqrt(sum(c*c for c in delta));up=-delta[1]
+    if (length<1e-6 or up<config['thumb_extension']*palm or up/length<config['thumb_up_cos']
+            or angle(points[2],points[3],points[4])<config['thumb_angle_min']):return False
+    return all(math.dist(xyz(points[0]),xyz(points[base]))>.35*palm
+               and math.dist(xyz(points[base]),xyz(points[base+1]))>.15*palm
+               and math.dist(xyz(points[base+1]),xyz(points[base+3]))>.10*palm
+               and angle(points[base],points[base+1],points[base+3])<=config['curled_angle_max']
+               and math.dist(xyz(points[0]),xyz(points[base+3]))<=1.1*math.dist(xyz(points[0]),xyz(points[base+1]))
+               for base in (5,9,13,17))
+
+def model_thumbs_up(hand,config):
+    """The pretrained MediaPipe Gesture Recognizer says this hand is a thumbs-up (bridge adds gesture/gesture_score)."""
+    if not isinstance(hand,dict) or hand.get('gesture')!='Thumb_Up':return False
+    score=hand.get('gesture_score')
+    return isinstance(score,(int,float)) and math.isfinite(score) and score>=config['thumb_model_score']
+
 def associate_hands(hands,bodies,config=None,aspect=1.):
     """Match each hand to its nearest visible BODY wrist; reject close ties.
 
@@ -69,9 +106,10 @@ def associate_hands(hands,bodies,config=None,aspect=1.):
         matches=[]
         for slot,raw_b in bodies.items():
             b=scale_body(raw_b,aspect)
+            if len(b)<17 or any(not all(math.isfinite(c) for c in xyz(b[i])) or quality(b[i])<cfg['min_quality'] for i in (11,12)):continue
             scale=max(.03,math.dist(xy(b[11]),xy(b[12])))
             for wrist in (15,16):
-                if quality(b[wrist])>=cfg['min_quality']:
+                if quality(b[wrist])>=cfg['min_quality'] and all(math.isfinite(c) for c in xyz(b[wrist])):
                     matches.append((math.dist(xy(points[0]),xy(b[wrist]))/scale,slot,wrist))
         matches.sort()
         if not matches or matches[0][0]>cfg['hand_match_distance']:continue
@@ -89,43 +127,128 @@ class DivaGestureDetector:
         if config_path and Path(config_path).exists():
             self.config.update(json.loads(Path(config_path).read_text(encoding='utf-8')))
         self.history={}; self.last_motion={}; self.neutral={}; self.latest_geometry={}
-        self.steering={}; self.mouth={}; self.ult_since={}
+        self.steering={}; self.refill={}; self.ult_since={}
+        self.hand_lost={}; self.last_go={}
+        # Per slot: why the last frame was GO or not, with the numbers behind it (the bridge logs this).
+        self.go_debug={}
+    def _held_steer(self,slot,time):
+        previous=self.steering.get(slot)
+        if previous is not None and 0<=time-previous[1]<=self.config['steer_dropout']:return previous[0]
+        return None
+    def _why(self,slot,reason,**values):
+        self.go_debug[slot]=dict(reason=reason,**values)
     def calibrate(self):
         """Capture the last valid upright stance; camera must be unmirrored."""
-        self.neutral={slot:dict(g) for slot,g in self.latest_geometry.items()}
-        self.history.clear();self.last_motion.clear();self.steering.clear();self.ult_since.clear()
+        # A missing torso cannot establish a new lean baseline. Keep that slot's
+        # previous valid lean while allowing independently valid hand geometry.
+        self.neutral={slot:{**self.neutral.get(slot,{}),**g} for slot,g in self.latest_geometry.items()}
+        self.history.clear();self.last_motion.clear();self.steering.clear();self.ult_since.clear();self.refill.clear()
+        self.hand_lost.clear();self.last_go.clear()
     def reset(self,slot=None,preserve_neutral=False):
         if slot is None:
             self.history.clear();self.last_motion.clear();self.neutral.clear();self.latest_geometry.clear()
-            self.steering.clear();self.mouth.clear();self.ult_since.clear()
+            self.steering.clear();self.refill.clear();self.ult_since.clear();self.hand_lost.clear();self.last_go.clear()
         else:
             self.history.pop(slot,None);self.last_motion.pop(slot,None);self.steering.pop(slot,None);self.ult_since.pop(slot,None)
-            if not preserve_neutral:self.neutral.pop(slot,None);self.mouth.pop(slot,None)
+            self.refill.pop(slot,None);self.hand_lost.pop(slot,None);self.last_go.pop(slot,None)
+            if not preserve_neutral:self.neutral.pop(slot,None)
             self.latest_geometry.pop(slot,None)
     def retain(self,slots):
-        for slot in list(self.history):
+        for slot in set(self.history) | set(self.steering) | set(self.latest_geometry) | set(self.refill):
             if slot not in slots:self.reset(slot,preserve_neutral=True)
     def update(self,slot,body,time,hands=None,aspect=1.,allow_estimated_mouth=False):
         out=dict(go=0.,steer=0.,aim=0.,shoot=False,drink=False,ult=False,confidence=0.)
         cfg=self.config
         if body is None or len(body)<25:
-            self.reset(slot,preserve_neutral=True);return out
+            self.reset(slot,preserve_neutral=True);self._why(slot,'body-lost');return out
         b=scale_body(body,aspect)
-        required=[11,12,13,14,15,16,23,24]
-        if any(not all(math.isfinite(c) for c in xyz(b[i])) for i in required):
-            self.reset(slot,preserve_neutral=True);return out
-        q=min(quality(b[i]) for i in [11,12,15,16])
-        if q<cfg['min_quality']:
-            self.reset(slot,preserve_neutral=True);return out
+        required=[11,12]
+        shoulders_ok=all(all(math.isfinite(c) for c in xyz(b[i])) for i in required)
+        q=min(quality(b[i]) for i in [11,12]) if shoulders_ok else 0.
+        if not shoulders_ok or q<cfg['min_quality']:
+            held=self._held_steer(slot,time)
+            if held is not None:
+                # Brief occlusion: keep turning for up to steer_dropout instead of dropping to straight at once.
+                out['steer']=held;out['confidence']=cfg['min_quality']
+                self._why(slot,'shoulders-unclear-hold',shoulder_q=round(q,2));return out
+            self.reset(slot,preserve_neutral=True)
+            self._why(slot,'shoulders-unclear' if shoulders_ok else 'shoulders-missing',shoulder_q=round(q,2));return out
         out['confidence']=q
-        shoulder=midpoint(b[11],b[12]); hip=midpoint(b[23],b[24])
+        shoulder=midpoint(b[11],b[12])
         width=max(.03,math.dist(xy(b[11]),xy(b[12])))
-        torso_quality=min(quality(b[i]) for i in [23,24])
-        torso=max(.03,math.dist(shoulder[:2],hip[:2])) if torso_quality>=cfg['min_quality'] else width*1.7
+        # Either matched hand can refill; the other arm or hips need not be visible.
+        thumb_quality=0.
+        for hand in hands or []:
+            points=scale_body(hand['landmarks'],aspect)
+            if len(points)!=21 or not all(math.isfinite(c) for c in xyz(points[0])):continue
+            if not (model_thumbs_up(hand,cfg) or thumbs_up(points,cfg)):continue
+            matches=sorted((math.dist(xy(points[0]),xy(b[i]))/width,i) for i in (15,16)
+                           if quality(b[i])>=cfg['min_quality'] and all(math.isfinite(c) for c in xyz(b[i])))
+            if (not matches or matches[0][0]>cfg['hand_match_distance']
+                    or len(matches)>1 and matches[1][0]-matches[0][0]<.06):continue
+            thumb_quality=max(thumb_quality,min(q,quality(b[matches[0][1]]),min(quality(p) for p in points)))
+        if thumb_quality>=cfg['min_quality'] and math.isfinite(time):
+            previous=self.refill.get(slot)
+            if previous is None or time<=previous[1] or time-previous[1]>cfg['thumb_max_gap']:previous=(time,time)
+            self.refill[slot]=(previous[0],time)
+            out['confidence']=thumb_quality
+            out['drink']=time-previous[0]>=cfg['thumb_hold']
+            self.history.pop(slot,None);self.last_motion.pop(slot,None);self.ult_since.pop(slot,None);self.steering.pop(slot,None)
+            self.latest_geometry.pop(slot,None)
+            self._why(slot,'thumbs-up-refill')
+            return out
+        self.refill.pop(slot,None)
+        # Hips are optional (in a row of three they are often hidden): they only set the torso length for arm heights.
+        hips_ok=all(all(math.isfinite(c) for c in xyz(b[i])) for i in (23,24))
+        torso_quality=min(quality(b[i]) for i in [23,24]) if hips_ok else 0.
+        torso=(max(.03,math.dist(shoulder[:2],midpoint(b[23],b[24])[:2]))
+               if hips_ok and torso_quality>=cfg['min_quality'] else width*1.7)
+        # Steering: tilt of the shoulder line or the head (ears, else eyes). Positive = toward the performer's own
+        # left (their left shoulder / ear lower in the image). Only shoulders and head are used, never hips.
+        rolls=[(val(b[11],'y')-val(b[12],'y'))/width]
+        for a,c in ((7,8),(2,5)):
+            if all(quality(b[i])>=cfg['min_quality'] and all(math.isfinite(v) for v in xyz(b[i])) for i in (a,c)):
+                span=math.dist(xy(b[a]),xy(b[c]))
+                if span>.25*width:
+                    rolls.append((val(b[a],'y')-val(b[c],'y'))/span);break
+        self.latest_geometry[slot]={'tilt':rolls}
+        base=self.neutral.get(slot,{}).get('tilt',[])
+        tilts=[r-(base[k] if k<len(base) else 0.) for k,r in enumerate(rolls)]
+        tilt=max(tilts,key=abs)
+        previous=self.steering.get(slot)
+        same_side=(previous is not None and 0 < time-previous[1] <= .3
+                   and previous[0]*cfg['steer_direction']*tilt>0)
+        threshold=cfg['steer_tilt_release'] if same_side else cfg['steer_tilt_start']
+        if abs(tilt)>threshold:
+            out['steer']=cfg['steer_direction']*max(-1.,min(1.,tilt/cfg['steer_tilt_full']))
+            self.steering[slot]=(out['steer'],time)
+        else:
+            self.steering.pop(slot,None)  # Upright stops immediately; no stale turn hold.
+        # Steering only needs shoulders (+ head). Invalid arms must not emit other actions.
+        hand_valid=(all(all(math.isfinite(c) for c in xyz(b[i])) for i in (13,14,15,16))
+                    and min(quality(b[i]) for i in (15,16))>=cfg['min_quality'])
+        wrist_q=min(quality(b[i]) for i in (15,16))
+        if not hand_valid:
+            out['confidence']=min(q,torso_quality)
+            since=self.hand_lost.setdefault(slot,time)
+            if time-since<cfg['go_dropout'] and slot in self.history:
+                # Brief blur / frame edge: keep the swing history and the walking state instead of starting over.
+                out['go']=self.last_go.get(slot,0.)
+                self._why(slot,'wrists-unclear-hold',wrist_q=round(wrist_q,2),lost_for=round(time-since,2))
+                return out
+            self.history.pop(slot,None);self.last_motion.pop(slot,None);self.ult_since.pop(slot,None);self.refill.pop(slot,None)
+            self.last_go.pop(slot,None)
+            self._why(slot,'wrists-unclear',wrist_q=round(wrist_q,2),lost_for=round(time-since,2))
+            return out
+        self.hand_lost.pop(slot,None)
+        out['confidence']=min(q,quality(b[15]),quality(b[16]))
         heights=[(shoulder[1]-val(b[i],'y'))/torso for i in (15,16)]
         normalized=[(shoulder[1]-val(b[i],'y'))/width for i in (15,16)]
         history=self.history.setdefault(slot,deque())
-        if history and (time<=history[-1][0] or time-history[-1][0]>.3):
+        frame_gap=time-history[-1][0] if history else 0.
+        # Carl: a camera hiccup (group detection) under 0.6 s must not drop a pump in progress.
+        gap_reset=bool(history) and (time<=history[-1][0] or frame_gap>.6)
+        if gap_reset:
             self.reset(slot,preserve_neutral=True);history=self.history.setdefault(slot,deque())
         if history and min(heights)>cfg['go_hand_min_height']:
             # go_step is motion over 100 ms, normalized by frame time. A 30 fps
@@ -136,32 +259,25 @@ class DivaGestureDetector:
         history.append((time,normalized))
         while history and time-history[0][0]>cfg['go_window']:history.popleft()
         ranges=[max(r[1][i] for r in history)-min(r[1][i] for r in history) for i in (0,1)]
+        since_motion=time-self.last_motion.get(slot,-999)
         if (len(history)>=4 and time-history[0][0]>=.25 and min(heights)>cfg['go_hand_min_height']
-                and min(ranges)>cfg['go_range'] and time-self.last_motion.get(slot,-999)<cfg['go_stop_delay']):
+                and min(ranges)>cfg['go_range'] and since_motion<cfg['go_stop_delay']):
             out['go']=1.
+        # Why GO is on or off this frame (first failing condition), for the bridge's debug log.
+        reason=('go' if out['go'] else 'frame-gap-reset' if gap_reset
+                else 'warming-up' if len(history)<4 or time-history[0][0]<.25
+                else 'hands-too-low' if min(heights)<=cfg['go_hand_min_height']
+                else 'swing-too-small' if min(ranges)<=cfg['go_range']
+                else 'paused' )
+        go_numbers=dict(left_h=round(heights[0],2),right_h=round(heights[1],2),left_range=round(ranges[0],3),
+                        right_range=round(ranges[1],3),since_motion=round(min(since_motion,9.99),2),
+                        frame_gap=round(frame_gap,3),wrist_q=round(wrist_q,2))
         wrists=midpoint(b[15],b[16])
         hand_offset=(wrists[0]-shoulder[0])/torso
-        sep=math.dist(xy(b[15]),xy(b[16]))/torso
-        lean=(shoulder[0]-hip[0])/torso
-        self.latest_geometry[slot]=dict(hand_offset=hand_offset,lean=lean)
+        geometry=self.latest_geometry.setdefault(slot,{})   # a frame-gap reset above may have cleared it
+        geometry['tilt']=rolls; geometry['hand_offset']=hand_offset
         neutral=self.neutral.get(slot,{})
         hand_offset-=neutral.get('hand_offset',0.)
-        lean-=neutral.get('lean',0.)
-        steer_pose=(torso_quality>=cfg['min_quality'] and sep<cfg['steer_joint_distance'] and max(heights)<.4
-                    and not(abs(lean)>cfg['steer_opposing_lean'] and lean*hand_offset<0))
-        steer_value=cfg['steer_direction']*max(-1.,min(1.,hand_offset/cfg['steer_full_offset']))
-        previous=self.steering.get(slot)  # (steer value, time it was last produced)
-        same_side=previous is not None and previous[0]*steer_value>0
-        if steer_pose and abs(hand_offset)>cfg['steer_hand_offset'] and abs(lean+hand_offset*.5)>.08:
-            out['steer']=steer_value                                     # start (or keep) turning
-        elif steer_pose and same_side and abs(hand_offset)>cfg['steer_release_offset']:
-            out['steer']=steer_value                                     # hysteresis: still leaning that way
-        elif previous is not None and not steer_pose and time-previous[1]<=cfg['steer_hold']:
-            out['steer']=previous[0]                                     # brief tracking blip: hold the turn
-        if out['steer']!=0 and (previous is None or out['steer']!=previous[0] or steer_pose):
-            self.steering[slot]=(out['steer'],time)
-        elif out['steer']==0:
-            self.steering.pop(slot,None)
         raised=[h>cfg['aim_height'] for h in heights]
         if raised[0]!=raised[1]:out['aim']=-1. if raised[0] else 1.
         # Ultimate: both hands above the head and held there. Pumping (go) passes through this height
@@ -169,47 +285,23 @@ class DivaGestureDetector:
         if min(heights)>cfg['ult_height']:
             since=self.ult_since.setdefault(slot,time)
             out['ult']=time-since>=cfg['ult_hold']
+            if out['go']:reason='hands-above-head'
             out['go']=0.
         else:
             self.ult_since.pop(slot,None)
-        # Face landmarks prevent closed fists held at chest/shoulder height from
-        # becoming a drink gesture. Legacy recorded samples lack face joints,
-        # so their replay uses an estimated mouth (flagged in evaluation notes).
-        mouth=None
-        if min(quality(b[i]) for i in (9,10))>=.5 and all(math.isfinite(c) for i in (9,10) for c in xyz(b[i])):
-            mouth=midpoint(b[9],b[10])
-        elif quality(b[0])>=.5 and all(math.isfinite(c) for c in xyz(b[0])):
-            mouth=(val(b[0],'x'),val(b[0],'y')+.15*torso,val(b[0],'z'))
-        if mouth is not None:
-            self.mouth[slot]=((mouth[0]-shoulder[0])/torso,(mouth[1]-shoulder[1])/torso,time)
-        elif slot in self.mouth and time-self.mouth[slot][2]<=cfg['mouth_memory']:
-            # Hands in front of the face hide it: use where the mouth was, relative to the shoulders.
-            ox,oy,_=self.mouth[slot]; mouth=(shoulder[0]+ox*torso,shoulder[1]+oy*torso,shoulder[2])
-        elif allow_estimated_mouth:
-            mouth=(shoulder[0],shoulder[1]-.30*torso,shoulder[2])
+        self.last_go[slot]=out['go']
+        self._why(slot,reason,**go_numbers)
         if not hands or len(hands)!=2:return out
         if any(len(h['landmarks'])!=21 or any(not all(math.isfinite(c) for c in xyz(p)) for p in h['landmarks']) for h in hands):return out
         counts=[open_fingers(scale_body(h['landmarks'],aspect),cfg) for h in hands]
-        near_face=(min(heights)>=cfg['drink_min_height'] and max(heights)<=cfg['drink_max_height']
-                   and sep<cfg['drink_separation'] and abs(hand_offset)<.65)
-        hand_centers=[]
-        for hand in hands:
-            p=scale_body(hand['landmarks'],aspect)
-            hand_centers.append(tuple(sum(xyz(p[i])[axis] for i in (0,5,9,13,17))/5 for axis in range(3)))
-        hands_center=tuple(sum(h[axis] for h in hand_centers)/2 for axis in range(3))
-        near_face=near_face and mouth is not None and math.dist(hands_center[:2],mouth[:2])/torso<cfg['drink_mouth_distance'] and (
-            hands_center[1]-mouth[1])/torso<cfg['drink_below_mouth']
-        if near_face and max(counts)<=2:
-            out['drink']=True
-        else:
-            extended=[]
-            for shoulder_i,elbow_i,wrist_i in [(11,13,15),(12,14,16)]:
-                forward=(val(b[shoulder_i],'z')-val(b[wrist_i],'z'))/torso
-                extended.append(quality(b[elbow_i])>=cfg['min_quality'] and (forward>cfg['shoot_forward_z'] or angle(b[shoulder_i],b[elbow_i],b[wrist_i])>cfg['shoot_elbow_angle']))
-            out['shoot']=(min(counts)>=3 and all(extended)
-                          and min(heights)>=cfg['shoot_min_height'] and max(heights)<=cfg['shoot_max_height'])
-            # Raising one arm (aim) and spraying exclude each other, so while spraying the player aims
-            # by pushing both hands toward one side. Same sign convention as steering (negative = left).
-            if out['shoot'] and out['aim']==0 and abs(hand_offset)>cfg['shoot_aim_deadzone']:
-                out['aim']=cfg['steer_direction']*max(-1.,min(1.,hand_offset/cfg['shoot_aim_full_offset']))
+        extended=[]
+        for shoulder_i,elbow_i,wrist_i in [(11,13,15),(12,14,16)]:
+            forward=(val(b[shoulder_i],'z')-val(b[wrist_i],'z'))/torso
+            extended.append(quality(b[elbow_i])>=cfg['min_quality'] and (forward>cfg['shoot_forward_z'] or angle(b[shoulder_i],b[elbow_i],b[wrist_i])>cfg['shoot_elbow_angle']))
+        out['shoot']=(min(counts)>=3 and all(extended)
+                      and min(heights)>=cfg['shoot_min_height'] and max(heights)<=cfg['shoot_max_height'])
+        # Raising one arm (aim) and spraying exclude each other, so while spraying the player aims
+        # by pushing both hands toward one side. Same sign convention as steering (negative = left).
+        if out['shoot'] and out['aim']==0 and abs(hand_offset)>cfg['shoot_aim_deadzone']:
+            out['aim']=cfg['steer_direction']*max(-1.,min(1.,hand_offset/cfg['shoot_aim_full_offset']))
         return out

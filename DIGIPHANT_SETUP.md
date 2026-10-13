@@ -1,36 +1,46 @@
+# DigiPhant / Diva setup and validation
 
-## Savannah course import — 2026-10-08
+## Fresh checkout
 
-- Starter: https://github.com/kommanderpi/studentstarter, commit 4e6dab5271c618d1c0bfb2022c41c0d37cd8d69f.
-- Windows; Unity 6000.6.3f1; existing Universal Render Pipeline 17.6.0 retained.
-- Imported Assets/SavannahCourse and its original metadata; 50 copied files verified against the downloaded source.
-- Added layout 4, seed 20261005, to Assets/DigiPhant/Scenes/DigiPhant.unity with the supplied Inject Course into Open Scene tool.
-- Backup: Assets/DigiPhant/Scenes/DigiPhant_BeforeSavannah.unity.
-- Existing elephant, camera, controls, movement settings, and tracking files preserved.
-- Unity checks passed: SAVANNAH_BUNDLE_OK, SAVANNAH_VALIDATION_OK, SAVANNAH_SCENE_COPY_OK, SAVANNAH_INJECTION_OK.
-- Course visible with the elephant in the Game view. Live movement and camera tracking were not tested. Python tracking dependencies remain to be installed.
-- Existing travel radius is 15 units; full-course coverage may require 30. No movement boundary was changed. Discuss extending the radius before attempting the whole course.
-- Open the same DigiPhant scene to test. The scenery adds no collision, sound, or runtime interaction.
+Use Unity **6000.6.3f1**, URP **17.6.0**. Restore the excluded Elephant assets and Python environment using [README.md](README.md); on macOS use `bash Tools/setup_tracking_mac.sh`. Both setup paths pin starter commit `8f426f675f86d938bf3dbec23d6a7ee2479d2c1d`, which supplies the elephant, pose model, recording encoder and its tests. Keep `DigiPhantStarter/` beside Assets. Preserve metadata; do not replace the tracked DigiPhant assets with starter copies.
 
-## Live camera controls — 2026-10-08
+Windows verification used Python **3.14.7**, MediaPipe **0.10.35**, OpenCV package **4.14.0.94**. Install the pinned requirements in `DigiPhantStarter/Tracking/.venv`. The launcher synchronizes `TrackingOverrides/` gesture sources into Tracking and can download the hand model when missing.
 
-- Installed an isolated Python 3.14.7 environment in DigiPhantStarter/Tracking/.venv using uv.
-- Installed pinned MediaPipe 0.10.35 and OpenCV contrib 4.14.0.94; dependency consistency check passed and all 11 supplied tests passed.
-- Opened Unity Play mode, maximized Game view, selected 1 person, Seated / upper body, and Camera input. Webcam index 0 displayed a live preview with P1 detection.
-- Original bridge exited immediately on individual failed camera reads. DirectShow did not resolve the dropouts and that backend change was reverted. Adapted Tracking/bridge.py to tolerate dropped frames for up to 10 seconds, then report a prolonged camera failure. Original source saved as Tracking/bridge_before_windows_camera.py.bak.
-- Calibration button is visible. User must keep shoulders and both hands in frame, click Set neutral pose (10 seconds), and hold a resting pose. Successful calibration and gesture-driven elephant movement have not yet been verified.
-- Unity owns the camera bridge and stops it when Play mode ends. No recording was started.
+Open **Assets/DigiPhant/Scenes/Diva.unity**. `Assets/StudentWork/DigiPhantStudent.unity` is an optional preserved student scene using the same shared scripts. Fab rocket/cloud assets are omitted under their license; follow [FAB_SETUP.md](FAB_SETUP.md). Runtime substitutes are expected. Preserve MissingPrefab references rather than deleting/resaving them before restoring optional assets.
 
-## Diva three-person gesture prototype — 2026-10-08
+## Controls
 
-- New scene: Assets/DigiPhant/Scenes/Diva.unity, copied from DigiPhant with the Savannah course. Original scene preserved.
-- Pretrained MediaPipe pose and hand landmarks feed configurable gesture rules; no custom neural model was trained.
-- P1 pumps arms for GO and stops pumping for STOP. P2 leans hands/body for LEFT/RIGHT. P3 aims with a raised arm, shoots using two open extended hands, and refills using curled hands near a visible mouth.
-- Roles start left-to-right in the unmirrored preview. Try alone allows testing each role with one person. Keep P2 hips visible and avoid background people/crossings.
-- Third-person camera, water tank, held spray, refill and five targets added. Prototype refill works anywhere; aiming returns to center when arms lower.
-- Tracking bridge/rules installed in DigiPhantStarter/Tracking; source copies in TrackingOverrides because the starter folder is excluded from Git.
-- Instructions: DIVA_TRY_IT.md. Labeled source data: E:\UCB Gradschool\Classes\TDF\Projects\diva data.
-- Python tests: 28 passed. Source review and staged C# checks passed. Live three-person performance requires the user's physical trial.
-- Actual Unity editor compilation succeeded, native DIVA_GESTURES_VALIDATION_OK passed, and Diva.unity entered Play mode with the elephant/course/targets and third-person camera.
-- Manual spray registered two target hits; manual refill increased water back to 100%. Live camera preview displayed successfully but subsequently suffered camera read dropouts.
-- Added bounded same-backend camera reconnect with immediate empty control inputs and required neutral recalibration after recovery. 32 Python tests passed. Keep Retry available if the camera remains unavailable; underlying camera stability requires the user's trial.
+Play → F1 → **Try alone > All > Camera**. Keep shoulders, hips and wrists visible; pick colour and players, START, then stand upright on the camera check: after 5 seconds with everyone recognised (green) the neutral pose is saved and the intro starts. Manual Test controls start immediately. Reassign after changing positions and recalibrate.
+
+- Pump both arms for GO; stop pumping for STOP. Holding hands high overhead triggers confirmation/ultimate instead.
+- Tilt the shoulders or the head toward one side to turn (left = the performer's own left), even with GO zero and relaxed arms; hips are not used. Level stops turning; shoulders briefly unclear keep the turn for 0.3 s. Thresholds relative to the calibrated neutral (slope of the shoulder or ear line, the larger counts): start 0.14, release 0.08, full turn 0.40.
+- Torso turning requires valid shoulders/hips but not wrists. Either-hand thumbs-up refill needs only its matched wrist and shoulders; missing wrists still block GO. Calibration records a fresh hip baseline only with valid hips, otherwise retaining an earlier valid baseline or using zero. Ready alone does not prove fresh hip calibration.
+- Solo refill/ultimate intentionally suppress turning; spray/refill/ultimate suppress forward motion.
+
+See [DIVA_TRY_IT.md](DIVA_TRY_IT.md) for roles, spray/refill and group instructions. Stop Play to stop Unity's camera bridge.
+
+## Recording and generated trial data
+
+**Record performance** appears below the preview in F1. It requires calibrated Camera mode and live preview. Click **Stop recording and save**, then check `Recordings/<session>/performance.mp4`. It captures the Game view without audio; export holds images across capture gaps.
+
+Started runs automatically export to `TrialData/<UTC-session-and-GUID>/`: `route.csv`, `events.json`, `summary.json`. Reasons distinguish completed tasks (`tasks_completed`), crossing the finish arch with tasks left (`finish_line`), timeout, manual end and interruption. Route samples use scaled simulation time, nominally 30 Hz, capped at 600 seconds during Play/ultimate; no samples are fabricated to fill gaps. Mode/calibration metadata records start/end only, not complete tracking history. Manual runs must not be presented as gesture-controlled evidence.
+
+Failed exports retain frozen snapshots until domain reload and partial files for recovery. Fix disk/access problems and use **Retry pending trial exports** on the Diva Show director before recompiling/reloading. Successful session IDs prevent duplicate exports.
+
+## Verification record and limitations
+
+- **65 Python tests passed**: 62 repository tests plus three starter recording tests; dependencies and pose/hand model loading passed locally.
+- Earlier native Unity gesture, START guard, stationary-turn and trial-export validators passed. Stationary-turn checks exercise actual locomotion with both yaw directions, zero speed, unchanged xyz, upright/stale stopping and solo action gates. Export checks cover immutable snapshots, identifiers, decimal formatting, JSON escaping, retry/idempotence and component teardown. These historical checks have not been repeated on the current combined checkout.
+- Historical local live checks observed camera landmarks, solo GO/STOP and left/right steering with elephant translation/rotation. A silent 35.2-second, 1280×636 MP4 decoded all 352 frames at 10 fps; 156 captured images were held across gaps. A decoded frame visibly contained webcam landmarks and elephant.
+- A historical interrupted trial produced 3,217 route samples through 174.60672 simulation seconds and 13 events. Its duration/end-mode metadata was incorrect due to teardown ordering. Those original local files remain unchanged and their affected metadata is invalid. A caching fix passed native regression; a new post-fix physical finish/shutdown export remains unverified.
+- Thumbs-up refill and restored torso-only steering have automated verification, but no fresh physical test after those changes. Full three-person control, complete course interaction and cross-machine restoration remain pending. Walking is reported weak/intermittent; GO rules are unchanged. Archived low-cadence replay exposes a limitation without establishing the live cause.
+
+[TrackingOverrides/VALIDATION.md](TrackingOverrides/VALIDATION.md) details archived reference-fit tradeoffs. Pretrained MediaPipe plus rules is used; no custom neural action classifier was trained. Calibration alters a steering baseline, not model weights.
+
+Recordings, raw datasets, trial outputs, local logs/backups, environments, caches and licensed shared assets are excluded from Git. The historical evidence above describes local checks and is not included as reproducible test media. Keep new performance evidence separately and document its provenance.
+
+### Latest gesture update verification
+
+P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumbs-up is recognised by MediaPipe's pretrained Gesture Recognizer (`Thumb_Up`, `gesture_recognizer.task`, downloaded on first use) or, as a fallback, the geometric rule. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 tilts the shoulders or the head toward one side (calibrated; hips are not used and may be hidden); wrists may be hidden. Level stops turning, including while stationary; shoulders briefly unclear keep the turn for 0.3 s.
+
+The publication Python suite passed 62 override tests; three starter recording tests also passed (65 total). Optional MediaPipe hand confidence set to `None` no longer crashes thumbs-up detection; explicit low or invalid confidence remains rejected. Fresh native Unity and physical checks of this restoration and the combined keyboard/finish-line checkout remain pending. Upstream keyboard and finish-line behavior is preserved.
