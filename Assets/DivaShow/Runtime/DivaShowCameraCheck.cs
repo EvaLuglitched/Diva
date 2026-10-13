@@ -8,10 +8,14 @@ namespace Diva.Show
     // Eva：开始流程改成 主页（选颜色 + 人数 → START）→ 大屏摄像头识别页 → 全员绿色保持 5 秒 → 自动保存站姿（校准）→ Eva 的开场。
     // 摄像头识别页只在 Camera 模式出现；Test controls / 键盘模式按 START 直接进开场。
     // 画面下方每个玩家一张卡：角色 + 一句怎么操作，和 DivaControlState 一致（P1 前进，P2 转弯，P3 瞄准/喷水/竖拇指吃喝）。
+    // 进入识别页先在画面中央放 8 秒火柴人动画演示三个玩家的动作（DivaStickFigure，Eva 的手绘稿），然后淡出；
+    // 只有白色线条、没有背景，摄像头画面一直看得到。演示期间不开始"保持 5 秒"的计时（免得大家跟着做动作时被存成站姿）。
     public partial class DivaShowDirector
     {
         /// <summary>Seconds every player must stay recognised before the neutral pose is saved and the game starts.</summary>
         const float CheckHoldSeconds = 5;
+        /// <summary>Seconds the stick-figure demo plays in the middle of the picture when the page opens.</summary>
+        const float DemoSeconds = 8;
         /// <summary>Camera picture area on the check page (the role cards sit below it).</summary>
         const float CheckWidth = 1104, CheckHeight = 621, CheckY = 27;
 
@@ -22,6 +26,11 @@ namespace Diva.Show
         TextMeshProUGUI checkTitle, checkSub, checkCount, checkStatus, checkUlt;
         readonly List<(DivaSlant plate, TextMeshProUGUI role, TextMeshProUGUI state, TextMeshProUGUI how)> checkCards =
             new List<(DivaSlant, TextMeshProUGUI, TextMeshProUGUI, TextMeshProUGUI)>();
+        readonly List<(DivaStickFigure figure, TextMeshProUGUI caption)> checkFigures = new List<(DivaStickFigure, TextMeshProUGUI)>();
+        readonly List<TextMeshProUGUI> checkFigureLabels = new List<TextMeshProUGUI>();
+        RectTransform checkDemo;
+        CanvasGroup checkDemoGroup;
+        float checkEnteredAt;
         float checkHeldSince = -1;
         bool checkStarting;
 
@@ -50,6 +59,23 @@ namespace Diva.Show
             checkImageRect = DivaUi.Rect(checkRoot, "Image", centre, picture, new Vector2(CheckWidth, CheckHeight));
             checkImage = checkImageRect.gameObject.AddComponent<RawImage>();
             checkImage.raycastTarget = false;
+            // Stick-figure demo in the middle of the picture (P1 · P2 · P3 left to right, as players stand in the mirrored
+            // preview): white lines only, no background, fades out after DemoSeconds.
+            checkDemo = DivaUi.Rect(checkRoot, "Moves Demo", centre, new Vector2(0, CheckY), new Vector2(CheckWidth, CheckHeight));
+            checkDemoGroup = checkDemo.gameObject.AddComponent<CanvasGroup>();
+            checkDemoGroup.blocksRaycasts = false; checkDemoGroup.interactable = false;
+            for (int i = 0; i < 3; i++)
+            {
+                float x = (i - 1) * 340;
+                var spot = DivaUi.Rect(checkDemo, "Figure " + (i + 1), centre, new Vector2(x, -14), new Vector2(260, 300));
+                spot.gameObject.AddComponent<CanvasRenderer>();
+                var figure = spot.gameObject.AddComponent<DivaStickFigure>();
+                figure.act = (DivaStickFigure.Act)i; figure.thickness = 7; figure.color = Color.white; figure.raycastTarget = false;
+                var caption = DivaUi.Text(checkDemo, "Figure Caption " + (i + 1), centre, new Vector2(x, -186), new Vector2(320, 44), 34, Color.white);
+                var label = DivaUi.Text(checkDemo, "Figure Label " + (i + 1), centre, new Vector2(x, 186), new Vector2(200, 50), 40, Color.white);
+                checkFigures.Add((figure, caption));
+                checkFigureLabels.Add(label);
+            }
             checkStatus = DivaUi.Text(checkRoot, "Camera Status", centre, picture, new Vector2(1000, 200), 38, new Color(1, .85f, .7f), TextAlignmentOptions.Center, false);
             checkStatus.textWrappingMode = TextWrappingModes.Normal;
             checkCount = DivaUi.Text(checkRoot, "Countdown", centre, picture, new Vector2(1100, 300), 150, Color.white);
@@ -79,6 +105,8 @@ namespace Diva.Show
         {
             checkHeldSince = -1;
             checkStarting = false;
+            checkEnteredAt = Time.unscaledTime;
+            foreach (var (figure, _) in checkFigures) figure.startTime = checkEnteredAt;
             if (controller && controller.CalibrationPending) controller.CancelCalibrationCountdown();
             if (checkCount) checkCount.text = "";
         }
@@ -118,12 +146,26 @@ namespace Diva.Show
                 if (ok && (!singlePlayer || i == 0)) seen++;
                 ShowCheckCard(i, ok);
             }
+            // The moves demo: fades in, plays DemoSeconds, fades out and switches off.
+            float demoAge = Time.unscaledTime - checkEnteredAt;
+            bool demoing = demoAge < DemoSeconds;
+            if (checkDemo.gameObject.activeSelf != demoing) checkDemo.gameObject.SetActive(demoing);
+            if (demoing)
+            {
+                checkDemoGroup.alpha = Mathf.Clamp01(demoAge / .3f) * Mathf.Clamp01((DemoSeconds - demoAge) / .5f);
+                for (int i = 0; i < checkFigures.Count; i++)
+                {
+                    checkFigures[i].caption.text = DivaText.T(checkFigures[i].figure.CaptionKey);
+                    checkFigureLabels[i].text = singlePlayer ? "" : "P" + (i + 1);
+                }
+            }
             bool all = problem == null && seen == count;
             var frame = all ? Recognised : Waiting;
             checkFrame.Set(frame, frame * .7f);
 
             if (checkStarting) return;
-            if (!all) { checkHeldSince = -1; checkCount.text = ""; return; }
+            // The 5-second hold starts after the demo, so nobody's pose is saved while they copy the moves.
+            if (!all || demoing) { checkHeldSince = -1; checkCount.text = ""; return; }
             if (checkHeldSince < 0) { checkHeldSince = now; sound.Play("tick"); }
             float held = now - checkHeldSince;
             int left = Mathf.CeilToInt(CheckHoldSeconds - held);

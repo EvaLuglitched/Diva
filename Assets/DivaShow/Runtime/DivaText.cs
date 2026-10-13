@@ -92,6 +92,12 @@ namespace Diva.Show
             ["check.how2"] = ("Tilt your shoulders or head the way you want to turn", "往哪边压肩或歪头，就往哪边转"),
             ["check.how3"] = ("Raise one arm to aim · push both hands forward to spray\nThumbs-up = eat, drink & refill water",
                               "举一只手瞄准 · 双手前推喷水\n竖大拇指 = 吃喝 + 补水"),
+            // 火柴人动画下面的小字（DivaStickFigure.CaptionKey）
+            ["check.cap.swing"] = ("SWING ARMS", "摆臂"),
+            ["check.cap.left"] = ("LEFT", "向左"),
+            ["check.cap.right"] = ("RIGHT", "向右"),
+            ["check.cap.shoot"] = ("SHOOT", "喷水"),
+            ["check.cap.eat"] = ("DRINK + EAT", "吃喝"),
             ["check.ult1"] = ("Both hands above your head = MEGA BUBBLE (when charged)", "双手举过头顶 = 超级泡泡（充满后）"),
             ["check.ult3"] = ("Anyone: both hands above your head = MEGA BUBBLE (when charged)", "任何人：双手举过头顶 = 超级泡泡（充满后）"),
             ["check.ok"] = ("READY", "已识别"),
