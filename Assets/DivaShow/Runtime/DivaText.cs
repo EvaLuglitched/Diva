@@ -15,12 +15,15 @@ namespace Diva.Show
         public static Lang Current { get; private set; } = Lang.En;
         public static bool Chinese => Current == Lang.Zh;
         public static event Action Changed;
+        /// <summary>中文开关。Carl 2026-10-13：中文显示有 bug，先把切换整个拿掉（文字表留着，之后修好再开）。</summary>
+        public static bool LanguageSwitch = false;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { Current = Lang.En; Changed = null; }
 
         public static void Set(Lang lang)
         {
+            if (lang == Lang.Zh && !LanguageSwitch) return;
             if (lang == Current) return;
             Current = lang;
             Changed?.Invoke();
@@ -30,6 +33,7 @@ namespace Diva.Show
 
         public static string T(string key) => Table.TryGetValue(key, out var v) ? (Chinese ? v.zh : v.en) : key;
         public static string F(string key, params object[] args) => string.Format(T(key), args);
+        public static bool Has(string key) => Table.ContainsKey(key);
 
         // Eva 的任务名是英文写在场景里的；按关键词给出中文
         public static string Task(string label)
@@ -130,11 +134,59 @@ namespace Diva.Show
             ["key.boost"] = ("RUN", "跑起来"),
             ["key.cannon"] = ("PUSH HANDS", "双手前推"),
             ["key.bubble"] = ("THUMBS UP (0.4s)", "竖起拇指保持0.4秒"),
-            ["key.ult"] = ("BOTH HANDS UP · U", "双手举高 · U"),
+            ["key.ult"] = ("BOTH HANDS UP · E", "双手举高 · E"),
             ["ult.ready"] = ("MEGA BUBBLE READY — hold both hands above your head!", "超级泡泡就绪——双手举过头顶！"),
             ["feed.hit"] = ("Target hit  +{0}", "命中靶子  +{0}"),
             ["feed.combo"] = ("{0}  +{1}", "{0}  +{1}"),
             ["feed.ult"] = ("{0} hit {1} targets", "{0} 打中 {1} 个靶子"),
+            // ---- 比赛节奏（DivaShowMeta：PC 和 VR 共用）
+            ["feed.candy"] = ("CANDY  +{0}", "糖果  +{0}"),
+            ["feed.rocket"] = ("ROCKET!", "火箭！"),
+            ["dash"] = ("ROCKET DASH", "火箭冲刺"),
+            ["dash.ult"] = ("CHARGE!", "冲锋！"),
+            ["dash.b"] = ("full speed ahead for 2.5 s", "2.5 秒全速前冲"),
+            ["fire"] = ("ON FIRE!", "燃起来了！"),
+            ["fire.b"] = ("score ×1.5 for 12 s", "12 秒内得分 ×1.5"),
+            ["fire.name"] = ("ON FIRE", "燃烧"),
+            ["fire.hint"] = ("HIT · CANDY · TASK", "打靶 · 吃糖 · 任务"),
+            ["fire.on"] = ("×1.5  ·  {0}s", "×1.5  ·  {0} 秒"),
+            ["golden"] = ("GOLDEN TARGET!", "黄金靶子！"),
+            ["golden.b"] = ("3× points for 10 s", "10 秒内三倍分"),
+            ["medal.gold"] = ("GOLD LAP", "金牌圈速"),
+            ["medal.silver"] = ("SILVER LAP", "银牌圈速"),
+            ["medal.bronze"] = ("BRONZE LAP", "铜牌圈速"),
+            ["hero.title"] = ("PLAY OF THE RACE", "全场最佳"),
+            ["hero.champion"] = ("CHAMPION", "冠军"),
+            // 教练提示（单人 .b；三人模式 .b3 说明是哪位玩家的动作）
+            ["coach.run"] = ("RUN!", "跑起来！"),
+            ["coach.run.b"] = ("pump your arms (or W)  ·  follow the beacon", "摆动双臂（或 W）  ·  跟着光柱走"),
+            ["coach.run.b3"] = ("P1: pump your arms  ·  P2: lean to steer", "P1 摆动双臂  ·  P2 身体倾斜转向"),
+            ["coach.shoot"] = ("TARGET AHEAD", "前方有靶子"),
+            ["coach.shoot.b"] = ("push both hands forward (or Space)", "双手往前推（或空格）"),
+            ["coach.shoot.b3"] = ("P3: push both hands forward", "P3 双手往前推"),
+            ["coach.eat"] = ("EAT HERE", "在这里吃"),
+            ["coach.eat.b"] = ("thumbs-up 0.4 s (or F)", "竖拇指 0.4 秒（或 F）"),
+            ["coach.eat.b3"] = ("P3: thumbs-up 0.4 s", "P3 竖拇指 0.4 秒"),
+            ["coach.drink"] = ("DRINK HERE", "在这里喝水"),
+            ["coach.drink.b"] = ("thumbs-up 0.4 s (or F)  ·  refills water too", "竖拇指 0.4 秒（或 F）  ·  顺便补水"),
+            ["coach.drink.b3"] = ("P3: thumbs-up 0.4 s", "P3 竖拇指 0.4 秒"),
+            ["coach.log"] = ("GO AROUND THE LOG", "绕过树干"),
+            ["coach.log.b"] = ("just walk past it along the path", "顺着赛道走过去就行"),
+            ["coach.water"] = ("WATER LOW", "水快没了"),
+            ["coach.water.b"] = ("thumbs-up 0.4 s to refill (or F)", "竖拇指 0.4 秒补水（或 F）"),
+            ["coach.water.b3"] = ("P3: thumbs-up 0.4 s to refill", "P3 竖拇指 0.4 秒补水"),
+            ["coach.here"] = ("YOU'RE HERE", "到了"),
+            // 终点前的冰墙（DivaShowWall）
+            ["coach.wall"] = ("ICE WALL AHEAD", "前面有冰墙"),
+            ["coach.wall.b"] = ("only MEGA BUBBLE breaks it  ·  push the wall to charge", "只有超级泡泡能炸开  ·  顶着墙推能充能"),
+            ["coach.wall.b3"] = ("only MEGA BUBBLE breaks it  ·  P1: push the wall to charge", "只有超级泡泡能炸开  ·  P1 顶着墙推充能"),
+            ["coach.wall.ult"] = ("SMASH IT — MEGA BUBBLE!", "放超级泡泡 炸开它！"),
+            ["coach.wall.ult.b"] = ("both hands above your head (or E)", "双手举过头顶（或 E）"),
+            ["wall.hint"] = ("MEGA BUBBLE TO BREAK", "超级泡泡才能炸开"),
+            ["wall.hint.ult"] = ("MEGA BUBBLE NOW!", "放超级泡泡！"),
+            ["wall.break"] = ("WALL SMASHED!", "冰墙炸开了！"),
+            ["wall.break.b"] = ("+{0}  ·  charge through!", "+{0}  ·  冲过去！"),
+            ["stat.candies"] = ("Candy", "糖果"),
 
             ["finish"] = ("COURSE COMPLETE", "完成赛道"),
             ["timeup"] = ("TIME UP", "时间到"),

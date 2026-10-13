@@ -1,0 +1,26 @@
+Diva for macOS (Apple silicon: M1, M2, M3, M4; macOS 12 or newer)
+Team Diva: Eva, Carl, Vicky · DesComp Project 2 (DigiPhant) · https://github.com/EvaLuglitched/Diva
+
+INSTALL
+1. Drag Diva.app into Applications.
+2. The app is not from the App Store, so the first time: right-click Diva.app > Open > Open.
+   If macOS says the app is damaged or cannot be checked, open Terminal and run:
+       xattr -dr com.apple.quarantine /Applications/Diva.app
+   then open it again.
+
+CAMERA
+Choose Camera mode (the default) and press START. macOS asks once whether Diva may use the camera: click Allow.
+The body tracking (MediaPipe) is built into the app and runs on this Mac; nothing is uploaded.
+If you clicked Don't Allow: System Settings > Privacy & Security > Camera > turn on Diva, then restart Diva.
+
+CONTROLS (one player does everything; 3 PLAYERS splits them left to right)
+  Walk / run ........ pump both arms up and down            keyboard W
+  Turn .............. tilt your shoulders or head            A / D
+  Aim the trunk ..... raise one arm                          U / I
+  Spray water ....... push both open hands forward (hold)    Space
+  Eat, drink, refill  thumbs-up for 0.4 s                    F
+  MEGA BUBBLE ....... both hands above your head 0.8 s       E
+  Menus ............. raise one arm = next skin, both hands up = start    arrows, Enter
+  F1 setup panel · F2 frame rate · Esc skip
+
+The keyboard works at any time, with or without the camera.

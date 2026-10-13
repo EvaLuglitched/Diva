@@ -60,10 +60,13 @@ namespace DigiPhant
         [Min(0)] public float stageRadius = 15;
         [Range(-1, 1)] public float testForward;
         [Range(-1, 1)] public float testSteering;
+        /// <summary>Diva Show's rocket dash: minimum forward input (0..1) while the dash runs, on top of the player's own. Not saved.</summary>
+        [NonSerialized] public float externalForward;
         public string CurrentAction { get; private set; } = "Idle";
         public float CurrentSpeed { get; private set; }
         public bool AnimationActive => graph.IsValid();
         DigiPhantController controller;
+        DivaDemo diva;
         PlayableGraph graph;
         AnimationMixerPlayable mixer;
         AnimationClipPlayable[] playables;
@@ -156,11 +159,11 @@ namespace DigiPhant
             dt = Mathf.Clamp(dt, 0, .1f);
             float desiredForward = testForward, desiredTurn = testSteering;
             bool valid = true;
-            var diva = GetComponent<DivaDemo>();
+            if (!diva) diva = GetComponent<DivaDemo>();   // cached: this runs every frame
             bool custom = diva != null && diva.isActiveAndEnabled;
             if (custom)
             {
-                desiredForward = diva.State.Forward;
+                desiredForward = Mathf.Max(diva.State.Forward, Mathf.Clamp01(externalForward));
                 desiredTurn = diva.State.Turn;
                 if (desiredForward == 0) throttle = 0;
                 if (desiredTurn == 0) turn = 0;

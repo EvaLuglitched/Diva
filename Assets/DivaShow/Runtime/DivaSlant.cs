@@ -35,6 +35,18 @@ namespace Diva.Show
             vh.AddTriangle(i, i + 1, i + 2); vh.AddTriangle(i, i + 2, i + 3);
         }
 
-        public void Set(Color top, Color bottomColor) { color = top; bottom = bottomColor; SetVerticesDirty(); }
+        /// <summary>颜色没变就不重建网格（这些面板很多每帧都调一次；uGUI 一个元素脏整块画布就重建）。</summary>
+        public void Set(Color top, Color bottomColor)
+        {
+            if (color == top && bottom == bottomColor) return;
+            color = top; bottom = bottomColor; SetVerticesDirty();
+        }
+
+        public void SetStripe(Color c, float width = -1)
+        {
+            if (width < 0) width = stripeWidth;
+            if (stripe == c && Mathf.Approximately(stripeWidth, width)) return;
+            stripe = c; stripeWidth = width; SetVerticesDirty();
+        }
     }
 }

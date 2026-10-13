@@ -12,7 +12,7 @@ namespace Diva.Show
         class RunStats
         {
             public float distance, topSpeed, turned, bubbleTime, sprayTime;
-            public int hits, shots0, bestCombo, ults, ultHits;
+            public int hits, shots0, bestCombo, ults, ultHits, candies;
             public readonly int[] roleHits = new int[4];
         }
 
@@ -41,8 +41,8 @@ namespace Diva.Show
             bubbleCooldownUntil = cannonCooldownUntil = 0; boosting = wasShooting = wasDrinking = false; timeUp = false;
             lastPosition = elephant.position; lastYaw = elephant.eulerAngles.y;
             tasksDone = game ? new bool[game.tasks.Length] : new bool[0];
-            foreach (var f in feed) if (f.plate) Destroy(f.plate.gameObject);
-            feed.Clear();
+            ClearFeed(); ResetHudCaches();
+            MetaStartRun();
             BeginTrial();
         }
 
@@ -64,8 +64,8 @@ namespace Diva.Show
             if (demo.State.Drink) stats.bubbleTime += dt;
             if (demo.State.Shoot) stats.sprayTime += dt;
 
-            // 推进冲刺：接近最高速持续 1 秒
-            bool fast = speed >= locomotion.runSpeed * .88f;
+            // 推进冲刺：接近最高速持续 1 秒（火箭冲刺期间也算）
+            bool fast = speed >= locomotion.runSpeed * .88f || Dashing;
             rushTime = fast ? rushTime + dt : 0;
             if (boosting && !fast) boosting = false;
             if (!boosting && rushTime > 1 && Time.time > rushCooldown)
@@ -116,6 +116,7 @@ namespace Diva.Show
                     {
                         tasksDone[i] = true;
                         charge = Mathf.Min(100, charge + chargePerTask);
+                        Heat(.3f);
                         string label = DivaText.Task(game.tasks[i].label);
                         Banner(DivaText.T("skill.task"), label, new Color(.45f, 1f, .6f));
                         Feed(DivaText.T("skill.task") + " · " + label, new Color(.45f, 1f, .6f));
@@ -124,8 +125,9 @@ namespace Diva.Show
 
             // 大招
             if (charge >= 100 && !chargeReadyAnnounced) { chargeReadyAnnounced = true; sound.Play("ready"); }
+            // 键盘放大招用 E（U 是"向左瞄准"，充满时瞄准会误放）
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            bool ultKey = kb != null && kb.uKey.wasPressedThisFrame;
+            bool ultKey = kb != null && kb.eKey.wasPressedThisFrame;
             if (charge >= 100 && (ultEdge || ultKey)) { Enter(ShowPhase.Ult); return; }
 
             replay.Capture(t, boosters ? boosters.Level : 0, locomotion.CurrentSpeed, waterGun && waterGun.IsSpraying,
@@ -135,8 +137,7 @@ namespace Diva.Show
             // Eva: crossing the finish arch ends the run even with tasks left ("finish_line"); all tasks done is still "tasks_completed".
             if (game && game.Finished) { trialEndReason = game.AllTasksDone ? "tasks_completed" : "finish_line"; Enter(ShowPhase.Finish); return; }
             if (timeLimit > 0 && t >= timeLimit) { trialEndReason = "timeout"; timeUp = true; Enter(ShowPhase.Finish); return; }
-            var kb2 = UnityEngine.InputSystem.Keyboard.current;
-            if (kb2 != null && kb2.endKey.wasPressedThisFrame) { trialEndReason = "manual_end"; timeUp = true; Enter(ShowPhase.Finish); }
+            if (kb != null && kb.endKey.wasPressedThisFrame) { trialEndReason = "manual_end"; timeUp = true; Enter(ShowPhase.Finish); }
         }
 
         bool chargeReadyAnnounced;
@@ -153,16 +154,23 @@ namespace Diva.Show
             float t = Time.time - runStart;
             stats.hits++;
             if (Phase == ShowPhase.Ult) stats.ultHits++;
-            Popup("+" + target.points, target.AimPoint, Color.white);
+            // 金靶子的分已经是三倍；燃烧时再 ×1.5（多出来的记进奖励分）
+            bool gold = target == golden;
+            int shown = Mathf.RoundToInt(target.points * ScoreMultiplier);
+            Popup("+" + shown, target.AimPoint, gold ? GoldColour : Color.white);
             sound.Play("hit", .8f);
-            fx.Flash(target.AimPoint, Accent, 2.2f, .25f);
+            if (gold) sound.Play("combo", .8f, 1.3f);
+            fx.Flash(target.AimPoint, gold ? GoldColour : Accent, 2.2f, .25f);
+            // 燃烧的 ×1.5 大招打中的也算（飘字写的就是乘过的分，之前大招里这一行在 return 后面，显示和实际分不一致）
+            if (ScoreMultiplier > 1) bonus += shown - target.points;
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }
             charge = Mathf.Min(100, charge + chargePerHit);
+            Heat(.22f);
             combo = DivaClock.Time - lastHitTime <= ComboWindow ? combo + 1 : 1;
             lastHitTime = DivaClock.Time;
             stats.bestCombo = Mathf.Max(stats.bestCombo, combo);
-            Feed(DivaText.F("feed.hit", target.points), new Color(.35f, .8f, 1f));
+            Feed(gold ? DivaText.T("golden") + "  +" + shown : DivaText.F("feed.hit", shown), gold ? GoldColour : new Color(.35f, .8f, 1f));
             replay.Mark(t, "hit", 30, combo >= 3 ? "skill.combo3" : "skill.cannon", target);
             if (combo == 3 || combo == 5)
             {
@@ -180,12 +188,13 @@ namespace Diva.Show
         // ------------------------------------------------------------------ ultimate: MEGA BUBBLE
         Transform megaBubble;
         Vector3 ultOrigin, ultDirection, ultBubble;
-        bool ultPopped;
+        bool ultPopped, ultSmashedWall;
+        float ultSmashAt = -1;
         float ultRunStart;
 
         void EnterUlt()
         {
-            charge = 0; chargeReadyAnnounced = false; ultPopped = false;
+            charge = 0; chargeReadyAnnounced = false; ultPopped = false; ultSmashedWall = false;
             stats.ults++;
             ultRunStart = Time.time - runStart;
             replay.Mark(ultRunStart, "ult", 150, "skill.ult");
@@ -234,10 +243,15 @@ namespace Diva.Show
                 }
                 bonus += count * 10;
                 Feed(DivaText.F("feed.ult", DivaText.T("skill.ult"), count), Accent);
+                // 终点前的冰墙：泡泡飞过它就炸碎（DivaShowWall）——炸开那一下几乎定格，然后慢动作看碎冰飞，镜头从侧后方慢慢推进
+                ultSmashedWall = WallTryBreak(ultOrigin, ultDirection);
+                if (ultSmashedWall) { ultSmashAt = t; shake = .55f; sound.Play("whoosh", .7f, .45f); }
             }
-            // 爆开那一刻放慢
-            Time.timeScale = t > 1.45f && t < 2.2f ? .35f : 1;
-            if (t > 2.9f || skipEdge && t > .5f)
+            // 爆开那一刻放慢；炸了冰墙就慢更久（撞上那 0.35 秒几乎定格，之后 0.22 倍速看碎冰飞 2 秒多）
+            if (ultSmashedWall) Time.timeScale = t < 1.45f ? 1 : t < ultSmashAt + .35f ? .1f : t < ultSmashAt + 2.6f ? .22f : 1;
+            else Time.timeScale = t > 1.45f && t < 2.2f ? .35f : 1;
+            float ultEnd = ultSmashedWall ? ultSmashAt + 3.0f : 2.9f;
+            if (t > ultEnd || skipEdge && t > .5f)
             {
                 Time.timeScale = 1;
                 if (megaBubble) megaBubble.gameObject.SetActive(false);
@@ -265,7 +279,17 @@ namespace Diva.Show
                 var a = center + fwd * size * .95f + right * size * .25f + Vector3.down * size * .05f;
                 var b = center - fwd * size * .9f + right * size * 1.4f + Vector3.up * size * .6f;
                 var look = Vector3.Lerp(center + Vector3.up * size * .12f, Vector3.Lerp(center, ultBubble, .55f), k);
-                SetCamera(Vector3.Lerp(a, b, k), look, Mathf.Lerp(46, 58, k));
+                var pos = Vector3.Lerp(a, b, k); float fov = Mathf.Lerp(46, 58, k);
+                if (ultSmashedWall && t > ultSmashAt)
+                {
+                    // 冰墙炸开：就从这个侧后方的机位，慢慢往碎冰那里推，视线转向墙
+                    float st = DivaUi.Smooth((t - ultSmashAt) / 2.8f);
+                    var focus = WallFocus;
+                    pos += (focus - b).normalized * 3.2f * st;
+                    look = Vector3.Lerp(look, focus, .35f + .4f * st);
+                    fov = Mathf.Lerp(fov, 44, st);
+                }
+                SetCamera(pos, look, fov);
             }
         }
     }

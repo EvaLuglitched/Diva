@@ -30,6 +30,17 @@ namespace Diva.Show
         [Range(0, 1)] public float vignette = .24f;
         [Tooltip("Depth of field and film grain in cutscenes (skin select, ultimate, finish, highlight, results).")]
         public bool cinematicDepthOfField = true;
+        [Tooltip("A light far-field depth of field during play as well (3A racer look): nothing nearer than Gameplay Blur Start softens, so the elephant, the targets and the road stay sharp; only the far houses and the sky edge go soft.")]
+        public bool gameplayDepthOfField = true;
+        [Tooltip("f-stop of the cinematic (bokeh) depth of field in cutscenes; small = strong blur.")]
+        [Range(1.4f, 22)] public float cutsceneAperture = 4f;
+        [Tooltip("Gameplay depth of field (Gaussian, far field only): metres where the softening starts / is full, and its radius.")]
+        public float gameplayBlurStart = 35f, gameplayBlurEnd = 120f;
+        [Range(.5f, 1.5f)] public float gameplayBlurRadius = 1f;
+        [Tooltip("Camera motion blur during play (0 = off); stronger while boosting. Never in VR.")]
+        [Range(0, .6f)] public float motionBlur = .14f;
+        /// <summary>0..1 while the elephant is rushing (set by DivaShowDirector): motion blur doubles.</summary>
+        [System.NonSerialized] public float boost;
 
         [Header("Light")]
         public Color rimColour = new Color(.72f, .84f, 1f);
@@ -53,6 +64,7 @@ namespace Diva.Show
         VolumeProfile profile;
         Bloom bloom;
         DepthOfField dof;
+        MotionBlur blur;
         FilmGrain grain;
         ChromaticAberration aberration;
         Vignette vig;
@@ -143,7 +155,14 @@ namespace Diva.Show
             dof.focalLength.Override(85);
             dof.aperture.Override(4f);
             dof.focusDistance.Override(10);
+            dof.gaussianStart.Override(35); dof.gaussianEnd.Override(120); dof.gaussianMaxRadius.Override(1); dof.highQualitySampling.Override(true);
             dof.active = false;
+            // 镜头动态模糊（只有相机运动的那种，URP 不算物体的）：比赛里淡淡一层，冲刺时加倍；过场和 VR 里关
+            blur = profile.Add<MotionBlur>(true);
+            blur.mode.Override(MotionBlurMode.CameraOnly);
+            blur.quality.Override(MotionBlurQuality.Low);
+            blur.intensity.Override(0);
+            blur.clamp.Override(.05f);
             grain = profile.Add<FilmGrain>(true);
             grain.type.Override(FilmGrainLookup.Thin2);
             grain.intensity.Override(0);
@@ -186,7 +205,7 @@ namespace Diva.Show
             if (key) return;
             key = RenderSettings.sun;
             if (!key)
-                foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+                foreach (var l in FindObjectsByType<Light>())
                     if (l.type == LightType.Directional && l.enabled && l.name != "Diva Rim Light") { key = l; break; }
         }
 
@@ -221,6 +240,8 @@ namespace Diva.Show
             probe.importance = 1;
             probe.cullingMask = ~(1 << 5);
             probe.farClipPlane = 300;
+            // 画质档里"实时反射探针"关着的话这一次渲染不会发生（机甲就只反射空天空）：开起来，反正只渲染这一次
+            QualitySettings.realtimeReflectionProbes = true;
             probe.RenderProbe();
         }
 
@@ -243,13 +264,24 @@ namespace Diva.Show
             float dt = DivaClock.DeltaTime;
             blend = Mathf.MoveTowards(blend, cinematicDepthOfField ? Mathf.Clamp01(cinematic) : 0, dt * 2.5f);
             pulse = Mathf.MoveTowards(pulse, 0, dt * 2.2f);
-            dof.active = blend > .02f;
+            // 景深：过场对焦大象、f/4 的电影感；比赛里也留一点（f/11、50 毫米），只有远处的房子和天边变软，靶子都在清楚的范围里。
+            // 两者之间平滑过渡，切阶段时不跳
+            // 景深：过场是 Bokeh（对焦大象，光圈从几乎全清楚的 f/22 渐开到 f/4）；比赛里是高斯远景虚化——只虚 35 米以外，
+            // 大象、靶子、道具都清楚，也没有 Bokeh 那种近景一糊（近处的东西比远处糊得更厉害，打靶时很干扰）。
+            // 两种模式切换点放在过渡的中段（blend .35），那一下最不显眼
+            bool playDof = gameplayDepthOfField && cinematicDepthOfField;
+            dof.active = cinematicDepthOfField && (blend > .02f || playDof);
             if (dof.active)
             {
-                // 景深从"几乎全清楚"渐变到 f/5.6，避免切换时跳一下
+                bool bokeh = blend > .35f || !playDof;
+                dof.mode.value = bokeh ? DepthOfFieldMode.Bokeh : DepthOfFieldMode.Gaussian;
                 dof.focusDistance.value = Mathf.Max(.5f, focusDistance);
-                dof.aperture.value = Mathf.Lerp(22, 4f, blend);
+                dof.aperture.value = Mathf.Lerp(22, cutsceneAperture, blend);
+                dof.focalLength.value = 85;
+                dof.gaussianStart.value = gameplayBlurStart; dof.gaussianEnd.value = Mathf.Max(gameplayBlurStart + 1, gameplayBlurEnd); dof.gaussianMaxRadius.value = gameplayBlurRadius;
             }
+            blur.intensity.value = motionBlur * (1 - blend) * (1 + Mathf.Clamp01(boost));
+            blur.active = blur.intensity.value > .005f;
             grain.intensity.value = .22f * blend;
             vig.intensity.value = vignette + .08f * blend + .1f * pulse;
             aberration.intensity.value = .45f * pulse;
