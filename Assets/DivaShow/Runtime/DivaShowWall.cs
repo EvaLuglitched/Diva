@@ -17,7 +17,7 @@ namespace Diva.Show
         [Tooltip("An ice wall across the road before the finish arch; only the MEGA BUBBLE breaks it.")]
         public bool iceWall = true;
         [Tooltip("Metres before the finish line; column height; widest the wall may get (it stops at the buildings on each side).")]
-        public float wallDistance = 14f, wallHeight = 4.2f, wallMaxWidth = 18f;
+        public float wallDistance = 14f, wallHeight = 3.2f, wallMaxWidth = 18f;
         [Tooltip("Ultimate charge per second while pushing against the wall, so a player without a charge is never stuck.")]
         public float wallPushCharge = 10f;
         public int wallBreakBonus = 50;
@@ -67,15 +67,15 @@ namespace Diva.Show
             wallRng = new System.Random(11);
             float width = wallLeft + wallRight, mid = (wallRight - wallLeft) * .5f;
             // 前排：一根挨一根，中间高、两边矮（圆弧形的轮廓）；后排错开半根，矮一截，墙才有厚度
-            for (float x = -wallLeft - .3f; x <= wallRight + .3f; x += WRand(1.05f, 1.35f))
+            for (float x = -wallLeft - .3f; x <= wallRight + .3f; x += WRand(.85f, 1.1f))
             {
                 float edge = Mathf.Abs(x - mid) / Mathf.Max(1f, width * .5f);          // 0 中间 … 1 两端
-                float h = wallHeight * Mathf.Lerp(WRand(1.0f, 1.18f), WRand(.68f, .88f), edge * edge);
-                float r = WRand(.55f, .85f);
+                float h = wallHeight * Mathf.Lerp(WRand(1.0f, 1.15f), WRand(.3f, .45f), edge * edge);   // 中间 3 米多，两头矮成一堆碎冰
+                float r = WRand(.42f, .68f);
                 var lean = new Vector2(Mathf.Sign(x - mid) * WRand(.05f, .22f) * r, WRand(-.1f, .1f) * r);   // 两边的柱子往外歪一点
                 Column(wallCentre + wallRight3 * x + wallForward * WRand(-.25f, .25f), r, h, lean, true);
                 float h2 = h * WRand(.5f, .72f);
-                Column(wallCentre + wallRight3 * (x + WRand(.4f, .8f)) + wallForward * WRand(.95f, 1.35f), r * WRand(.7f, .95f), h2, new Vector2(0, WRand(.05f, .2f) * r), false);
+                Column(wallCentre + wallRight3 * (x + WRand(.3f, .6f)) + wallForward * WRand(.75f, 1.05f), r * WRand(.7f, .95f), h2, new Vector2(0, WRand(.05f, .2f) * r), false);
             }
             // 脚下一道雪堆（前后各一条）
             foreach (float z in new[] { -.9f, 1.9f })
@@ -84,7 +84,7 @@ namespace Diva.Show
                 var sc = snow.GetComponent<Collider>(); if (sc) Destroy(sc);
                 snow.name = "Snow Bank"; snow.transform.SetParent(wallRoot, true);
                 var at = wallCentre + wallRight3 * mid + wallForward * z + Vector3.up * .05f;
-                var scale = new Vector3(width + 2.5f, .7f, 2.4f);
+                var scale = new Vector3(width + 2f, .5f, 1.9f);
                 var rot = Quaternion.LookRotation(wallForward, Vector3.up);
                 snow.transform.SetPositionAndRotation(at, rot); snow.transform.localScale = scale;
                 var sr = snow.GetComponent<MeshRenderer>(); sr.sharedMaterial = snowMat; sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; sr.receiveShadows = false;
@@ -110,7 +110,7 @@ namespace Diva.Show
                 frost.name = "Ground Frost"; frost.transform.SetParent(wallRoot, true);
                 var fat = wallCentre + wallRight3 * mid + wallForward * .5f + Vector3.up * .02f;
                 var frot = Quaternion.LookRotation(wallForward, Vector3.up);
-                var fscale = new Vector3(width + 5f, .015f, 5.5f);
+                var fscale = new Vector3(width + 4f, .015f, 4.5f);
                 frost.transform.SetPositionAndRotation(fat, frot); frost.transform.localScale = fscale;
                 var fr2 = frost.GetComponent<MeshRenderer>(); fr2.sharedMaterial = snowMat; fr2.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; fr2.receiveShadows = true;
                 wallPieces.Add(new Piece { t = frost.transform, at = fat, rot = frot, scale = fscale });
@@ -138,7 +138,7 @@ namespace Diva.Show
                 var sgo = new GameObject("Ice Chunk", typeof(MeshFilter), typeof(MeshRenderer));
                 sgo.transform.SetParent(wallRoot, true);
                 float cr = radius * WRand(.3f, .5f);
-                var cat = at - wallForward * WRand(.9f, 1.6f) + wallRight3 * WRand(-.6f, .6f);
+                var cat = at - wallForward * WRand(.7f, 1.2f) + wallRight3 * WRand(-.5f, .5f);
                 var crot = Quaternion.LookRotation(wallForward, Vector3.up) * Quaternion.Euler(WRand(-35, -15), WRand(0, 360), WRand(-20, 20));
                 sgo.transform.SetPositionAndRotation(cat, crot);
                 sgo.GetComponent<MeshFilter>().sharedMesh = CrystalMesh(wallRng, cr, cr * WRand(2.2f, 3.6f), Vector2.zero, out _);
