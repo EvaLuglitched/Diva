@@ -43,6 +43,9 @@ LOCKED_LINES = [
     # 2026-10-13 approved change (Eva): a missing player's role passes to the person still in view after 1 s, and a
     # Gesture Recognizer failure rebuilds it instead of ending the bridge.
     ('TrackingOverrides/bridge.py', 'self.relock_seconds = 1.0'),
+    # 2026-10-13 approved change (Eva): after calibration roles stay in each player's spot; role colours in the preview.
+    ('TrackingOverrides/bridge.py', 'self.home = list(self.positions)   # calibrated: everyone\'s spot for the rest of the game'),
+    ('TrackingOverrides/bridge.py', 'colors = [(70, 70, 255), (255, 150, 40), (90, 220, 90), (60, 220, 255)]'),
     ('TrackingOverrides/bridge.py', 'gesture_recognizer = RecoveringRecognizer(lambda: vision.GestureRecognizer.create_from_options(gesture_options))'),
     # 2026-10-13 approved change (Eva, v1.5): one player runs hand / gesture recognition on every other frame.
     ('TrackingOverrides/bridge.py', 'SOLO_HANDS_EVERY = 2'),

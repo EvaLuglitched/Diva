@@ -273,16 +273,22 @@ class PerformerTracker:
         self.relock_seconds = 1.0
         self.missing_since = [None] * count
         self.relocked = []
+        # 2026-10-13 (Eva): once Unity saves the neutral pose (the game starts), each player's spot is remembered and
+        # roles never move to another spot: a missing player's role only comes back to someone in that player's own
+        # spot (P1 left, P2 middle, P3 right), whenever they leave or return. Nobody can take another player's role.
+        self.home = None
 
     def reset(self):
         self.positions = None
         self.locked = False
         self.missing_since = [None] * self.count
         self.relocked = []
+        self.home = None
 
     def lock(self):
         if self.positions is not None and all(p is not None for p in self.positions):
             self.locked = True
+            self.home = list(self.positions)   # calibrated: everyone's spot for the rest of the game
 
     @property
     def filled(self):
@@ -341,7 +347,15 @@ class PerformerTracker:
                          and now - self.missing_since[s] >= self.relock_seconds), key=lambda s: self.missing_since[s]):
             if not free:
                 break
-            index = min(free, key=lambda i: math.dist(self.positions[s], centers[i]))
+            if self.home is not None:
+                # In the game: only someone standing in this player's own spot (their nearest home, left to right)
+                # takes the role back; a person in another player's spot never does.
+                own = [i for i in free if min(range(self.count), key=lambda k: abs(self.home[k][0] - centers[i][0])) == s]
+                if not own:
+                    continue
+                index = min(own, key=lambda i: abs(self.home[s][0] - centers[i][0]))
+            else:
+                index = min(free, key=lambda i: math.dist(self.positions[s], centers[i]))
             free.remove(index)
             result[s + 1] = index
             self.positions[s] = centers[index]
@@ -581,7 +595,8 @@ def main():
              (27, 29), (29, 31), (27, 31), (28, 30), (30, 32), (28, 32),
              (0, 7), (0, 8), (7, 11), (8, 12)]
     # Every recognised (assigned) player is drawn green, unassigned bodies grey; the P1/P2/P3 label shows the role.
-    colors = [(100, 230, 100)] * 4
+    # Role colours in the preview (BGR), also used on Unity's camera check: P1 red, P2 blue, P3 green, P4 yellow.
+    colors = [(70, 70, 255), (255, 150, 40), (90, 220, 90), (60, 220, 255)]
     previous_timestamp = -1
     last_preview = 0.0
     preview_id = 0
