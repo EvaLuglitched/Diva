@@ -42,7 +42,8 @@ if [ -d "$WIN" ]; then
   T="$W/DivaTracking"; mkdir -p "$T"
   cp "$ROOT/TrackingOverrides/bridge.py" "$ROOT/TrackingOverrides/diva_gestures.py" "$ROOT/TrackingOverrides/diva_gestures.json" "$ROOT/TrackingOverrides/requirements.txt" "$T/"
   cp "$MODELS/pose_landmarker_full.task" "$MODELS/hand_landmarker.task" "$MODELS/gesture_recognizer.task" "$T/"
-  cp "$ROOT/Tools/release/setup_camera.bat" "$T/"
+  cp "$ROOT/Tools/bridge_app/diva_bridge.py" "$T/"   # setup_camera.bat runs its model check
+  perl -pe 's/\r?\n/\r\n/' "$ROOT/Tools/release/setup_camera.bat" > "$T/setup_camera.bat"   # Windows line endings for cmd
   cp "$ROOT/Tools/release/READ ME (Windows).txt" "$W/"
   (cd "$STAGE" && ditto -c -k --keepParent "Diva $VERSION (Windows)" "$OUT/Diva-$VERSION-Windows-x64.zip")
   echo "Windows: $(du -h "$OUT/Diva-$VERSION-Windows-x64.zip" | cut -f1)"

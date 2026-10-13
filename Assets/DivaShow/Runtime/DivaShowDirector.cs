@@ -575,6 +575,8 @@ namespace Diva.Show
             bool cut = Phase == ShowPhase.Select || Phase == ShowPhase.PowerUp || Phase == ShowPhase.Ult || Phase == ShowPhase.Finish ||
                        Phase == ShowPhase.Highlight || Phase == ShowPhase.Results || introOrbit;
             look.cinematic = cut ? 1 : 0;
+            // Eva 的开场飞行（航拍、火箭、俯冲）离小镇很远：比赛用的远景虚化会把整幅画面都虚掉，开场里不要它
+            look.farBlur = Phase == ShowPhase.RaceIntro ? 0 : 1;
             // 冲刺时镜头动态模糊更明显（DivaLook 的 motionBlur 乘上它）
             look.boost = Mathf.MoveTowards(look.boost, (boosting || Dashing) && Phase == ShowPhase.Play ? 1 : 0, DivaClock.DeltaTime * 3);
             if (mainCamera) look.focusDistance = Vector3.Distance(mainCamera.transform.position, ElephantCenter);
