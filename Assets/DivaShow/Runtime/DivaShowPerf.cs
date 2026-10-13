@@ -71,7 +71,11 @@ namespace Diva.Show
             float dt = Time.unscaledDeltaTime;
             fpsNow = Mathf.Lerp(fpsNow, 1 / Mathf.Max(1e-4f, dt), 1 - Mathf.Exp(-dt * 2));
             if (hold > 0) { hold -= dt; return; }
-            sum += dt; frames++; worst = Mathf.Max(worst, dt);
+            worst = Mathf.Max(worst, dt);
+            // 单帧超过 100 毫秒的是卡顿（着色器首次编译、切阶段的加载），不是持续的负载：记进 worst，不算进平均，
+            // 否则一次 700 毫秒的卡顿就把平均拉过预算，白白降一档分辩率（第一次真机跑就是这样）
+            if (dt > .1f) return;
+            sum += dt; frames++;
             if (sum < 2f) return;
             AverageMs = sum / frames * 1000;
             float budget = 1000f * VSync / RefreshHz;
