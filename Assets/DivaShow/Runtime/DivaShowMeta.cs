@@ -29,8 +29,10 @@ namespace Diva.Show
         public float fireSeconds = 12f;
         [Tooltip("Lap medals by run time in seconds: gold at or under the first, silver at or under the second, else bronze. The course is ~110 m; a clean run with dashes takes ~30 s, a first-timer 60-90 s.")]
         public float goldLap = 50f, silverLap = 80f;
-        [Tooltip("Rocket dash (rocket pickup, after the ultimate): seconds and run-speed multiplier.")]
+        [Tooltip("Dash (after the ultimate, and from rockets if rocketDash is on): seconds and run-speed multiplier.")]
         public float dashSeconds = 2.5f, dashSpeedScale = 1.6f;
+        [Tooltip("Rockets on the route also dash. Off (Carl, 2026-10-13): rockets only give points; the dash was dizzying in VR and PC follows.")]
+        public bool rocketDash = false;
         [Tooltip("Water used per spray burst (the control state's default .008 never runs out; .022 makes refilling matter).")]
         public float waterPerBurst = .022f;
         [Tooltip("Aim assist: a locked target stays locked while it is within this many degrees past the cannon's cone.")]
@@ -200,7 +202,7 @@ namespace Diva.Show
             WorldPopup("+" + gained, at + Vector3.up * .4f, CandyColour);
             Heat(.08f);
             Debug.Log($"DIVA_SHOW candy +{gained} chain {candyCombo}" + (rocket ? " rocket" : ""));
-            if (rocket) { WorldPopup(DivaText.T("feed.rocket"), at + Vector3.up * 1f, RocketColour); Dash("rocket"); }
+            if (rocket) { WorldPopup(DivaText.T("feed.rocket"), at + Vector3.up * 1f, RocketColour); if (rocketDash) Dash("rocket"); else sound.Play("rise", .4f, 1.2f); }
             return gained;
         }
 
