@@ -1,5 +1,24 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-13 (afternoon) — v1.0: README per the course, fresh-clone test, downloads for macOS / Windows / Vision Pro
+
+Carl asked to tidy the repository the way the instructor's `STUDENT_GIT.md` asks and to publish v1.0 with download
+links. What changed on shared things:
+
+| Where | What | Why |
+| --- | --- | --- |
+| `README.md` | Rewritten as the course front page: Git + **Drive** links, starter URL and pinned commit, movement → control table, reconstruction steps and their tested result, repository map, downloads | `STUDENT_GIT.md` and ROADMAP M5 ("README with Drive link"). The Drive link is still a TODO: please paste the folder link if you have it |
+| `DIGIPHANT_SETUP.md` | Back at the root (it was in `docs/` for a few hours); 2026-10-13 fresh-clone test recorded | the starter expects it at the project root |
+| `Tools/setup_tracking_mac.sh` | Picks Python 3.10+ and runs our tests in `TrackingOverrides` | a fresh clone with macOS's own Python 3.9 failed three of the locked bridge's three-player tests; with 3.13 all 93 pass. Nothing in the bridge or the gesture rules changed |
+| `DigiPhantCameraPreview.cs` | Release builds start the bridge themselves (editor path unchanged) | the downloads should work with the camera, not only in the editor |
+| `Tools/bridge_app`, `Tools/release`, `DivaReleaseBuild.cs` | Freeze the bridge for the Mac app, build and pack the downloads (menu **Diva > Release**) | v1.0 |
+
+**Please change the repository's About box** (only the owner can; GitHub refused it for Carl's write access):
+description *"Team Diva (Eva, Carl, Vicky) · DesComp Project 2 DigiPhant: a mech-elephant race through Candy Town,
+driven by body gestures (Unity 6 URP + MediaPipe). Play builds for macOS, Windows and Vision Pro under Releases."*,
+topics `unity`, `mediapipe`, `gesture-recognition`, `digital-twin`, `visionos`. The GitHub front page also shows `main`'s
+README, so the new README appears there once PR #6 is merged.
+
 ## 2026-10-13 — bug fixes, frame rate and a 3A look on the MacBooks (branch `carl/race-meta`)
 
 Carl asked for a full review, then for the bugs fixed and the picture / frame rate tuned for M1 / M2 Max MacBook Pros
