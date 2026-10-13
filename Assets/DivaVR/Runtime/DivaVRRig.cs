@@ -92,7 +92,7 @@ namespace Diva.VR
             DivaVR.Head = cam ? cam.transform : null;
             DivaVR.HudAnchor = hud;
             DivaVR.HudWidth = hudWidth;
-            gameObject.AddComponent<DivaVRLever>();   // 中控台操纵杆（编辑器里也建出来，截图能看到；前倾那套太晕，固定把手够不到）
+            // 操控：前倾走、歪头转、双手前推喷水（DivaVRHands）；之前的操纵杆拿掉了（Carl：杆奇怪，改回前倾）
             if (DivaVR.Simulated) gameObject.AddComponent<DivaVRSimulator>();
             else
             {
@@ -400,7 +400,7 @@ namespace Diva.VR
             var p = turn * head;
             offset.localRotation = turn;
             offset.localPosition = new Vector3(-p.x, eyeHeight - head.y, -p.z);
-            if (hands) hands.SetNeutral(head);
+            if (hands) hands.Recenter();   // 坐姿基准：脖子根的位置和头的侧倾（前倾走、歪头转都相对它算）
             recentered = true;
         }
     }

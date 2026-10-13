@@ -16,14 +16,12 @@ namespace Diva.VR
         readonly Material[] mats = new Material[2];
         Transform space;
         DivaVRHandlebars bars;
-        DivaVRLever lever;
         DivaVRInput input;
         static readonly Color Idle = new Color(1f, .75f, .9f), Grip = new Color(.5f, 1f, .95f), Pinch = new Color(1f, 1f, .6f), Drink = new Color(.45f, .7f, 1f);
 
         void Start()
         {
             bars = GetComponent<DivaVRHandlebars>();
-            lever = GetComponent<DivaVRLever>();
             input = GetComponent<DivaVRInput>();
             var glow = Resources.Load<Material>("DivaVR Cockpit Glow");
             if (!glow) { enabled = false; return; }
@@ -53,12 +51,12 @@ namespace Diva.VR
         {
             if (hands == null || !hands.running) { SubsystemManager.GetSubsystems(found); hands = found.Count > 0 ? found[0] : null; }
             if (!space) space = DivaVR.Head ? DivaVR.Head.parent : null;
-            bool pinching = input && input.Current.shoot, drinking = input && input.Current.drink;
+            bool pinching = input && (input.Current.shoot || input.Current.pinch), drinking = input && input.Current.drink;
             for (int h = 0; h < 2; h++)
             {
                 var hand = h == 0 ? hands?.leftHand : hands?.rightHand;
                 bool on = hand.HasValue && hand.Value.isTracked && space;
-                var held = bars && (h == 0 ? bars.HeldLeft : bars.HeldRight) || lever && lever.Hand == h;
+                var held = bars && (h == 0 ? bars.HeldLeft : bars.HeldRight);
                 Tint(mats[h], (drinking ? Drink : held ? Grip : pinching ? Pinch : Idle) * (drinking ? 2.2f : 1.4f));
                 for (int j = 0; j < dots[h].Length; j++)
                 {

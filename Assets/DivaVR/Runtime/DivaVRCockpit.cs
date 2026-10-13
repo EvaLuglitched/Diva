@@ -54,7 +54,7 @@ namespace Diva.VR
             Resources.UnloadAsset(json);
             return true;
         }
-        float vignetteNow, lastYaw;
+        float vignetteNow, lastYaw, lastSpeed, accelLevel;
         bool haveYaw;
         // 发光边：跑得越快越亮，冲刺时脉动，命中闪白，大招整圈爆亮（参考守望先锋的打击反馈）
         Color baseA = new Color(1f, .4f, .8f) * 2.2f, baseB = new Color(.3f, .95f, .85f) * 2.2f;
@@ -205,6 +205,14 @@ namespace Diva.VR
             // 只在转弯时（视野在转，最容易晕）收一点边；直着跑不收。以前跑起来就 0.5、一转弯到 0.8，
             // 比赛里 5 秒一次一明一暗，视野边上像在闪
             float target = Mathf.InverseLerp(12, 40, turnRate) * vignetteMax;
+            // 加减速时也轻轻收一点边（前倾控速：身体一动世界就动，这时最容易晕）；匀速跑不收
+            if (!loco) loco = FindAnyObjectByType<DigiPhant.DigiPhantLocomotion>();
+            if (loco)
+            {
+                float speed = Mathf.Abs(loco.CurrentSpeed), accel = Mathf.Abs(speed - lastSpeed) / dt; lastSpeed = speed;
+                accelLevel = Mathf.Max(accelLevel - dt * .6f, Mathf.InverseLerp(1.5f, 5f, accel));
+                target = Mathf.Max(target, accelLevel * vignetteMax * .45f);
+            }
             // 头真的穿进树冠、拱门这些看得见的物体时才变暗（VR 游戏的通常做法），看不到模型里面。
             // 以前离任何碰撞体（包括看不见的镜头挡板）45 厘米内就一下暗到一半，骑过树下、拱门下就一暗一暗的
             float inside = HeadInside();

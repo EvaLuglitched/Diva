@@ -49,7 +49,7 @@ namespace Diva.VR
                 f.drink = kb.eKey.isPressed;
                 f.ult = kb.uKey.isPressed;
             }
-            f.shoot = mouse != null && mouse.leftButton.isPressed;
+            f.shoot = f.pinch = mouse != null && mouse.leftButton.isPressed;
             return f;
         }
     }

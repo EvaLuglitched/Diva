@@ -6,12 +6,12 @@ namespace Diva.VR
 {
     /// <summary>
     /// 起跑时"驾驶方法"卡片旁边的小动画：卡片上的五行字一行一行亮，左边的 3D 小人同步做那个动作（光看字新手看不懂）。
-    /// 没推杆之前卡片多留一会儿（最多 12 秒），推了就按原来的节奏淡出。
+    /// 没前倾走起来之前卡片多留一会儿（最多 12 秒），走了就按原来的节奏淡出。
     /// </summary>
     public class DivaVRHowTo : MonoBehaviour
     {
         public float clipSeconds = 2.6f;
-        static readonly DivaVRGestureDemo.Move[] Clips = { DivaVRGestureDemo.Move.Push, DivaVRGestureDemo.Move.Twist, DivaVRGestureDemo.Move.Pinch, DivaVRGestureDemo.Move.Mouth, DivaVRGestureDemo.Move.HandsUp };
+        static readonly DivaVRGestureDemo.Move[] Clips = { DivaVRGestureDemo.Move.Lean, DivaVRGestureDemo.Move.Tilt, DivaVRGestureDemo.Move.Push, DivaVRGestureDemo.Move.ThumbsUp, DivaVRGestureDemo.Move.HandsUp };
 
         DivaShowDirector show; DigiPhantLocomotion loco; DivaVRGestureDemo demo;
         int clip = -1; float clipAt; bool moved; ShowPhase lastPhase = (ShowPhase)(-1);

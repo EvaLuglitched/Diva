@@ -163,10 +163,11 @@ licence — see `Assets/DivaVR/README.md`). The PC game on `main` is unchanged.
    low hero shot) and lands you in the cockpit.
 3. A guide board in front of the cockpit takes you through four steps; every step has buttons you press by
    **looking at them and pinching**:
-   - **1/4 HOW TO PLAY** — just watch: six short animated clips (3D figure + one big caption) show every control
-     below. 17 seconds, **SKIP** at the bottom right. Plays once per launch.
+   - **1/4 HOW TO PLAY** — just watch: a row of five stick figures (Eva's camera-check style) take turns showing lean,
+     head tilt, push hands, thumbs-up and hands up, with one big caption each. 14 seconds, **SKIP** at the bottom right.
+     Plays once per launch.
    - **2/4 PICK YOUR PAINT** — pinch anywhere = next paint; **<** / **>** / **CHOOSE THIS PAINT**.
-   - **3/4 LEARN TO DRIVE** — do each move once (push the lever, push it sideways, look + pinch, hand to mouth);
+   - **3/4 LEARN TO DRIVE** — do each move once (lean forward, tilt your head, push both hands, thumbs-up);
      the board shows a live meter per move and stamps NICE! — or **SKIP**. First round per launch only.
    - **4/4 READY** — raise **both hands to eye level** and hold until the bar fills (in the race this is the
      MEGA BUBBLE gesture), or look at **START** and pinch.
@@ -175,10 +176,10 @@ licence — see `Assets/DivaVR/README.md`). The PC game on `main` is unchanged.
 
 | Control | How | Notes |
 | --- | --- | --- |
-| **Run** | Grab the joystick on the console (right of your knee, 20 cm right / 40 cm below the eyes / 34 cm forward) by **pinching or making a fist** on the glowing knob, then **push it forward** | 3 cm = walk, 12 cm = run; the knob glows when a hand is near; let go = stop. At the countdown the stick moves to your hand if it is within 25 cm |
-| **Steer** | Push the joystick **left / right**, or **tilt your head** (same as the PC game's shoulder / head tilt) | 3 cm dead zone, 10 cm = full turn; head tilt starts at 8° and is full at 22°, measured from how you sat down; the stick wins while it is pushed; no reverse |
-| **Trunk cannon** | **Look at a target and pinch** with the free hand | Aim assist 12° / 35 m; each burst uses water (the water gauge is on the console; below 25 % it beeps and the coach tells you to refill) |
-| **Eat / drink / refill** | **Free hand to the mouth** (within 19 cm, below the eyes, in front), or hold a **thumbs-up** for 0.4 s (same as the PC game) | The elephant stops and curls its trunk; at the feeding bush and the water basin this completes the task; refill works anywhere |
+| **Run** | **Lean forward** (same idea as walking on the PC: your body is the throttle) | 7 cm forward = walk, 22 cm = run, sit back = stop; measured from where you sat at the countdown (RECENTER SEAT on the pause board if you moved). Deliberately low sensitivity with a slow throttle so small head movements do not surge; a gentle vignette while accelerating |
+| **Steer** | **Tilt your head** (same as the PC game's shoulder / head tilt) | starts at 8°, full at 22°, measured from how you sat down; no reverse |
+| **Trunk cannon** | **Look at a target and push both open hands forward** (same as the PC game) | both wrists 30 cm in front of the head at chest height; keep them out to keep spraying, pull back to stop. Aim = where your head points, aim assist 12° / 35 m; each burst uses water (below 25 % it beeps and the coach tells you to refill) |
+| **Eat / drink / refill** | Hold a **thumbs-up** for 0.4 s (same as the PC game); hand to the mouth still works | The elephant stops and curls its trunk; at the feeding bush and the water basin this completes the task; refill works anywhere |
 | **Step over the log** | Keep driving over the log | same as PC |
 | **MEGA BUBBLE (ult)** | When the charge gauge reads 100 % ("MEGA BUBBLE READY" banner + chime): **raise both hands to eye level in front of you** and hold 0.4 s | Bubble burst at the targets ahead, then a 2.5 s dash |
 | **Pickups** | Drive over them | Candies every 3 m (+15, combo pitch rises), rockets at ⅓ and ⅔ of the long straights = 2.5 s dash |

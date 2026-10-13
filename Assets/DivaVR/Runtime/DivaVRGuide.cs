@@ -9,10 +9,10 @@ namespace Diva.VR
 {
     /// <summary>
     /// 驾驶舱正前方的"教学牌"：坐进驾驶舱后一步一步教，永远知道下一步做什么，每一步都有按钮可以按。
-    /// 第 1 步 怎么玩（每次打开 app 第一局才有）：什么都不用做，看一遍 6 个小动画——看着按钮捏、推杆、左右推杆、看靶子捏、手放嘴边、双手举高，
-    ///        每段 2.8 秒，右边一行大字说明；可以跳过。光给一张文字卡片新手看不懂。
+    /// 第 1 步 怎么玩（每次打开 app 第一局才有）：什么都不用做，看一排 Eva 风格的火柴人（DivaVRStickFigure）轮流演示五个动作——
+    ///        身体前倾、歪头、双手前推、竖大拇指、双手举到眼前，每个 2.8 秒，下面一行大字说明；可以跳过。光给一张文字卡片新手看不懂。
     /// 第 2 步 选涂装：捏一下 = 下一个；看着按钮捏 = 按按钮（&lt; 上一个、就选这个、&gt; 下一个）。
-    /// 第 2 步 学开大象（每次打开 app 第一局才有）：前倾走、左右倾转弯、看 + 捏 喷水、手放嘴边 吃喝，每个动作做一次就打勾，
+    /// 第 2 步 学开大象（每次打开 app 第一局才有）：前倾走、歪头转弯、双手前推喷水、竖拇指吃喝，每个动作做一次就打勾，
     ///        牌子上有实时的反馈条；可以跳过。
     /// 第 3 步 出发：双手举过头顶举住（比赛里这就是大招），或者看着"出发"捏一下。
     /// 结算：双手举过头顶或者按"再来一局"。
@@ -22,25 +22,21 @@ namespace Diva.VR
     public class DivaVRGuide : MonoBehaviour
     {
         enum Step { Hidden, Watch, Pick, Learn, Ready, Results, Pause }
-        enum Move { Lean, Turn, Pinch, Mouth }
+        enum Move { Lean, Turn, Shoot, Drink }
 
         /// <summary>这次打开 app 已经学过开大象了（之后几局选完涂装直接到"出发"）；watched：演示已经看过一遍。</summary>
         static bool learned, watched;
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => learned = watched = false;
 
-        // 第 0 步的演示：6 段，每段 2.8 秒
-        const float ClipSeconds = 3.6f; const int Clips = 6;
+        // 第 1 步的演示：5 个火柴人，每个 2.8 秒轮到一次
+        const float ClipSeconds = 2.8f; const int Clips = 5;
         int clip; float clipAt; bool roundHadWatch;
-        readonly Image[] dotsWatch = new Image[Clips];
         static string ClipKey(int c) => "vr.watch." + (c + 1);
-        // 演示用的道具：两只幽灵手、视线、全息靶子、泡泡；demoHover = 演示里"看着"的按钮
-        DivaVRGhostHand ghostR, ghostL; Transform gazeRay, holoTarget, demoBubble, stickArrow, demoStick, demoStickRod; Material holoMat; DivaVRLever lever;
-        DivaVRCockpit cockpit; DivaVRHologram holo; readonly Transform[] jet = new Transform[8];
-        // 可爱的小反应：吃东西冒的小爱心、打中靶子爆的星星、泡泡周围的闪光、推杆时的速度线
-        readonly Transform[] hearts = new Transform[5], stars = new Transform[10], sparks = new Transform[8], speedLines = new Transform[4];
-        float starAt = -10; Vector3 starFrom;
-        Btn demoHover; bool clipFired;
+        readonly DivaVRStickFigure[] figures = new DivaVRStickFigure[Clips];
+        readonly TextMeshProUGUI[] captions = new TextMeshProUGUI[Clips];
+        GameObject figuresRoot;
+        DivaVRCockpit cockpit; DivaVRHologram holo; DivaVRHands hands;
 
         const float Width = 1.1f;   // 牌子宽 1.1 米、在 1.45 米外：大约占视野 40°，一眼能读完
         const float Units = 1200;    // 牌子的画布宽（UI 单位）
@@ -75,11 +71,11 @@ namespace Diva.VR
         Step step = Step.Hidden;
         int roundSteps = 3;   // 这一局一共几步（学过了就 2 步：选涂装、出发）
         float stepAt, shownAt, allDoneAt = -1;
-        bool lastShoot;
+        bool lastPinch;
         ShowPhase lastPhase = (ShowPhase)(-1);
 
         /// <summary>现在要学的动作（没打勾的第一个）。</summary>
-        Move Current { get { for (int i = 0; i < rows.Length; i++) if (rows[i].doneAt < 0) return (Move)i; return Move.Mouth; } }
+        Move Current { get { for (int i = 0; i < rows.Length; i++) if (rows[i].doneAt < 0) return (Move)i; return Move.Drink; } }
         bool AllDone { get { foreach (var r in rows) if (r.doneAt < 0) return false; return true; } }
 
         /// <summary>"双手举高"现在能出发 / 再来一局吗（只在第 3 步和结算，免得学动作时不小心开始）。</summary>
@@ -178,12 +174,18 @@ namespace Diva.VR
             for (int i = 0; i < 4; i++)
                 dotsLearn[i] = DivaUi.Image(lr, "Dot " + i, new Vector2(.5f, 0), new Vector2(-54 + i * 36, 44), new Vector2(18, 18), new Color(1, 1, 1, .3f), null);
             foreach (var d in dotsLearn) d.sprite = circle;
-            // 第 0 步的 6 个进度点（牌子下方，按钮那排的上面）
+            // 第 1 步：一排五个火柴人（Eva 的画法），每个下面一个小字
+            figuresRoot = new GameObject("Figures", typeof(RectTransform));
+            var fr = (RectTransform)figuresRoot.transform; fr.SetParent(panel, false); fr.sizeDelta = new Vector2(1160, 330); fr.anchoredPosition = new Vector2(0, 20);
             for (int i = 0; i < Clips; i++)
             {
-                dotsWatch[i] = DivaUi.Image(panel, "Watch Dot " + i, new Vector2(.5f, 0), new Vector2(-90 + i * 36, 118), new Vector2(18, 18), new Color(1, 1, 1, .3f), null);
-                dotsWatch[i].sprite = circle; dotsWatch[i].gameObject.SetActive(false);
+                float x = -456 + i * 228;
+                var fgo = new GameObject("Figure " + i, typeof(RectTransform), typeof(CanvasRenderer), typeof(DivaVRStickFigure)) { layer = 5 };
+                var frt = (RectTransform)fgo.transform; frt.SetParent(fr, false); frt.anchoredPosition = new Vector2(x, 30); frt.sizeDelta = new Vector2(200, 250);
+                figures[i] = fgo.GetComponent<DivaVRStickFigure>(); figures[i].act = (DivaVRStickFigure.Act)i; figures[i].color = Color.white; figures[i].raycastTarget = false;
+                captions[i] = DivaUi.Text(fr, "Caption " + i, new Vector2(.5f, .5f), new Vector2(x, -125), new Vector2(220, 40), 26, Color.white);
             }
+            figuresRoot.SetActive(false);
             // 第 3 步：两只手的指示灯和按住进度条
             handsRow = new GameObject("Hands", typeof(RectTransform));
             var hr = (RectTransform)handsRow.transform; hr.SetParent(panel, false); hr.anchoredPosition = new Vector2(0, -60); hr.sizeDelta = new Vector2(500, 60);
@@ -221,8 +223,7 @@ namespace Diva.VR
             // 动作演示：牌子上方
             var glow = Resources.Load<Material>("DivaVR Cockpit Glow"); var body = Resources.Load<Material>("DivaVR Cockpit Body");
             if (glow && body) demo = DivaVRGestureDemo.Create(transform, new Vector3(-.12f, rig.eyeHeight + .36f, 1.4f), glow, body);
-            lever = GetComponent<DivaVRLever>();
-            if (glow) BuildWatchProps(glow);
+            cockpit = GetComponent<DivaVRCockpit>(); holo = GetComponent<DivaVRHologram>(); hands = GetComponent<DivaVRHands>();
             DivaText.Changed += Refresh;
         }
 
@@ -301,12 +302,13 @@ namespace Diva.VR
             show.VrSelectHidden = next == Step.Watch;
             allDoneAt = -1;
             ClearButtons();
-            if (next == Step.Learn) foreach (var r in rows) { r.doneAt = -1; r.progress = 0; }
+            if (next == Step.Learn) { foreach (var r in rows) { r.doneAt = -1; r.progress = 0; } if (hands) hands.Recenter(); }   // 学前倾：从现在的坐姿算
             switch (next)
             {
                 case Step.Watch:
                     roundHadWatch = true; roundSteps = 4; clip = 0; clipAt = Time.unscaledTime;
-                    AddButton("vr.guide.skip", 470, 170, false, () => { watched = true; Go(Step.Pick); }, 420, .8f);
+                    foreach (var fg in figures) if (fg) fg.startTime = Time.unscaledTime;
+                    AddButton("vr.guide.skip", 470, 170, false, () => { watched = true; Go(Step.Pick); }, 30, .8f);
                     break;
                 case Step.Pick:
                     roundSteps = roundHadWatch ? 4 : learned ? 2 : 3;
@@ -335,7 +337,9 @@ namespace Diva.VR
                         if (b != null) { b.key = "vr.pause.quit2"; b.label.text = DivaText.T(b.key); quitArmedAt = Time.unscaledTime; }
                     }, 92, .8f);
                     AddButton("vr.pause.replay", -370, 400, false, () => { watched = learned = false; show.VrQuitToSelect(); }, 92, .8f);
-                    AddButton("lang", 0, 300, false, () => { DivaText.Toggle(); Refresh(); }, 92, .8f);
+                    AddButton("lang", -60, 220, false, () => { DivaText.Toggle(); Refresh(); }, 92, .8f);
+                    // 坐姿变了（往前挪了椅子、换了姿势）：重新记一次"坐好"的位置
+                    AddButton("vr.pause.recenter", 170, 220, false, () => { if (hands) hands.Recenter(); if (show.Sound != null) show.Sound.Play("confirm", .5f); }, 92, .8f);
                     break;
             }
             Fill();
@@ -346,235 +350,34 @@ namespace Diva.VR
 
         void HideStamp() { if (step != Step.Pick) stamp.gameObject.SetActive(false); }
 
-        // ------------------------------------------------------------------ 第 1 步：幽灵手演示
-        void BuildWatchProps(Material glow)
-        {
-            ghostR = DivaVRGhostHand.Create(transform, false, glow);
-            ghostL = DivaVRGhostHand.Create(transform, true, glow);
-            Transform Prim(PrimitiveType t, string name, Transform parent, Vector3 scale, Material m)
-            {
-                var go = GameObject.CreatePrimitive(t); var c = go.GetComponent<Collider>(); if (c) Destroy(c);
-                go.name = name; go.transform.SetParent(parent, false); go.transform.localScale = scale;
-                var r = go.GetComponent<MeshRenderer>(); r.sharedMaterial = m; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
-                return go.transform;
-            }
-            var rayMat = new Material(glow); var rc = new Color(.5f, .95f, 1f) * 1.6f; rayMat.color = rc; rayMat.SetColor("_BaseColor", rc);
-            gazeRay = Prim(PrimitiveType.Cylinder, "Demo Gaze", transform, new Vector3(.004f, .1f, .004f), rayMat);
-            // 全息靶子：三个同心圆盘（红白红），正对眼睛
-            holoTarget = new GameObject("Demo Target").transform; holoTarget.SetParent(transform, false);
-            holoMat = new Material(glow); var white = new Material(glow); white.color = Color.white * 1.3f; white.SetColor("_BaseColor", Color.white * 1.3f);
-            Prim(PrimitiveType.Cylinder, "Ring", holoTarget, new Vector3(.4f, .006f, .4f), holoMat);
-            Prim(PrimitiveType.Cylinder, "Mid", holoTarget, new Vector3(.26f, .007f, .26f), white).localPosition = new Vector3(0, .004f, 0);
-            Prim(PrimitiveType.Cylinder, "Bull", holoTarget, new Vector3(.11f, .008f, .11f), holoMat).localPosition = new Vector3(0, .008f, 0);
-            var bubble = Resources.Load<Material>("DivaVR Bubble");
-            demoBubble = Prim(PrimitiveType.Sphere, "Demo Bubble", transform, Vector3.one * .1f, bubble ? bubble : glow);
-            // 水柱：一串小水珠沿弧线飞向靶子
-            var waterMat = new Material(glow); var wc = new Color(.6f, .9f, 1f) * 1.6f; waterMat.color = wc; waterMat.SetColor("_BaseColor", wc);
-            for (int i = 0; i < jet.Length; i++) jet[i] = Prim(PrimitiveType.Sphere, "Jet " + i, transform, Vector3.one * .045f, waterMat);
-            // 指向操纵杆的箭头（牌子左下角伸向右膝旁的杆）
-            stickArrow = new GameObject("Stick Arrow").transform; stickArrow.SetParent(transform, false);
-            Prim(PrimitiveType.Cylinder, "Shaft", stickArrow, new Vector3(.012f, .11f, .012f), rayMat).localPosition = new Vector3(0, .11f, 0);
-            Prim(PrimitiveType.Sphere, "Head", stickArrow, Vector3.one * .05f, rayMat).localPosition = Vector3.zero;
-            // 示范杆：和真杆一个样子，立在眼前（真杆在膝旁、看牌子时不在视野里），幽灵手握着它推
-            var body = Resources.Load<Material>("DivaVR Cockpit Body");
-            var rodMat = body ? new Material(body) : new Material(glow); rodMat.color = new Color(.12f, .1f, .18f); if (rodMat.HasProperty("_BaseColor")) rodMat.SetColor("_BaseColor", new Color(.12f, .1f, .18f));
-            demoStick = new GameObject("Demo Stick").transform; demoStick.SetParent(transform, false);
-            Prim(PrimitiveType.Cylinder, "Base", demoStick, new Vector3(.07f, .006f, .07f), rayMat);
-            demoStickRod = Prim(PrimitiveType.Cylinder, "Rod", demoStick, new Vector3(.016f, .05f, .016f), rodMat); demoStickRod.localPosition = new Vector3(0, .05f, 0);
-            Prim(PrimitiveType.Sphere, "Knob", demoStickRod, new Vector3(1.9f, .6f, 1.9f), rayMat).localPosition = new Vector3(0, 1, 0);
-            Material Glow(Color c) { var m = new Material(glow); m.color = c * 1.6f; m.SetColor("_BaseColor", c * 1.6f); return m; }
-            var pink = Glow(new Color(1f, .5f, .75f)); var yellow = Glow(new Color(1f, .9f, .4f)); var whiteM = Glow(Color.white); var cyan = Glow(new Color(.5f, .95f, 1f));
-            for (int i = 0; i < hearts.Length; i++)
-            {
-                // 小爱心：两个球 + 一个转 45° 的方块
-                var h = new GameObject("Heart " + i).transform; h.SetParent(transform, false);
-                Prim(PrimitiveType.Sphere, "L", h, Vector3.one * .024f, pink).localPosition = new Vector3(-.0105f, .008f, 0);
-                Prim(PrimitiveType.Sphere, "R", h, Vector3.one * .024f, pink).localPosition = new Vector3(.0105f, .008f, 0);
-                var cube = Prim(PrimitiveType.Cube, "V", h, Vector3.one * .021f, pink); cube.localPosition = new Vector3(0, -.006f, 0); cube.localRotation = Quaternion.Euler(0, 0, 45);
-                hearts[i] = h;
-            }
-            for (int i = 0; i < stars.Length; i++) stars[i] = Prim(PrimitiveType.Sphere, "Star " + i, transform, Vector3.one * .04f, yellow);
-            for (int i = 0; i < sparks.Length; i++) sparks[i] = Prim(PrimitiveType.Sphere, "Spark " + i, transform, Vector3.one * .02f, whiteM);
-            for (int i = 0; i < speedLines.Length; i++) speedLines[i] = Prim(PrimitiveType.Cylinder, "Speed " + i, transform, new Vector3(.006f, .05f, .006f), cyan);
-            cockpit = GetComponent<DivaVRCockpit>(); holo = GetComponent<DivaVRHologram>();
-            ResetDemo();
-        }
-
+        // ------------------------------------------------------------------ 第 1 步：火柴人演示
         void ResetDemo()
         {
-            if (ghostR) { ghostR.Show(false); ghostR.Curl = ghostR.Pinch = 0; ghostR.SetColour(DivaVRGhostHand.Idle); }
-            if (ghostL) { ghostL.Show(false); ghostL.Curl = ghostL.Pinch = 0; ghostL.SetColour(DivaVRGhostHand.Idle); }
-            if (gazeRay) gazeRay.gameObject.SetActive(false);
-            if (holoTarget) holoTarget.gameObject.SetActive(false);
-            if (demoBubble) demoBubble.gameObject.SetActive(false);
-            if (lever) { lever.DemoOffset = Vector3.zero; lever.Highlight = false; }
-            if (stickArrow) stickArrow.gameObject.SetActive(false);
-            if (demoStick) demoStick.gameObject.SetActive(false);
-            foreach (var x in hearts) if (x) x.gameObject.SetActive(false);
-            foreach (var x in stars) if (x) x.gameObject.SetActive(false);
-            foreach (var x in sparks) if (x) x.gameObject.SetActive(false);
-            foreach (var x in speedLines) if (x) x.gameObject.SetActive(false);
-            starAt = -10;
-            foreach (var j in jet) if (j) j.gameObject.SetActive(false);
             if (cockpit) { cockpit.DemoSpeed = cockpit.DemoCharge = cockpit.DemoWater = null; }
             if (holo) holo.DemoYaw = 0;
-            demoHover = null; clipFired = false;
         }
 
-        void Gaze(Vector3 to)
-        {
-            var from = new Vector3(0, rig.eyeHeight, 0); var d = to - from; var dir = d.normalized;
-            var a = from + dir * .2f; var b = to - dir * .05f;
-            gazeRay.gameObject.SetActive(true);
-            gazeRay.localPosition = (a + b) * .5f; gazeRay.localRotation = Quaternion.FromToRotation(Vector3.up, b - a);
-            gazeRay.localScale = new Vector3(.004f, Vector3.Distance(a, b) * .5f, .004f);
-        }
-
-        /// <summary>每帧：第 1 步的第 clip 段演示进行到 t 秒。手从腿上出发 0.9 秒到位，之后一来一回做动作。</summary>
+        /// <summary>每帧：第 clip 个火柴人演示中，其它的淡；仪表跟着做出反应（前倾 → 速度表，推手 → 水量掉，举手 → 能量条）。</summary>
         void AnimateClip(float t)
         {
-            if (!ghostR) return;
-            float eye = rig.eyeHeight, now = Time.unscaledTime;
-            Vector3 lapR = new Vector3(.24f, eye - .42f, .22f), lapL = new Vector3(-.24f, eye - .42f, .22f);
-            Vector3 front = new Vector3(.12f, eye - .22f, .55f);
-            Vector3 stickBase = new Vector3(.02f, eye - .26f, .6f), knob = stickBase + new Vector3(0, .125f, 0);
-            Vector3 realKnob = (lever ? lever.Rest : new Vector3(.2f, eye - .4f, .34f)) + new Vector3(0, .025f, 0);
-            Vector3 mouth = new Vector3(.03f, eye - .13f, .18f);
-            Vector3 ultR = new Vector3(.17f, eye - .12f, .55f), ultL = new Vector3(-.17f, eye - .12f, .55f);
-            float move = Mathf.SmoothStep(0, 1, t / .9f);
-            float act = Mathf.Clamp01((t - 1.0f) / 1.5f);
-            float pulse = Mathf.SmoothStep(0, 1, Mathf.PingPong(act * 2f, 1f));
-            ghostR.Show(true); ghostL.Show(clip == 5);
-            var pos = lapR; var rot = Quaternion.identity;
-            switch (clip)
+            for (int i = 0; i < Clips; i++)
             {
-                case 0:   // 看着按钮，捏一下：视线连到 SKIP，按钮高亮，捏到底时按钮按下去一下
-                {
-                    pos = Vector3.Lerp(lapR, front, move);
-                    // 刚出来先挥挥手指打个招呼，再捏
-                    ghostR.Curl = t < 1.2f ? .25f + .25f * Mathf.Sin(t * 14) : 0;
-                    ghostR.Pinch = t > 1.3f ? Mathf.SmoothStep(0, 1, Mathf.PingPong((t - 1.3f) / .7f, 1f)) : 0; ghostR.SetColour(ghostR.Pinch > .6f ? DivaVRGhostHand.PinchC : DivaVRGhostHand.Idle);
-                    pulse = ghostR.Pinch;
-                    var skip = buttons.Find(b => b.key == "vr.guide.skip");
-                    if (skip != null && t > .6f) { demoHover = skip; Gaze(transform.InverseTransformPoint(ButtonWorld(skip))); }
-                    if (skip != null && pulse > .9f && !clipFired) { clipFired = true; skip.pressedAt = now; if (show.Sound != null) show.Sound.Play("tick", .4f); }
-                    if (pulse < .5f) clipFired = false;
-                    break;
-                }
-                case 1:   // 握住杆往前推：手走到杆头、握拳变青色，杆跟着往前倾；速度表指针上去、座舱震、全息大象弹
-                case 2:   // 杆往左右推：全息大象跟着转头
-                {
-                    pos = Vector3.Lerp(lapR, knob, move);
-                    ghostR.Curl = Mathf.Clamp01((t - .7f) / .4f); ghostR.SetColour(ghostR.Curl > .5f ? DivaVRGhostHand.Grip : DivaVRGhostHand.Idle);
-                    float side = Mathf.Sin(act * Mathf.PI * 2);
-                    var off = clip == 1 ? new Vector3(0, 0, .10f * pulse) : new Vector3(.08f * side, 0, 0);
-                    pos += off;
-                    // 眼前的示范杆跟着倾，膝旁的真杆也一起倾并且猛亮
-                    demoStick.gameObject.SetActive(true); demoStick.localPosition = stickBase;
-                    demoStickRod.localRotation = Quaternion.Euler(Mathf.Clamp(off.z / .12f, -1, 1) * 28, 0, -Mathf.Clamp(off.x / .10f, -1, 1) * 28);
-                    if (lever) { lever.DemoOffset = off; lever.Highlight = true; }
-                    // 示范杆旁一支箭头指向膝旁的真杆，一跳一跳的
-                    var tail = stickBase + new Vector3(.12f, .02f, -.05f); var dir = (realKnob - tail).normalized;
-                    stickArrow.gameObject.SetActive(true);
-                    stickArrow.localPosition = tail + dir * (.25f + .05f * Mathf.Sin(now * 6)); stickArrow.localRotation = Quaternion.FromToRotation(Vector3.up, -dir);
-                    if (cockpit)
-                    {
-                        cockpit.DemoSpeed = clip == 1 ? pulse : .35f;
-                        if (clip == 1 && pulse > .8f) cockpit.Rumble(.25f);
-                    }
-                    // 推得越多，杆子两边往后飞的速度线越密
-                    for (int i = 0; i < speedLines.Length; i++)
-                    {
-                        bool on = clip == 1 ? pulse > .3f : Mathf.Abs(side) > .3f;
-                        speedLines[i].gameObject.SetActive(on);
-                        if (!on) continue;
-                        float u = Mathf.Repeat(now * (1.5f + 2f * pulse) + i * .25f, 1f);
-                        var sp = stickBase + new Vector3(i % 2 == 0 ? -.16f : .16f, .04f + .03f * (i / 2), .3f - u * .6f);
-                        speedLines[i].localPosition = sp; speedLines[i].localRotation = Quaternion.Euler(90, 0, 0); speedLines[i].localScale = new Vector3(.006f, .05f * (1 - Mathf.Abs(u - .5f) * 2), .006f);
-                    }
-                    if (holo)
-                    {
-                        holo.DemoYaw = clip == 2 ? -side * 40f : 0;
-                        if (clip == 1 && pulse > .9f && !clipFired) { clipFired = true; holo.Bump(); if (show.Sound != null) show.Sound.Play("tick", .3f, 1.3f); }
-                        if (pulse < .5f) clipFired = false;
-                    }
-                    break;
-                }
-                case 3:   // 看着靶子捏：全息靶子在牌子左边远处，视线连过去，捏住时象鼻喷出水柱飞过去，打中靶子闪白、飘 +10、水量表掉一点
-                {
-                    var tp = new Vector3(-.9f, eye + .05f, 1.6f);
-                    holoTarget.gameObject.SetActive(true); holoTarget.localPosition = tp;
-                    holoTarget.localRotation = Quaternion.LookRotation(tp - new Vector3(0, eye, 0)) * Quaternion.Euler(90, 0, 0);
-                    pos = Vector3.Lerp(lapR, front, move);
-                    ghostR.Pinch = t > 1 ? pulse : 0; ghostR.SetColour(ghostR.Pinch > .6f ? DivaVRGhostHand.PinchC : DivaVRGhostHand.Idle);
-                    if (t > .6f) Gaze(tp);
-                    // 水柱：捏住期间从象鼻（牌子下方）沿弧线飞到靶子，8 颗水珠错开
-                    bool spraying = ghostR.Pinch > .6f;
-                    var from = new Vector3(.05f, eye - .6f, 1.0f); var mid = (from + tp) * .5f + Vector3.up * .5f;
-                    float flight = 0; 
-                    for (int i = 0; i < jet.Length; i++)
-                    {
-                        float u = Mathf.Repeat(t * 1.6f - i * .09f, 1f);
-                        bool on = spraying && u > .02f;
-                        jet[i].gameObject.SetActive(on);
-                        if (on) { var p = Vector3.Lerp(Vector3.Lerp(from, mid, u), Vector3.Lerp(mid, tp, u), u); jet[i].localPosition = p; flight = Mathf.Max(flight, u); }
-                    }
-                    bool hit = spraying && flight > .95f;
-                    if (hit && !clipFired) { clipFired = true; starAt = now; starFrom = tp; DivaVRFloatText.Show("+10", transform.TransformPoint(tp + Vector3.up * .3f), new Color(1f, .85f, .3f), .9f); if (show.Sound != null) show.Sound.Play("skill", .35f); }
-                    // 打中：一圈星星从靶子炸开
-                    for (int i = 0; i < stars.Length; i++)
-                    {
-                        float age = now - starAt; bool on = age < .6f;
-                        stars[i].gameObject.SetActive(on);
-                        if (!on) continue;
-                        var dir = Quaternion.AngleAxis(i * 36f, Vector3.forward) * Vector3.up;
-                        stars[i].localPosition = starFrom + holoTarget.localRotation * Quaternion.Euler(-90, 0, 0) * dir * (.1f + age * 1.1f);
-                        stars[i].localScale = Vector3.one * .045f * (1 - age / .6f);
-                    }
-                    if (!spraying) clipFired = false;
-                    var tc = Color.Lerp(new Color(1f, .35f, .35f), Color.white, hit ? 1 : 0) * 1.5f; holoMat.color = tc; holoMat.SetColor("_BaseColor", tc);
-                    if (cockpit) cockpit.DemoWater = spraying ? Mathf.Max(.4f, 1f - act * .5f) : null;
-                    break;
-                }
-                case 4:   // 手放到嘴边：手从前面抬到嘴边，半握，到位变蓝；水量表从 1/4 慢慢回满
-                    pos = Vector3.Lerp(lapR, mouth, move); rot = Quaternion.Euler(30, 180, 0);   // 手指朝嘴、手背朝外：掌心对着眼睛会弹出系统的 Home 按钮
-                    ghostR.Curl = .45f; ghostR.SetColour(move > .9f ? DivaVRGhostHand.Drink : DivaVRGhostHand.Idle);
-                    if (cockpit) cockpit.DemoWater = Mathf.Lerp(.25f, 1f, act);
-                    // 到嘴边以后冒小爱心，一个个往上飘
-                    for (int i = 0; i < hearts.Length; i++)
-                    {
-                        bool on = move > .95f;
-                        hearts[i].gameObject.SetActive(on);
-                        if (!on) continue;
-                        float u = Mathf.Repeat((t - .9f) * .7f + i * .2f, 1f);
-                        hearts[i].localPosition = mouth + new Vector3(Mathf.Sin(u * 7 + i) * .06f + .04f, u * .2f, .06f + u * .08f);
-                        hearts[i].localRotation = Quaternion.Euler(0, Mathf.Sin(now * 3 + i) * 25, 0);
-                        hearts[i].localScale = Vector3.one * (.55f * Mathf.Sin(u * Mathf.PI));
-                    }
-                    break;
-                case 5:   // 双手举到眼前举住：两只手到位变粉，1.6 秒后眼前鼓出一个泡泡
-                {
-                    pos = Vector3.Lerp(lapR, ultR, move); rot = Quaternion.Euler(-90, 0, 0);
-                    ghostL.Place(Vector3.Lerp(lapL, ultL, move), rot);
-                    var c = move > .9f ? DivaVRGhostHand.Ult : DivaVRGhostHand.Idle; ghostR.SetColour(c); ghostL.SetColour(c);
-                    if (cockpit) cockpit.DemoCharge = Mathf.Clamp01(t / 1.4f);
-                    bool burst = t > 1.6f && t < 3.2f;
-                    demoBubble.gameObject.SetActive(burst);
-                    var bc = new Vector3(0, eye - .18f, 1.0f); float bs = .1f + .4f * Mathf.Clamp01((t - 1.6f) / .8f);
-                    if (burst) { demoBubble.localPosition = bc; demoBubble.localScale = Vector3.one * bs; }
-                    for (int i = 0; i < sparks.Length; i++)
-                    {
-                        sparks[i].gameObject.SetActive(burst);
-                        if (!burst) continue;
-                        float a = now * 3f + i * Mathf.PI / 4;
-                        sparks[i].localPosition = bc + new Vector3(Mathf.Cos(a), Mathf.Sin(a * 1.3f) * .6f, Mathf.Sin(a)) * (bs * .6f);
-                        sparks[i].localScale = Vector3.one * (.012f + .012f * Mathf.Abs(Mathf.Sin(now * 9 + i)));
-                    }
-                    break;
-                }
+                if (!figures[i]) continue;
+                figures[i].emphasis = Mathf.MoveTowards(figures[i].emphasis, i == clip ? 1 : 0, Time.unscaledDeltaTime * 4);
+                figures[i].rectTransform.localScale = Vector3.one * (i == clip ? 1.12f : 1f);
+                if (captions[i]) { captions[i].text = DivaText.T(figures[i].CaptionKey); captions[i].color = i == clip ? new Color(1f, .9f, .4f) : new Color(1, 1, 1, .45f); }
             }
-            ghostR.Place(pos, rot);
+            float act = Mathf.Clamp01((t - .4f) / 1.2f), pulse = Mathf.SmoothStep(0, 1, Mathf.PingPong(act * 2f, 1f));
+            if (cockpit)
+            {
+                cockpit.DemoSpeed = clip == 0 ? pulse : null;
+                cockpit.DemoWater = clip == 2 ? Mathf.Max(.4f, 1f - act * .5f) : clip == 3 ? Mathf.Lerp(.25f, 1f, act) : null;
+                cockpit.DemoCharge = clip == 4 ? Mathf.Clamp01(t / 1.6f) : null;
+                if (clip == 0 && pulse > .8f) cockpit.Rumble(.15f);
+            }
+            if (holo) holo.DemoYaw = clip == 1 ? Mathf.Sin(t * 2f) * 35f : 0;
         }
+
         void AfterWatch() { stamp.gameObject.SetActive(false); if (step == Step.Watch) Go(Step.Pick); }
         void AfterStamp() { stamp.gameObject.SetActive(false); if (step == Step.Pick) Go(learned ? Step.Ready : Step.Learn); }
 
@@ -593,21 +396,20 @@ namespace Diva.VR
             statsRow.SetActive(step == Step.Pick);
             // 结算的牌子矮一些：两行字往下挪，不和标题叠在一起
             bool compact = step == Step.Results;
-            // 第 1 步不是一块牌子而是顶上一条字幕：底板缩成 230 高贴在面板顶部，中间整个视野留给发光的手和它做的事
+            // 第 1 步：整块牌子，中间一排火柴人，下面两行字说明当前这个动作
             bool watch = step == Step.Watch;
-            foreach (var d in dotsWatch) d.gameObject.SetActive(watch);
-            plate.rectTransform.sizeDelta = new Vector2(1160, watch ? 230 : 540);
-            plate.rectTransform.anchoredPosition = new Vector2(0, watch ? 155 : 0);
+            figuresRoot.SetActive(watch);
+            plate.rectTransform.sizeDelta = new Vector2(1160, 540);
+            plate.rectTransform.anchoredPosition = Vector2.zero;
             plate.SetVerticesDirty();
             title.gameObject.SetActive(!watch);
-            stepLabel.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, -38); stepLabel.rectTransform.sizeDelta = new Vector2(watch ? 800 : 1100, 40);
-            for (int i = 0; i < Clips; i++) dotsWatch[i].rectTransform.anchoredPosition = new Vector2(-90 + i * 36, 352);
-            lineA.rectTransform.sizeDelta = new Vector2(watch ? 760 : 1100, watch ? 100 : 64); lineA.fontSize = watch ? 42 : 46;
-            lineA.textWrappingMode = watch ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
-            lineB.rectTransform.sizeDelta = new Vector2(watch ? 760 : 1100, 44);
+            stepLabel.rectTransform.anchoredPosition = new Vector2(0, -38); stepLabel.rectTransform.sizeDelta = new Vector2(1100, 40);
+            lineA.rectTransform.sizeDelta = new Vector2(1100, 64); lineA.fontSize = watch ? 40 : 46;
+            lineA.textWrappingMode = TextWrappingModes.NoWrap;
+            lineB.rectTransform.sizeDelta = new Vector2(1100, 44);
             bool pause = step == Step.Pause;   // 暂停板两排按钮，两行字往上挪
-            lineA.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? 30 : watch ? 178 : pause ? 110 : 56);
-            lineB.rectTransform.anchoredPosition = new Vector2(watch ? -80 : 0, compact ? -40 : watch ? 118 : pause ? 62 : 8);
+            lineA.rectTransform.anchoredPosition = new Vector2(0, compact ? 30 : watch ? -158 : pause ? 110 : 56);
+            lineB.rectTransform.anchoredPosition = new Vector2(0, compact ? -40 : watch ? -204 : pause ? 62 : 8);
             lineA.gameObject.SetActive(step != Step.Learn);
             lineB.gameObject.SetActive(step != Step.Learn && step != Step.Results);   // 结算板矮，提示行放不下（英雄卡 + 名次一行就够）
             switch (step)
@@ -619,7 +421,6 @@ namespace Diva.VR
                         lineA.text = $"<color=#8CFFE6>{clip + 1}/{Clips}</color>   {DivaText.T(ClipKey(clip))}";
                         lineB.text = DivaText.T(ClipKey(clip) + "b");
                     }
-                    for (int i = 0; i < Clips; i++) dotsWatch[i].color = i < clip ? new Color(1f, .45f, .8f) : i == clip ? Color.white : new Color(1, 1, 1, .3f);
                     break;
                 case Step.Pick:
                     stepLabel.text = DivaText.F("vr.guide.step", roundHadWatch ? 2 : 1, total);
@@ -630,7 +431,7 @@ namespace Diva.VR
                 case Step.Learn:
                     stepLabel.text = DivaText.F("vr.guide.step", roundHadWatch ? 3 : 2, total);
                     title.text = DivaText.T("vr.guide.learn");
-                    string[] keys = { "lean", "turn", "pinch", "mouth" };
+                    string[] keys = { "lean", "turn", "shoot", "drink" };
                     for (int i = 0; i < rows.Length; i++)
                         rows[i].text.text = $"{DivaText.T("vr.guide.learn." + keys[i])}\n<color=#8CFFE6><size=30>{DivaText.T("vr.guide.learn." + keys[i] + ".b")}</size></color>";
                     break;
@@ -669,8 +470,8 @@ namespace Diva.VR
                 else if (phase == ShowPhase.Results && show.PhaseTime > 2.5f) Go(Step.Results);
             }
             var f = input ? input.Current : default;
-            bool pinch = f.shoot && !lastShoot;
-            lastShoot = f.shoot;
+            bool pinch = f.pinch && !lastPinch;
+            lastPinch = f.pinch;
             // 仪表台 PAUSE：只在比赛里、牌子收起时露出来；头对着它 0.25 秒后才算悬停（扫一眼不算），捏一下暂停
             if (pausePlate)
             {
@@ -717,7 +518,6 @@ namespace Diva.VR
                 var b = (f.look.sqrMagnitude > .01f ? HitButton(head.position, f.look) : null) ?? hovered;
                 if (b != null) Press(b);
                 else if (step == Step.Pick) show.VrStepSkin(1);   // 捏一下 = 下一个涂装（不用先找按钮）
-                else if (step == Step.Learn) Done(Move.Pinch);
             }
             if (step == Step.Learn) Practice(f);
         }
@@ -734,10 +534,13 @@ namespace Diva.VR
         {
             if (!demo) return;
             // 第 0 步的小人站在牌子前面 35 厘米（牌子不透明，演示里的靶子 / 按钮在小人前方，再近就埋进牌子里）
-            if (step == Step.Learn && !AllDone) { demo.Show((DivaVRGestureDemo.Move)(int)Current); demo.transform.localScale = Vector3.one * 1.7f; demo.transform.localPosition = new Vector3(-.12f, rig.eyeHeight + .4f, 1.4f); }
+            if (step == Step.Learn && !AllDone) { demo.Show(DemoMove(Current)); demo.transform.localScale = Vector3.one * 1.7f; demo.transform.localPosition = new Vector3(-.12f, rig.eyeHeight + .4f, 1.4f); }
             else if (step == Step.Ready) { demo.Show(DivaVRGestureDemo.Move.HandsUp); demo.transform.localScale = Vector3.one * 1.3f; demo.transform.localPosition = new Vector3(-.12f, rig.eyeHeight + .38f, 1.4f); }
             else demo.Hide();
         }
+
+        static DivaVRGestureDemo.Move DemoMove(Move m) => m == Move.Lean ? DivaVRGestureDemo.Move.Lean : m == Move.Turn ? DivaVRGestureDemo.Move.Tilt
+                                                        : m == Move.Shoot ? DivaVRGestureDemo.Move.Push : DivaVRGestureDemo.Move.ThumbsUp;
 
         void Done(Move m)
         {
@@ -773,7 +576,8 @@ namespace Diva.VR
             }
             Hold(Move.Lean, f.go > .45f, .6f);
             Hold(Move.Turn, Mathf.Abs(f.steer) > .45f, .5f);
-            Hold(Move.Mouth, f.drink, .4f);
+            Hold(Move.Shoot, f.shoot, .5f);
+            Hold(Move.Drink, f.drink, .4f);
             if (allDoneAt > 0 && Time.unscaledTime > allDoneAt + 1.2f) Go(Step.Ready);
         }
 
@@ -827,7 +631,7 @@ namespace Diva.VR
                 float breathe = b.primary ? 1 + .025f * Mathf.Sin(t * 3) : 1;
                 b.rt.localScale = Vector3.one * press * breathe;
                 float lit = since < .3f ? 1 - since / .3f : 0;
-                bool hov = b == hovered || b == demoHover;
+                bool hov = b == hovered;
                 b.rt.localScale *= hov ? 1.08f : 1f;
                 b.plate.Set(Color.Lerp(b.baseTop, Color.white, Mathf.Max(lit * .5f, hov ? .28f : 0)), Color.Lerp(b.baseBottom, Color.white, Mathf.Max(lit * .3f, hov ? .18f : 0)));
             }
@@ -854,8 +658,8 @@ namespace Diva.VR
                     float popDone = done ? DivaUi.EaseOutBack((t - r.doneAt) / .4f) : 1;
                     r.icon.rectTransform.localScale = Vector3.one * pulse * Mathf.Max(.2f, popDone);
                     r.text.alpha = stamp.gameObject.activeSelf ? 0 : done ? .55f : now ? 1 : .45f;
-                    // 实时反馈：前倾多少、往哪边倾、手在不在嘴边、有没有捏
-                    float live = i == (int)Move.Lean ? f.go : i == (int)Move.Turn ? f.steer : i == (int)Move.Mouth ? (f.drink ? 1 : 0) : (f.shoot ? 1 : 0);
+                    // 实时反馈：前倾多少、往哪边歪、有没有推出手、有没有竖拇指
+                    float live = i == (int)Move.Lean ? f.go : i == (int)Move.Turn ? f.steer : i == (int)Move.Drink ? (f.drink ? 1 : 0) : (f.shoot ? 1 : 0);
                     var m = r.meter.rectTransform;
                     if (i == (int)Move.Turn && !done)
                     {
@@ -898,7 +702,7 @@ namespace Diva.VR
 
         /// <summary>
         /// 自动驾驶（测试、无人值守演示）在选涂装和结算时的操作：像人一样按教学走一遍——
-        /// 看着"&gt;"捏一下换涂装，看着"就选这个"捏，前倾、左右倾、捏、手放嘴边，最后举双手出发；结算时按"再来一局"。
+        /// 看着"&gt;"捏一下换涂装，看着"就选这个"捏，前倾、歪头、推手、竖拇指，最后举双手出发；结算时按"再来一局"。
         /// </summary>
         public DivaVRFrame Demo()
         {
@@ -911,7 +715,7 @@ namespace Diva.VR
                 if (b == null || !head) return;
                 if (demoTarget != b) { demoTarget = b; demoPressAt = t; }
                 // 捏 0.2 秒，看着按钮
-                if (t - demoPressAt < .2f) { f.shoot = true; f.look = (ButtonWorld(b) - head.position).normalized; }
+                if (t - demoPressAt < .2f) { f.pinch = true; f.look = (ButtonWorld(b) - head.position).normalized; }
             }
             switch (step)
             {
@@ -930,11 +734,8 @@ namespace Diva.VR
                     {
                         case Move.Lean: f.go = 1; break;
                         case Move.Turn: f.steer = -1; break;
-                        // 看左边（不看按钮）捏一下
-                        case Move.Pinch:
-                            if (head && t % .6f < .25f) { f.shoot = true; f.look = Quaternion.AngleAxis(-35, Vector3.up) * head.forward; }
-                            break;
-                        case Move.Mouth: f.drink = true; break;
+                        case Move.Shoot: f.shoot = true; break;
+                        case Move.Drink: f.drink = true; break;
                     }
                     break;
                 case Step.Ready:

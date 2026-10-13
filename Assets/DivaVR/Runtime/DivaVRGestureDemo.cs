@@ -3,14 +3,14 @@ using UnityEngine;
 namespace Diva.VR
 {
     /// <summary>
-    /// 教学里的动作演示：牌子上方一个小小的 3D 动画（两只手、一个小头、迷你把手），循环做当前要学的那个动作，
-    /// 比文字清楚：推把手 / 转把手 / 看着靶子捏 / 手放到嘴边 / 双手举到眼前。
+    /// 教学里的动作演示：牌子上方一个小小的 3D 动画（一个小头、两只手），循环做当前要学的那个动作，比文字清楚：
+    /// 前倾（头往前探）/ 歪头 / 双手张开往前推 / 举手竖拇指 / 双手举到眼前 / 看着按钮捏。
     /// </summary>
     public class DivaVRGestureDemo : MonoBehaviour
     {
-        public enum Move { Push, Twist, Pinch, Mouth, HandsUp, Button }
+        public enum Move { Lean, Tilt, Push, ThumbsUp, HandsUp, Button }
         Move move; bool shown;
-        Transform stage, handL, handR, head, thumb, index, gripL, gripR, bar, target, arrow, button;
+        Transform stage, handL, handR, head, thumb, index, target, arrow, button, seat;
         Material handMat, headMat, barMat, targetMat, arrowMat, buttonMat;
         float t0;
 
@@ -38,13 +38,9 @@ namespace Diva.VR
             handR = Prim(PrimitiveType.Sphere, "Hand R", new Vector3(.06f, 0, 0), Vector3.one * .035f, handMat);
             thumb = Prim(PrimitiveType.Sphere, "Thumb", Vector3.zero, Vector3.one * .014f, handMat);
             index = Prim(PrimitiveType.Sphere, "Index", Vector3.zero, Vector3.one * .014f, handMat);
-            bar = Prim(PrimitiveType.Cylinder, "Bar", new Vector3(0, -.02f, .02f), new Vector3(.008f, .075f, .008f), barMat);
-            bar.localRotation = Quaternion.Euler(0, 0, 90);
-            gripL = Prim(PrimitiveType.Cylinder, "Grip L", new Vector3(-.065f, -.02f, .02f), new Vector3(.014f, .018f, .014f), handMat); gripL.localRotation = Quaternion.Euler(0, 0, 90);
-            gripR = Prim(PrimitiveType.Cylinder, "Grip R", new Vector3(.065f, -.02f, .02f), new Vector3(.014f, .018f, .014f), handMat); gripR.localRotation = Quaternion.Euler(0, 0, 90);
+            seat = Prim(PrimitiveType.Cube, "Seat", new Vector3(0, -.06f, -.08f), new Vector3(.12f, .01f, .1f), barMat);
             target = Prim(PrimitiveType.Cylinder, "Target", new Vector3(.12f, .08f, .18f), new Vector3(.05f, .003f, .05f), targetMat); target.localRotation = Quaternion.Euler(90, 0, 0);
             arrow = Prim(PrimitiveType.Cube, "Arrow", Vector3.zero, new Vector3(.006f, .006f, .05f), arrowMat);
-            // "看着按钮捏"用的小按钮（青色小方块，捏下去那一刻闪白）
             buttonMat = new Material(glow); Tint(buttonMat, new Color(.5f, .95f, 1f) * 1.4f);
             button = Prim(PrimitiveType.Cube, "Button", new Vector3(.1f, .05f, .16f), new Vector3(.07f, .03f, .006f), buttonMat);
             Hide();
@@ -66,14 +62,17 @@ namespace Diva.VR
         {
             move = m; shown = true; t0 = Time.unscaledTime;
             stage.gameObject.SetActive(true);
-            bool bars = false;   // 把手演示不用了（操控改回前倾 / 侧倾）
-            bar.gameObject.SetActive(bars); gripL.gameObject.SetActive(bars); gripR.gameObject.SetActive(bars);
-            bool pinchy = m == Move.Pinch || m == Move.Button;
-            target.gameObject.SetActive(m == Move.Pinch);
-            button.gameObject.SetActive(m == Move.Button);
-            thumb.gameObject.SetActive(pinchy); index.gameObject.SetActive(pinchy);
-            handL.gameObject.SetActive(!pinchy && m != Move.Mouth);
-            arrow.gameObject.SetActive(m == Move.Push || m == Move.HandsUp || pinchy);
+            bool pinchy = m == Move.Button;
+            target.gameObject.SetActive(m == Move.Push);
+            button.gameObject.SetActive(pinchy);
+            thumb.gameObject.SetActive(pinchy || m == Move.ThumbsUp); index.gameObject.SetActive(pinchy);
+            handL.gameObject.SetActive(m == Move.Push || m == Move.HandsUp || m == Move.Lean || m == Move.Tilt);
+            handR.gameObject.SetActive(true);
+            seat.gameObject.SetActive(m == Move.Lean);
+            arrow.gameObject.SetActive(m == Move.Lean || m == Move.Push || m == Move.HandsUp || pinchy);
+            head.localRotation = Quaternion.identity; head.localPosition = new Vector3(0, .11f, -.08f);
+            handL.localPosition = new Vector3(-.065f, -.02f, .02f); handR.localPosition = new Vector3(.065f, -.02f, .02f);
+            handL.localScale = handR.localScale = Vector3.one * .035f;
         }
 
         public void Hide() { shown = false; if (stage) stage.gameObject.SetActive(false); }
@@ -81,55 +80,59 @@ namespace Diva.VR
         void Update()
         {
             if (!shown) return;
-            float t = Time.unscaledTime - t0, c = Mathf.Repeat(t, 2f) / 2f;   // 两秒一轮
+            float t = Time.unscaledTime - t0, c = Mathf.Repeat(t, 2.4f) / 2.4f;   // 2.4 秒一轮
             float ease = Mathf.SmoothStep(0, 1, Mathf.PingPong(c * 2, 1));
             switch (move)
             {
+                case Move.Lean:
+                    // 坐着，头和双手一起往前探，前面的箭头跟着变长
+                    head.localPosition = new Vector3(0, .11f - .02f * ease, -.08f + .07f * ease);
+                    head.localRotation = Quaternion.Euler(18 * ease, 0, 0);
+                    handL.localPosition = new Vector3(-.065f, -.02f, .02f + .04f * ease); handR.localPosition = new Vector3(.065f, -.02f, .02f + .04f * ease);
+                    arrow.localPosition = new Vector3(0, .09f, .06f + .05f * ease); arrow.localRotation = Quaternion.identity; arrow.localScale = new Vector3(.006f, .006f, .03f + .05f * ease);
+                    break;
+                case Move.Tilt:
+                {
+                    // 头往左右歪（肩膀 = 双手不动）
+                    float sw = Mathf.Sin(c * Mathf.PI * 2);
+                    head.localRotation = Quaternion.Euler(0, 0, -sw * 28);
+                    head.localPosition = new Vector3(sw * .02f, .11f, -.08f);
+                    break;
+                }
                 case Move.Push:
-                    // 拳头（小一点的手）握着杆往前推
-                    handR.localScale = Vector3.one * .028f; handL.gameObject.SetActive(false);
-                    handR.localPosition = new Vector3(.03f, .01f, .0f + .06f * ease);
-                    bar.gameObject.SetActive(true); bar.localRotation = Quaternion.Euler(ease * 30, 0, 0); bar.localPosition = new Vector3(.03f, -.03f, 0); bar.localScale = new Vector3(.006f, .03f, .006f);
-                    gripL.gameObject.SetActive(true); gripL.localRotation = Quaternion.identity; gripL.localScale = new Vector3(.05f, .003f, .05f); gripL.localPosition = new Vector3(.03f, -.06f, 0);
-                    arrow.localPosition = new Vector3(.03f, .06f, .03f + .04f * ease); arrow.localRotation = Quaternion.identity;
+                    // 两只手从胸前张开往前推，推出去时前面的靶子闪白
+                    handL.localPosition = Vector3.Lerp(new Vector3(-.04f, .0f, -.02f), new Vector3(-.06f, .02f, .10f), ease);
+                    handR.localPosition = Vector3.Lerp(new Vector3(.04f, .0f, -.02f), new Vector3(.06f, .02f, .10f), ease);
+                    handL.localScale = handR.localScale = Vector3.one * (.028f + .012f * ease);
+                    arrow.localPosition = new Vector3(0, .02f, .06f + .06f * ease); arrow.localRotation = Quaternion.identity; arrow.localScale = new Vector3(.006f, .006f, .05f);
+                    Tint(targetMat, (ease > .85f ? Color.white : new Color(1f, .4f, .4f)) * 1.5f);
                     break;
-                case Move.Twist:
-                    // 拳头往左右推杆
-                    float sw = Mathf.Sin(c * Mathf.PI * 2) * .05f;
-                    handR.localScale = Vector3.one * .028f; handL.gameObject.SetActive(false);
-                    handR.localPosition = new Vector3(.03f + sw, .01f, 0);
-                    bar.gameObject.SetActive(true); bar.localRotation = Quaternion.Euler(0, 0, -sw / .05f * 30); bar.localPosition = new Vector3(.03f, -.03f, 0); bar.localScale = new Vector3(.006f, .03f, .006f);
-                    gripL.gameObject.SetActive(true); gripL.localRotation = Quaternion.identity; gripL.localScale = new Vector3(.05f, .003f, .05f); gripL.localPosition = new Vector3(.03f, -.06f, 0);
-                    break;
-                case Move.Pinch:
                 case Move.Button:
                 {
-                    // 看着靶子 / 按钮（头朝向它，一条视线），拇指食指捏合，捏下去那一刻它闪白
-                    var at = move == Move.Pinch ? target : button;
+                    // 看着按钮（头朝向它，一条视线），拇指食指捏合，捏下去那一刻它闪白
                     handR.localPosition = new Vector3(.03f, .02f, .05f);
                     float pinch = ease;
                     thumb.localPosition = handR.localPosition + new Vector3(-.02f + .012f * pinch, .005f, .02f);
                     index.localPosition = handR.localPosition + new Vector3(.02f - .012f * pinch, .012f, .022f);
-                    head.localRotation = Quaternion.LookRotation(at.localPosition - head.localPosition);
-                    arrow.localPosition = Vector3.Lerp(head.localPosition, at.localPosition, .5f);
-                    arrow.localRotation = head.localRotation; arrow.localScale = new Vector3(.003f, .003f, Vector3.Distance(head.localPosition, at.localPosition));
-                    if (move == Move.Pinch) Tint(targetMat, (pinch > .9f ? Color.white : new Color(1f, .4f, .4f)) * 1.5f);
-                    else Tint(buttonMat, (pinch > .9f ? Color.white : new Color(.5f, .95f, 1f)) * 1.4f);
+                    head.localRotation = Quaternion.LookRotation(button.localPosition - head.localPosition);
+                    arrow.localPosition = Vector3.Lerp(head.localPosition, button.localPosition, .5f);
+                    arrow.localRotation = head.localRotation; arrow.localScale = new Vector3(.003f, .003f, Vector3.Distance(head.localPosition, button.localPosition));
+                    Tint(buttonMat, (pinch > .9f ? Color.white : new Color(.5f, .95f, 1f)) * 1.4f);
                     break;
                 }
-                case Move.Mouth:
-                    // 手从前面抬到嘴边
-                    handR.localPosition = Vector3.Lerp(new Vector3(.05f, -.02f, .06f), new Vector3(.0f, .08f, -.03f), ease);
+                case Move.ThumbsUp:
+                    // 右手举到头旁边，拇指（小球）竖在手上面
+                    handR.localPosition = Vector3.Lerp(new Vector3(.065f, -.02f, .02f), new Vector3(.09f, .10f, -.02f), ease);
+                    handR.localScale = Vector3.one * .03f;
+                    thumb.localPosition = handR.localPosition + new Vector3(0, .026f * ease, 0); thumb.localScale = Vector3.one * (.006f + .01f * ease);
                     break;
                 case Move.HandsUp:
                     // 双手举到眼睛高度、在前面
                     handL.localPosition = Vector3.Lerp(new Vector3(-.065f, -.02f, .02f), new Vector3(-.06f, .11f, .03f), ease);
                     handR.localPosition = Vector3.Lerp(new Vector3(.065f, -.02f, .02f), new Vector3(.06f, .11f, .03f), ease);
-                    arrow.localPosition = new Vector3(0, .02f + .06f * ease, .04f); arrow.localRotation = Quaternion.Euler(-90, 0, 0);
+                    arrow.localPosition = new Vector3(0, .02f + .06f * ease, .04f); arrow.localRotation = Quaternion.Euler(-90, 0, 0); arrow.localScale = new Vector3(.006f, .006f, .05f);
                     break;
             }
-            if (move != Move.Pinch && move != Move.Button) { head.localRotation = Quaternion.identity; arrow.localScale = new Vector3(.006f, .006f, .05f); }
-            if (move != Move.Push && move != Move.Twist) { head.localPosition = new Vector3(0, .11f, -.08f); handR.localScale = Vector3.one * .035f; }
         }
     }
 }

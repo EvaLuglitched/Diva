@@ -8,13 +8,16 @@ namespace Diva.VR
     {
         public float go, steer, aim;
         public bool shoot, drink, ult;
+        /// <summary>看着按钮捏一下（按按钮用；喷水是 shoot = 双手前推，两者分开）。</summary>
+        public bool pinch;
         /// <summary>捏的时候眼睛看的方向（世界空间，Vision Pro 的"看 + 捏"）；零向量 = 用头的朝向。</summary>
         public Vector3 look;
     }
 
     /// <summary>
-    /// 把 VR 的操作交给游戏。来源：Vision Pro 的手部追踪和头的位置（DivaVRHands），电脑上是模拟器（键盘鼠标）。
-    /// 瞄准用"看哪儿打哪儿"：头的水平朝向相对大象正前方的角度，换算成象鼻水炮的瞄准量。
+    /// 把 VR 的操作交给游戏。来源：Vision Pro 的头部位置和手部追踪（DivaVRHands：前倾走、歪头转、双手前推喷水、竖拇指吃喝、
+    /// 双手举到眼前放大招），电脑上是模拟器（键盘鼠标）。瞄准用"看哪儿打哪儿"：头的水平朝向相对大象正前方的角度，
+    /// 换算成象鼻水炮的瞄准量；捏合只用来按按钮。
     /// </summary>
     [DefaultExecutionOrder(-50)]   // 在 DigiPhantController（0）调用 DivaDemo.UpdateInputs 之前
     public class DivaVRInput : MonoBehaviour
@@ -50,23 +53,24 @@ namespace Diva.VR
             if (!demo) return;
             var head = DivaVR.Head;
             var frame = autopilot ? autopilot.Read() : simulator ? simulator.Read() : hands && head ? hands.Read(head, head.parent) : default;
-            // 冲刺中：自动全速往前，把手只管转弯
+            // 冲刺中：自动全速往前（共用的 DivaShowMeta 也会推 externalForward；这里再保一道）
             if (dash && dash.Active && show && (show.Phase == Diva.Show.ShowPhase.Play || show.Phase == Diva.Show.ShowPhase.Ult)) frame.go = 1;
-            // 辅助瞄准：捏的时候，看的方向 12° 以内、35 米以内最近的靶子就当作看准了它（眼睛的方向有一两度误差，远处的靶子很难正好看中）
-            // 牌子在管手势的时候（选涂装、结算、暂停）不做辅助瞄准：那会把看向按钮的视线拐到旁边的靶子上，按错按钮
+            // 辅助瞄准：喷水的时候，头看的方向 12° 以内、35 米以内最近的靶子就当作看准了它（头的朝向有一两度误差，远处的靶子很难正好对中）
+            // 牌子在管手势的时候（选涂装、结算、暂停）不做辅助瞄准
             bool guideOwns = guide && guide.isActiveAndEnabled && show && (guide.Handles(show.Phase) || guide.PauseHover);
-            if (frame.shoot && head && !guideOwns) frame.look = AimAssist(frame.look.sqrMagnitude > .01f ? frame.look : head.forward, head.position);
-            // 只有"捏"的时候才用看的方向瞄准：选涂装时随便转头看不会切换涂装，捏住再看左 / 右才切
-            frame.aim = frame.shoot ? LookAim(frame.look) : 0;
-            // 捏合的确认音（参考 Meta / Ultraleap 的手势设计：手势被识别要立刻有声音或画面反馈）
-            if (frame.shoot && !Current.shoot && show && show.Sound != null) show.Sound.Play("tick", .5f);
+            var aimDir = frame.look.sqrMagnitude > .01f ? frame.look : head ? head.forward : Vector3.forward;
+            if (frame.shoot && head && !guideOwns) aimDir = AimAssist(aimDir, head.position);
+            // 只有喷水的时候才用看的方向瞄准：平时随便转头看不会转象鼻
+            frame.aim = frame.shoot ? LookAim(aimDir) : 0;
+            // 手势被识别要立刻有反馈：捏一下"嗒"，推出手开炮"嗒"（水炮自己的声音接着来）
+            if ((frame.pinch && !Current.pinch || frame.shoot && !Current.shoot) && show && show.Sound != null) show.Sound.Play("tick", .5f);
             Current = frame;
             // 泡泡开场：人的手势只给开场用（捏一下出发），游戏拿不到
             if (tour && tour.Driving) frame = tour.Drive(frame);
             // 选涂装、结算：捏和身体动作归教学牌（DivaVRGuide 按按钮、教动作），游戏只拿到"双手举高"，而且只在可以出发的那一步
             else if (guide && guide.isActiveAndEnabled && show && guide.Handles(show.Phase))
                 frame = new DivaVRFrame { ult = frame.ult && guide.AllowStart };
-            // 比赛里看着仪表台的 PAUSE 捏一下 = 暂停，这一下不能同时开炮；杆照常
+            // 比赛里看着仪表台的 PAUSE 捏一下 = 暂停，这一下不能同时开炮
             else if (guide && guide.isActiveAndEnabled && guide.PauseHover) { frame.shoot = false; frame.look = default; frame.aim = 0; }
             demo.State.ClearPeople();
             demo.State.Accept(1, frame.go, frame.steer, frame.aim, frame.shoot, frame.drink, 1, Time.realtimeSinceStartup, frame.ult);

@@ -56,6 +56,7 @@ namespace Diva.VR
                     if (guide && guide.isActiveAndEnabled) return guide.Demo();
                     // 看一会儿再举手确认（结算页多停一会儿给人看分数）
                     f.ult = inPhase > (show.Phase == ShowPhase.Select ? 4 : 8) && inPhase % 3 < 1;
+                    f.pinch = f.shoot;
                     return f;
                 case ShowPhase.Play:
                     Drive(ref f, now);
