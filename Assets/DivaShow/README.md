@@ -129,7 +129,8 @@
 | `Runtime/DivaShowDirector.cs` | 流程状态机、镜头、输入（其余 `DivaShow*.cs` 是它的分部：界面、选涂装、游戏和技能、结束和结算） |
 | `Runtime/DivaShowMeta.cs` | 比赛节奏：糖果、燃烧、黄金靶子、低水量、奖牌、冲刺、辅助瞄准（PC / VR 共用的规则） |
 | `Runtime/DivaShowCoach.cs` | 教练：光柱、路标、大字提示 |
-| `Runtime/DivaShowWall.cs` | 终点前的冰墙：挡路、顶墙充能、大招炸碎 |
+| `Runtime/DivaShowWall.cs` | 终点前的冰墙：程序生成的冰晶柱（多面硬边、偏心尖顶、雪顶雪堆、碎冰），挡路、顶墙充能、大招炸碎 |
+| `Resources/DivaIce.shader` | 冰的着色器 `Diva/Ice`：折射（PC，透过冰看到扭曲的街景）、厚度感、噪声裂纹和霜、小面高光 + 环境反射、边缘发光、投影通道；头显上不开折射 |
 | `Runtime/DivaShowHero.cs` | 冲线的英雄时刻卡 |
 | `Runtime/DivaShowPickups.cs` | 赛道上的糖果和小火箭（运行时生成） |
 | `Runtime/DivaReplay.cs` | 30 帧/秒录制骨骼、位置、水枪和泡泡状态，挑高光片段，重演 |
