@@ -147,7 +147,7 @@ Keep shoulders, wrists, hands and P2 hips in frame; keep the thumbs-up hand clea
 
 Camera-mode START opens the camera check, which saves the neutral pose after 5 seconds with every player recognised; Test controls start without it. Keep hips visible while standing upright on the camera check. Without valid hips, calibration retains an earlier valid torso baseline or uses zero; Ready alone does not confirm a fresh baseline. Both wrists must be visible for GO; torso turning does not require them. For a stationary-turn check, use Try alone > All > Camera, START, pass the camera check, keep arms relaxed and lean: expect P1 STOP with P2 LEFT/RIGHT. The following camera can make the scenery rotate around an apparently stationary elephant.
 
-In F1, **Record performance** sits below the preview. It requires calibrated Camera mode and a live preview. Click **Stop recording and save**, then inspect `Recordings/<session>/performance.mp4` (no audio). Started runs save `route.csv`, `events.json` and `summary.json` under `TrialData/<session>/` on finish or interruption. These outputs stay local. See [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md) for sampling and recovery limits.
+In F1, **Record performance** sits below the preview. It requires calibrated Camera mode and a live preview. Click **Stop recording and save**, then inspect `Recordings/<session>/performance.mp4` (no audio). Started runs save `route.csv`, `events.json` and `summary.json` under `TrialData/<session>/` on finish or interruption. These outputs stay local. See [DIGIPHANT_SETUP.md](../DIGIPHANT_SETUP.md) for sampling and recovery limits.
 
 Current validation: 65 Python tests passed (62 repository + three starter recording tests). Earlier native Unity checks are historical; this restoration and the combined keyboard/finish-line checkout have not received fresh native or physical validation. Walking sensitivity and full group performance remain unresolved.
 
@@ -174,7 +174,7 @@ licence — see `Assets/DivaVR/README.md`). The PC game on `main` is unchanged.
 ### Starting
 
 1. The app opens fully immersive (no passthrough) in a dreamy sky with a menu: look at **START** and pinch.
-   **EN / 中文** next to it switches the language.
+   (The EN / 中文 switch is hidden for now.)
 2. The opening flies you over the town in three still shots (overview with the task beacons → behind the elephant →
    low hero shot) and lands you in the cockpit.
 3. A guide board in front of the cockpit takes you through four steps; every step has buttons you press by

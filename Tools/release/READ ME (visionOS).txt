@@ -1,0 +1,19 @@
+Diva VR for Apple Vision Pro (visionOS 2 or newer)
+Team Diva: Eva, Carl, Vicky · DesComp Project 2 (DigiPhant) · https://github.com/EvaLuglitched/Diva (branch carl/diva-vr)
+
+This build is signed for development by Carl's Apple developer team, so it installs only on Vision Pro headsets
+registered to that team. Anyone else needs to be added to the team, or build it from the carl/diva-vr branch with
+their own team (see Assets/DivaVR/README.md in the repository).
+
+INSTALL (Mac with Xcode, headset paired and unlocked)
+  Xcode > Window > Devices and Simulators > select the Vision Pro > drag JIVEDigiphant.app into "Installed Apps", or:
+      xcrun devicectl device install app --device <headset id> JIVEDigiphant.app
+The app is called "Diva VR" on the headset. It asks for hand tracking the first time: Allow.
+
+CONTROLS (sitting in the cockpit on the elephant's back)
+  Walk / run ........ lean forward (sit back to stop)
+  Turn .............. tilt your head
+  Spray water ....... look at a target and pinch (hold to keep spraying)
+  Eat, drink, refill  thumbs-up for 0.4 s, or a hand to your mouth
+  MEGA BUBBLE ....... raise both hands to eye level and hold
+  Buttons ........... look at them and pinch; PAUSE is on the dashboard

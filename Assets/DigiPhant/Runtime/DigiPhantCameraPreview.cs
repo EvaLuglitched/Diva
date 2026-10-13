@@ -143,17 +143,28 @@ namespace DigiPhant
             // falls back to the hand model if its download fails.
             bool needHandModel = divaMode && (!File.Exists(Path.Combine(folder, "hand_landmarker.task"))
                                               || !File.Exists(Path.Combine(folder, "gesture_recognizer.task")));
+            // WorkingDirectory makes all arguments fixed filenames or validated integers.
+            StartBridge(executable, "-u bridge.py " + BridgeArguments(divaMode) + (needHandModel ? " --download-model" : ""), folder,
+                needHandModel ? "Downloading the hand / gesture models (first run, needs internet), then opening the webcam"
+                              : "Opening webcam — allow camera access if prompted");
+#else
+            LaunchPackagedBridge();
+#endif
+        }
+
+        /// <summary>The bridge options shared by the editor and release builds (same people / camera / port / Diva rules).</summary>
+        string BridgeArguments(bool divaMode) =>
+            "--no-window --people " + controller.performerCount + " --camera " + Mathf.Clamp(cameraIndex, 0, 8) + " --port " + controller.port +
+            (controller.upperBodyOnly ? " --upper-body-only" : "") + (divaMode ? " --diva" : "");
+
+        void StartBridge(string executable, string arguments, string workingDirectory, string status)
+        {
             try
             {
                 lock (outputLock) bridgeOutput = "";
-                // WorkingDirectory makes all arguments fixed filenames or validated integers.
-                var info = new ProcessStartInfo(executable,
-                    "-u bridge.py --no-window --people " + controller.performerCount +
-                    " --camera " + Mathf.Clamp(cameraIndex, 0, 8) + " --port " + controller.port +
-                    (controller.upperBodyOnly ? " --upper-body-only" : "") +
-                    (divaMode ? " --diva" : "") + (needHandModel ? " --download-model" : ""))
+                var info = new ProcessStartInfo(executable, arguments)
                 {
-                    WorkingDirectory = folder, UseShellExecute = false, CreateNoWindow = true,
+                    WorkingDirectory = workingDirectory, UseShellExecute = false, CreateNoWindow = true,
                     RedirectStandardOutput = true, RedirectStandardError = true
                 };
                 ownedBridge = new Process { StartInfo = info };
@@ -162,18 +173,52 @@ namespace DigiPhant
                 ownedBridge.Start();
                 ownedBridge.BeginOutputReadLine();
                 ownedBridge.BeginErrorReadLine();
-                Status = needHandModel ? "Downloading the hand / gesture models (first run, needs internet), then opening the webcam"
-                                       : "Opening webcam — allow camera access if prompted";
+                Status = status;
             }
             catch (Exception e)
             {
                 ownedBridge?.Dispose(); ownedBridge = null;
                 Status = "Camera launch failed: " + e.Message;
             }
-#else
-            Status = "Start the camera bridge on this computer.";
-#endif
         }
+
+#if !UNITY_EDITOR
+        /// <summary>
+        /// Release builds carry the same tracking bridge (folder DivaTracking), started with the same options as in the editor.
+        /// macOS: a self-contained copy inside the app (Contents/Resources/DivaTracking/diva_bridge, no Python needed); the system
+        /// asks for camera permission the first time (the app's Info.plist has NSCameraUsageDescription) and the bridge keeps
+        /// reopening the camera until it is allowed. Windows: DivaTracking next to Diva.exe holds the bridge sources, the models and
+        /// a Python environment that setup_camera.bat creates once. The only difference from the editor: the walking diagnostics
+        /// CSV is off (--no-go-log), because the app folder can be read-only; detection is untouched.
+        /// </summary>
+        void LaunchPackagedBridge()
+        {
+            bool windows = Application.platform == RuntimePlatform.WindowsPlayer;
+            string folder = Application.platform == RuntimePlatform.OSXPlayer
+                ? Path.Combine(Application.dataPath, "Resources", "DivaTracking")
+                : Path.GetFullPath(Path.Combine(Application.dataPath, "..", "DivaTracking"));
+            bool divaMode = GetComponent<DivaDemo>() != null && GetComponent<DivaDemo>().isActiveAndEnabled;
+            string frozen = Path.Combine(folder, "diva_bridge", windows ? "diva_bridge.exe" : "diva_bridge");
+            string python = Path.Combine(folder, windows ? ".venv/Scripts/python.exe" : ".venv/bin/python");
+            string Quote(string p) => "\"" + p + "\"";
+            if (Application.platform == RuntimePlatform.OSXPlayer) Application.RequestUserAuthorization(UserAuthorization.WebCam);
+            if (File.Exists(frozen))
+            {
+                string data = Path.Combine(folder, "diva_bridge", "_internal");
+                StartBridge(frozen, BridgeArguments(divaMode) + " --no-go-log" +
+                    " --model " + Quote(Path.Combine(data, "pose_landmarker_full.task")) +
+                    " --hand-model " + Quote(Path.Combine(data, "hand_landmarker.task")) +
+                    " --gesture-model " + Quote(Path.Combine(data, "gesture_recognizer.task")) +
+                    " --diva-config " + Quote(Path.Combine(data, "diva_gestures.json")),
+                    Path.GetDirectoryName(frozen), "Opening webcam — allow camera access when the system asks");
+            }
+            else if (File.Exists(python) && File.Exists(Path.Combine(folder, "bridge.py")))
+                StartBridge(python, "-u bridge.py " + BridgeArguments(divaMode) + " --no-go-log", folder, "Opening webcam");
+            else
+                Status = windows ? "Camera gestures: run DivaTracking\\setup_camera.bat once (needs Python 3.10+), then restart. Keyboard works now."
+                                 : "This build has no camera bridge. Keyboard works now.";
+        }
+#endif
 #if UNITY_EDITOR
         bool SyncTrackingOverrides(string folder)
         {
