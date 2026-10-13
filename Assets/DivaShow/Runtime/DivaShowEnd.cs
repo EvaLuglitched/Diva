@@ -22,10 +22,7 @@ namespace Diva.Show
             if (waterGun) waterGun.StopSpray();
             if (boosters) boosters.SetBoost(1);
             sound.Play("fanfare");
-            // Eva: the finish banner also says how many course tasks this run completed.
-            string sub = DivaText.F("finish.sub", DivaUi.Clock(finishedTime), TotalScore);
-            if (game && game.tasks.Length > 0) sub += "   ·   " + DivaText.F("finish.tasks", game.TasksDone, game.tasks.Length);
-            Banner(DivaText.T(timeUp ? "timeup" : "finish"), sub, Accent, 4.2f, null);
+            // 用时、任务数、涂装、分数和圈速奖牌都写在英雄时刻卡上（DivaShowHero，MetaPhase 在 Finish 时启动它），不再弹横幅
             fx.Confetti(ElephantCenter + Vector3.up * ElephantSize * .3f, new[] { Primary, Secondary, Accent, Color.white, new Color(1, .85f, .3f) });
             fireworkNext = 0;
             finishAngle = BestAngle(ElephantSize * 1.4f, ElephantSize * .15f, 60);
@@ -294,7 +291,8 @@ namespace Diva.Show
             resTeam.text = DivaText.Team(record.teamAdjective, record.teamNoun);
             DivaUi.Glow(resTeam, DivaUi.WithAlpha(Primary, .9f), .6f, .3f, .1f);
             resSummary.text = SkinName + "   ·   " + DivaUi.Clock(record.seconds) + "   ·   " +
-                              DivaText.T("stat.tasks") + " " + record.tasks + "/" + (game ? game.tasks.Length : 4);
+                              DivaText.T("stat.tasks") + " " + record.tasks + "/" + (game ? game.tasks.Length : 4) +
+                              (Medal != "" ? "   ·   <color=#" + ColorUtility.ToHtmlStringRGB(Medal == "medal.gold" ? GoldColour : Medal == "medal.silver" ? new Color(.85f, .9f, 1f) : new Color(1f, .65f, .4f)) + ">" + DivaText.T(Medal) + "</color>" : "");
             resScore.text = record.score + "<size=40%> " + (DivaText.Chinese ? "分" : "PTS") + "</size>";
             DivaUi.Glow(resScore, DivaUi.WithAlpha(Accent, .9f), .7f, .4f, .1f);
             resRank.text = DivaText.F("rank", rank) + (rank == 1 ? "    <color=#FFD94A>" + DivaText.T("best") + "</color>" : "");

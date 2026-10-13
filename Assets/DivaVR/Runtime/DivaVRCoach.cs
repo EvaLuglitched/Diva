@@ -9,7 +9,8 @@ namespace Diva.VR
     /// <summary>
     /// 比赛中的"教练"：永远知道下一步做什么。
     /// 下一个任务点上立一根光柱，名字和距离浮在上面；仪表台上一个箭头指过去；
-    /// 第一次需要某个动作时弹出大字提示（前倾跑、看着靶子捏、手放嘴边喝、举手放大招），几秒后自己消失。
+    /// 大字提示（推杆跑、看着靶子捏、手放嘴边吃喝、水快没了）由 PC / VR 共用的 DivaShowCoach 决定什么时候弹
+    /// （CoachTipped 事件），文字用 ".vr" 版本；举手放大招的提示是 VR 自己的。几秒后自己消失。
     /// </summary>
     public class DivaVRCoach : MonoBehaviour
     {
@@ -17,7 +18,6 @@ namespace Diva.VR
         DivaGameManager game;
         DigiPhantLocomotion loco;
         DivaDemo demo;
-        DivaVRInput input;
         Camera cam;
 
         Transform pillar, label, arrow, tip;
@@ -25,10 +25,9 @@ namespace Diva.VR
         TextMeshProUGUI labelText, labelDist, tipTitle, tipSub, arrowDist;
         CanvasGroup tipGroup;
         CourseTask current;
-        float tipUntil, tipShownAt, lastShootTip, lastDrinkTip, lastUltTip, runTipAt = -1, runTipPending = -1;
+        float tipUntil, tipShownAt, lastUltTip;
         TextMeshProUGUI labelAction;
         string tipKey;
-        bool runTipDone, runShown;
 
         void Start()
         {
@@ -36,7 +35,6 @@ namespace Diva.VR
             game = FindAnyObjectByType<DivaGameManager>();
             loco = FindAnyObjectByType<DigiPhantLocomotion>();
             demo = FindAnyObjectByType<DivaDemo>();
-            input = GetComponent<DivaVRInput>();
             cam = DivaVR.Head ? DivaVR.Head.GetComponent<Camera>() : Camera.main;
             if (!show || game == null || !loco || !loco.travelRoot) { enabled = false; return; }
             var glow = show.glowMaterial ? new Material(show.glowMaterial) : null;
@@ -88,18 +86,18 @@ namespace Diva.VR
             DivaUi.Glow(tipTitle, new Color(1, .3f, .7f, .9f));
             tipSub = DivaUi.Text((RectTransform)tip, "Sub", new Vector2(.5f, .5f), new Vector2(0, -36), new Vector2(1100, 60), 36, new Color(.55f, 1f, .9f), TextAlignmentOptions.Center, false);
             DivaShowDirector.PhaseChanged += OnPhase;
+            show.CoachTipped += OnCoachTip;
             SetVisible(false);
         }
 
-        void OnDestroy() => DivaShowDirector.PhaseChanged -= OnPhase;
+        void OnDestroy() { DivaShowDirector.PhaseChanged -= OnPhase; if (show) show.CoachTipped -= OnCoachTip; }
+
+        // 共用的教练决定了要提示什么（起跑、靶子在前方、到了吃 / 喝 / 木头、水快没了）；这里只负责显示
+        void OnCoachTip(string key, float seconds) => Tip(key, seconds);
 
         void OnPhase(ShowPhase p)
         {
-            // 起跑提示等"驾驶方法"卡片退场后再出（卡片在 Play 的头 3 秒还在眼前，同时出就叠字）
-            if (p == ShowPhase.Play && !runShown) { runShown = true; runTipPending = Time.unscaledTime + 3.4f; runTipDone = false; runTipAt = Time.unscaledTime + 9; }
-            if (p == ShowPhase.Results) runShown = false;
             if (p == ShowPhase.Ult && tipKey == "vr.coach.ult") tipUntil = 0;   // 大招已经放了，"举双手"的提示就撤
-
         }
 
         Transform Canvas(string name, Vector2 size, float scale, Transform parent, int order)
@@ -158,13 +156,13 @@ namespace Diva.VR
                 label.localScale = Vector3.one * (4.5f / 1200f) * Mathf.Clamp(dist / 25f, .6f, 2.2f);
                 labelDist.text = $"{dist:0} m";
                 // 14 米以内：距离换成要做的动作，闪着；到了圈里写"到了"
-                string act = current.check == TaskCheck.CurlTrunk ? ((current.label ?? "").ToLowerInvariant().Contains("drink") ? "vr.coach.drink" : "vr.coach.eat")
-                           : current.check == TaskCheck.LiftLegs ? "vr.coach.log" : null;
+                string act = current.check == TaskCheck.CurlTrunk ? ((current.label ?? "").ToLowerInvariant().Contains("drink") ? "coach.drink" : "coach.eat")
+                           : current.check == TaskCheck.LiftLegs ? "coach.log" : null;
                 bool near = act != null && dist < 14;
                 labelAction.gameObject.SetActive(near); labelDist.gameObject.SetActive(!near);
                 if (near)
                 {
-                    labelAction.text = dist < current.radius ? DivaText.T("vr.coach.here") + "  ·  " + DivaText.T(act) : DivaText.T(act);
+                    labelAction.text = dist < current.radius ? DivaText.T("coach.here") + "  ·  " + DivaText.T(act) : DivaText.T(act);
                     labelAction.color = new Color(1f, .9f, .4f, .7f + .3f * Mathf.Sin(t * 6));
                     label.localScale = Vector3.one * (4.5f / 1200f) * Mathf.Clamp(dist / 25f, .9f, 2.2f);
                 }
@@ -173,27 +171,9 @@ namespace Diva.VR
                 arrow.localRotation = Quaternion.Euler(0, 0, -angle);
                 arrowDist.text = $"{dist:0} m";
                 if (arrowMat) { var c = new Color(1f, .5f, .85f, 1) * (1.4f + .15f * Mathf.Sin(t * 3)); arrowMat.color = c; if (arrowMat.HasProperty("_BaseColor")) arrowMat.SetColor("_BaseColor", c); }
-                // 到了任务点告诉人这里要做什么：吃 / 喝 = 手放嘴边；跨木头 = 继续前倾走过去；终点只要到达
-                // 驾驶舱里的提示：14 米内每 7 秒提醒一次，到了圈里立刻再提醒
-                if (act != null && (dist < 14 && t > lastDrinkTip + 7 || dist < current.radius && t > lastDrinkTip + 3)) { lastDrinkTip = t; Tip(act, 4); }
             }
-            if (show.Phase == ShowPhase.Play)
-            {
-                // 开跑：还没动就提示前倾
-                if (runTipPending > 0 && t > runTipPending) { runTipPending = -1; Tip("vr.coach.run", 5); }
-                if (!runTipDone && runTipAt > 0 && t > runTipAt && loco.CurrentSpeed < .3f) { runTipDone = true; Tip("vr.coach.run", 5); }
-                if (loco.CurrentSpeed > 1) runTipDone = true;
-                // 前方不远有靶子、没在喷：看着它捏
-                if (t > lastShootTip + 14 && !(input && input.Current.shoot))
-                {
-                    var head = DivaVR.Head ? DivaVR.Head.position : root.position;
-                    var fwd = Vector3.ProjectOnPlane(root.forward, Vector3.up);
-                    bool near = DivaTarget.All.Any(x => x && Vector3.Distance(x.transform.position, head) < 18 && Vector3.Angle(fwd, Vector3.ProjectOnPlane(x.transform.position - head, Vector3.up)) < 35);
-                    if (near) { lastShootTip = t; Tip("vr.coach.shoot"); }
-                }
-                // 大招满了
-                if (show.Charge >= 100 && t > lastUltTip + 12) { lastUltTip = t; Tip("vr.coach.ult", 5); }
-            }
+            // 大招满了（PC 版用底部的大招提示条；VR 这里提示举手）
+            if (show.Phase == ShowPhase.Play && show.Charge >= 100 && t > lastUltTip + 12) { lastUltTip = t; Tip("vr.coach.ult", 5); }
             bool showTip = t < tipUntil && (show.Phase == ShowPhase.Play || show.Phase == ShowPhase.Countdown) && !show.VrCardVisible;
             tipGroup.alpha = Mathf.MoveTowards(tipGroup.alpha, showTip ? 1 : 0, dt * (showTip ? 4 : 2));
             tip.localScale = Vector3.one * (.9f / 1200f) * Mathf.Max(.01f, DivaUi.EaseOutBack((t - tipShownAt) / .45f));

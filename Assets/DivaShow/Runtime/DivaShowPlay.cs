@@ -44,6 +44,7 @@ namespace Diva.Show
             tasksDone = game ? new bool[game.tasks.Length] : new bool[0];
             foreach (var f in feed) if (f.plate) Destroy(f.plate.gameObject);
             feed.Clear();
+            MetaStartRun();
             BeginTrial();
         }
 
@@ -65,8 +66,8 @@ namespace Diva.Show
             if (demo.State.Drink) stats.bubbleTime += dt;
             if (demo.State.Shoot) stats.sprayTime += dt;
 
-            // 推进冲刺：接近最高速持续 1 秒
-            bool fast = speed >= locomotion.runSpeed * .88f;
+            // 推进冲刺：接近最高速持续 1 秒（火箭冲刺期间也算）
+            bool fast = speed >= locomotion.runSpeed * .88f || Dashing;
             rushTime = fast ? rushTime + dt : 0;
             if (boosting && !fast) boosting = false;
             if (!boosting && rushTime > 1 && Time.time > rushCooldown)
@@ -117,6 +118,7 @@ namespace Diva.Show
                     {
                         tasksDone[i] = true;
                         charge = Mathf.Min(100, charge + chargePerTask);
+                        Heat(.3f);
                         string label = DivaText.Task(game.tasks[i].label);
                         Banner(DivaText.T("skill.task"), label, new Color(.45f, 1f, .6f));
                         Feed(DivaText.T("skill.task") + " · " + label, new Color(.45f, 1f, .6f));
@@ -152,43 +154,8 @@ namespace Diva.Show
         public float Charge => charge;
         public int RunHits => stats.hits;
 
-        int candyCombo; float lastCandyAt = -10;
-        /// <summary>VR 的"燃烧"状态：得分倍率（糖果和靶子）。</summary>
-        public float ScoreMultiplier = 1;
-
-        /// <summary>VR 用的大横幅。</summary>
+        /// <summary>VR 用的大横幅（糖果、燃烧、黄金靶、冲刺、奖牌这些规则和它们的横幅在 DivaShowMeta，PC / VR 共用）。</summary>
         public void VrBanner(string title, string sub, Color colour, float seconds = 2f, string sfx = "skill") => Banner(title, sub, colour, seconds, sfx);
-
-        /// <summary>VR 冲刺（大招后、火箭道具）：推进器喷火、横幅。</summary>
-        public void VrDash(bool on)
-        {
-            if (boosters) boosters.SetBoost(on ? 1 : -1);
-            if (on)
-            {
-                boosting = true; rushCooldown = Time.time + 8;
-                Banner(DivaText.T("skill.boost"), null, Primary);
-                Feed(DivaText.T("skill.boost"), Primary);
-                if (bubbles) bubbles.Burst(1.2f);
-            }
-            else boosting = false;
-        }
-
-        /// <summary>赛道上的道具（糖果）吃到：加分、充一点能量、提示条、声音。</summary>
-        /// <summary>吃到道具；返回实际加的分（燃烧时 ×1.5），没在 Play 阶段返回 0。</summary>
-        public int Collect(int points, Vector3 at)
-        {
-            if (Phase != ShowPhase.Play) return 0;
-            int gained = Mathf.RoundToInt(points * ScoreMultiplier);
-            bonus += gained;
-            charge = Mathf.Min(100, charge + 4);
-            stats.candies++;
-            // 连着吃音越来越高
-            candyCombo = Time.time - lastCandyAt < 3.5f ? candyCombo + 1 : 0; lastCandyAt = Time.time;
-            float pitch = 1 + .06f * Mathf.Min(candyCombo, 8);
-            Feed(DivaText.F("feed.candy", gained), new Color(1f, .8f, .3f));
-            if (Diva.VR.DivaVR.Active) sound.PlayAt("candy", at, .9f, pitch); else sound.Play("candy", .9f, pitch);
-            return gained;
-        }
 
         void OnTargetHit(DivaTarget target)
         {
@@ -196,17 +163,22 @@ namespace Diva.Show
             float t = Time.time - runStart;
             stats.hits++;
             if (Phase == ShowPhase.Ult) stats.ultHits++;
-            Popup("+" + target.points, target.AimPoint, Color.white);
+            // 金靶子的分已经是三倍；燃烧时再 ×1.5（多出来的记进奖励分）
+            bool gold = target == golden;
+            int shown = Mathf.RoundToInt(target.points * ScoreMultiplier);
+            Popup("+" + shown, target.AimPoint, gold ? GoldColour : Color.white);
             if (Diva.VR.DivaVR.Active) { sound.PlayAt("hit", target.AimPoint, .8f, Random.Range(.92f, 1.14f)); VrHitMarker(target.AimPoint); } else sound.Play("hit", .8f);
-            fx.Flash(target.AimPoint, Accent, 2.2f, .25f);
+            if (gold) { if (Diva.VR.DivaVR.Active) sound.PlayAt("combo", target.AimPoint, .8f, 1.3f); else sound.Play("combo", .8f, 1.3f); }
+            fx.Flash(target.AimPoint, gold ? GoldColour : Accent, 2.2f, .25f);
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }
             charge = Mathf.Min(100, charge + chargePerHit);
-            if (ScoreMultiplier > 1) bonus += Mathf.RoundToInt(target.points * (ScoreMultiplier - 1));
+            if (ScoreMultiplier > 1) bonus += shown - target.points;
+            Heat(.22f);
             combo = DivaClock.Time - lastHitTime <= ComboWindow ? combo + 1 : 1;
             lastHitTime = DivaClock.Time;
             stats.bestCombo = Mathf.Max(stats.bestCombo, combo);
-            Feed(DivaText.F("feed.hit", target.points), new Color(.35f, .8f, 1f));
+            Feed(gold ? DivaText.T("golden") + "  +" + shown : DivaText.F("feed.hit", shown), gold ? GoldColour : new Color(.35f, .8f, 1f));
             replay.Mark(t, "hit", 30, combo >= 3 ? "skill.combo3" : "skill.cannon", target);
             if (combo == 3 || combo == 5)
             {

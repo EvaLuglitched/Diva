@@ -61,10 +61,11 @@ namespace Diva.Show
             selectRoot = DivaUi.Stretch(root, "Select");
             highlightRoot = DivaUi.Stretch(root, "Highlight");
             resultsRoot = DivaUi.Stretch(root, "Results");
+            heroRoot = DivaUi.Stretch(root, "Hero");
             countdownRoot = DivaUi.Stretch(root, "Countdown");
             bannerRoot = DivaUi.Stretch(root, "Banner");
             topRoot = DivaUi.Stretch(root, "Top");
-            BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildCameraFeed(); BuildCameraCheck();
+            BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildHero(); BuildCameraFeed(); BuildCameraCheck();
             if (DivaVR.Active && DivaVR.MomentsAnchor) MoveMomentsForward();
             if (DivaVR.Active && DivaVR.DashAnchor) MoveSkillsToDash();
         }
@@ -103,7 +104,7 @@ namespace Diva.Show
             foreach (Transform child in hudRoot)
             {
                 var n = child.name;
-                if (n.StartsWith("Boost") || n.StartsWith("Cannon") || n.StartsWith("Bubble") ||
+                if (n.StartsWith("Boost") || n.StartsWith("Cannon") || n.StartsWith("Bubble") || n.StartsWith("Fire ") && n != "Fire Glow" ||
                     n.StartsWith("Ult Back") || n.StartsWith("Ult Charge") || n.StartsWith("Ult Percent") || n.StartsWith("Ult Name") || n.StartsWith("Ult Key"))
                     move.Add(child);
             }
@@ -176,6 +177,7 @@ namespace Diva.Show
             countdownRoot.gameObject.SetActive(Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 1);
             highlightRoot.gameObject.SetActive(Phase == ShowPhase.Highlight);
             Show(resultsRoot, Phase == ShowPhase.Results && !DivaVR.Active);   // VR：结算只留英雄卡 + 教学牌的结算板，桌面版三块板不画
+            heroRoot.gameObject.SetActive(Phase == ShowPhase.Finish && !DivaVR.Active);   // VR 的英雄时刻卡是驾驶舱前的空间版（DivaVRCelebration）
             topRoot.gameObject.SetActive(!DivaVR.Active && Phase != ShowPhase.Highlight && Phase != ShowPhase.Intro && Phase != ShowPhase.RaceIntro);
         }
 

@@ -90,7 +90,7 @@ namespace Diva.VR
         {
             var snd = show.Sound;
             finalScore = show.TotalScore;
-            title.text = DivaText.T("vr.finish.title");
+            title.text = DivaText.T("hero.title");
             sub.text = DivaText.T("vr.finish.sub") + "  ·  " + show.SkinName;
             score.text = "0"; sub.alpha = 0; stamp.gameObject.SetActive(false);
             // 0.0 轰、象鸣、震动、聚光灯亮
@@ -134,9 +134,10 @@ namespace Diva.VR
                 if (i % 2 == 1) yield return Wait(.35f);
             }
             // 3.4 图章：圈速奖牌（没有就"冠军"）
-            var meta = GetComponent<DivaVRMeta>();
-            stamp.text = DivaText.T(meta && meta.Medal != "" ? meta.Medal : "vr.finish.champion"); stamp.gameObject.SetActive(true); stampAt = Time.unscaledTime;
-            if (meta && meta.Medal == "vr.medal.gold") stamp.color = new Color(1f, .85f, .25f); else if (meta && meta.Medal == "vr.medal.silver") stamp.color = new Color(.85f, .9f, 1f); else if (meta && meta.Medal == "vr.medal.bronze") stamp.color = new Color(1f, .65f, .4f);
+            // 圈速奖牌由共用的 DivaShowMeta 算（PC / VR 同一套门槛）
+            string medal = show.Medal;
+            stamp.text = DivaText.T(medal != "" ? medal : "hero.champion"); stamp.gameObject.SetActive(true); stampAt = Time.unscaledTime;
+            stamp.color = medal == "medal.silver" ? new Color(.85f, .9f, 1f) : medal == "medal.bronze" ? new Color(1f, .65f, .4f) : new Color(1f, .85f, .25f);
             if (snd != null) snd.Play("powerup", .6f, 1.4f);
         }
 

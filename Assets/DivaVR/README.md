@@ -18,8 +18,7 @@ visionOS 支持需要 Unity Pro / Enterprise 许可证，所以**先不要把这
 | `Runtime/DivaVRHandGhost.cs` | 全沉浸模式看不到真手，用 26 个关节光点画手（抓杆青色、捏合黄色、喝水蓝色） |
 | `Runtime/DivaVRCockpit.cs` | 驾驶舱：Blender 零件 + 仪表（速度、能量、水量）、按钮、开关、踏板、RGB 流光灯条（燃烧时变橙红） |
 | `Runtime/DivaVRCoach.cs` / `DivaVRHowTo.cs` | 比赛里的教练提示（下一站的柱子和箭头、靠近任务点的动作提示）和起跑卡片旁的动作小人 |
-| `Runtime/DivaVRPickups.cs` / `DivaVRDash.cs` | 赛道上的糖果（+15，连吃音调越来越高）和小火箭（吃到就冲刺 2.5 秒）；大招后也冲刺 |
-| `Runtime/DivaVRMeta.cs` | 参考守望先锋的反馈：ON FIRE 燃烧（12 秒得分 ×1.5）、黄金靶子（10 秒三倍分）、大招就绪提示、低水量警告、圈速奖牌 |
+| `Runtime/DivaVRMeta.cs` / `DivaVRDash.cs` | 比赛节奏在驾驶舱里的呈现：灯条燃烧、空间音效、浮字、大招就绪提示；冲刺的风线、震动、尾灯。规则本身（糖果 +15、小火箭冲刺、ON FIRE ×1.5、黄金靶子 ×3、低水量、圈速奖牌、辅助瞄准、每次喷水耗水 .022）在 PC / VR 共用的 `Assets/DivaShow/Runtime/DivaShowMeta.cs`（糖果在 `DivaShowPickups.cs`，教练触发在 `DivaShowCoach.cs`），VR 只接它的事件 |
 | `Runtime/DivaVRCelebration.cs` / `DivaVRHologram.cs` | 冲线的英雄时刻（聚光灯、卡片砸进来、分数跳动、彩纸烟花、奖牌章）和仪表台上的全息大象 |
 | `Runtime/DivaVRFeedback.cs` / `DivaVRFloatText.cs` | 打中靶子的飘字、任务完成的 DONE!、光柱 |
 | `Runtime/DivaVRGlass.cs` / `DivaVRCulling.cs` / `DivaLook.cs`（DivaShow） | 画面：玻璃柔化、分级距离剔除、冷色补光 / 低角度太阳 / 雾 / 半强度泛光 |

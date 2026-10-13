@@ -15,6 +15,28 @@ Keyboard: arrows switch skins, Enter starts or skips, U fires the ultimate, L sw
 Keyboard play works together with the gestures, even without a camera: W (or ↑) go, A/D (or ←/→) turn, U/I aim (U also fires a charged ultimate),
 hold Space to spray, F to drink, H hides the key legend. See Assets/DivaGame/README.md.
 
+## Race extras (same rules on PC and Vision Pro)
+These run on top of Eva's scoring and tasks (`Assets/DivaShow/Runtime/DivaShowMeta.cs`); the scene is unchanged.
+- **Candy +15**: candy floats along the route between the stops; drive through it. Eating several in a row raises the
+  "ding" pitch. **Small rockets** (two per straight) give +15 and a **ROCKET DASH**: 2.5 s at full speed, boosters on.
+  The dash also fires after every MEGA BUBBLE ("CHARGE!").
+- **ON FIRE**: hits (+.22), candy (+.08) and tasks (+.3) fill the orange meter at the bottom right; full = 12 s of
+  score x1.5 with an orange screen edge. It cools down when nothing happens.
+- **GOLDEN TARGET**: every ~24 s one target ahead turns gold for 10 s (3x points, gold disc behind it, "x3" on the
+  lock marker). The cannon locks it first.
+- **Aim assist**: while you spray, the locked target stays locked (no flicking between two targets); the lock marker
+  always shows what the next burst hits.
+- **Water**: a burst now costs .022 (was .008), so the tank empties in ~45 bursts. Under 25% the water bar flashes red,
+  a beep plays every 6 s and the coach says to refill (thumbs-up 0.4 s / F).
+- **Coach**: a pink beacon stands on the next stop with a waypoint label (name and metres; it sticks to the screen
+  edge when the stop is off screen). Tips pop up at the bottom when you have not started running, when a target is
+  ahead, when you reach the bush / basin / log, and when water is low. Three-player mode names the player (P1/P2/P3).
+- **Lap medals**: GOLD LAP at or under 50 s, SILVER LAP under 80 s, else BRONZE LAP (Eva's run timer). Time-outs get
+  no medal.
+- **PLAY OF THE RACE**: the finish shows a hero card instead of the old banner: time, tasks, skin, the score counting
+  up, then the medal stamp. The highlight replay and results follow as before; the results line shows the medal too.
+All numbers are Inspector fields on the Diva Show object ("Race meta").
+
 ## One person, one role (testing)
 Press F1 for the setup panel. Select Try alone, then P1 Move, P2 Turn or P3 Water. Keep Camera selected.
 Click Get ready (10 seconds), then stand naturally with arms down until ready.
@@ -124,7 +146,8 @@ the hips (`go_hand_min_height` -1.25) and keeps the swing through wrist dropouts
 ## Vision Pro version (branch `carl/diva-vr`)
 
 A first-person VR version of the same match: you sit in a cockpit on the elephant's back and drive it round the
-candy-town course. It is on branch `carl/diva-vr` only (it adds `com.unity.xr.visionos`, which needs a Unity Pro
+candy-town course. The race extras above (candy, rockets, ON FIRE, golden target, coach, medals, hero card, aim assist,
+water) are the same rules; only their presentation is the cockpit's (lights, spatial sound, floating text). It is on branch `carl/diva-vr` only (it adds `com.unity.xr.visionos`, which needs a Unity Pro
 licence — see `Assets/DivaVR/README.md`). The PC game on `main` is unchanged.
 
 ### Starting
@@ -148,9 +171,9 @@ licence — see `Assets/DivaVR/README.md`). The PC game on `main` is unchanged.
 | Control | How | Notes |
 | --- | --- | --- |
 | **Run** | Grab the joystick on the console (right of your knee, 20 cm right / 40 cm below the eyes / 34 cm forward) by **pinching or making a fist** on the glowing knob, then **push it forward** | 3 cm = walk, 12 cm = run; the knob glows when a hand is near; let go = stop. At the countdown the stick moves to your hand if it is within 25 cm |
-| **Steer** | Push the joystick **left / right** | 3 cm dead zone, 10 cm = full turn; no reverse |
+| **Steer** | Push the joystick **left / right**, or **tilt your head** (same as the PC game's shoulder / head tilt) | 3 cm dead zone, 10 cm = full turn; head tilt starts at 8° and is full at 22°, measured from how you sat down; the stick wins while it is pushed; no reverse |
 | **Trunk cannon** | **Look at a target and pinch** with the free hand | Aim assist 12° / 35 m; each burst uses water (the water gauge is on the console; below 25 % it beeps and the coach tells you to refill) |
-| **Eat / drink / refill** | **Free hand to the mouth** (within 19 cm, below the eyes, in front) | The elephant stops and curls its trunk; at the feeding bush and the water basin this completes the task; refill works anywhere |
+| **Eat / drink / refill** | **Free hand to the mouth** (within 19 cm, below the eyes, in front), or hold a **thumbs-up** for 0.4 s (same as the PC game) | The elephant stops and curls its trunk; at the feeding bush and the water basin this completes the task; refill works anywhere |
 | **Step over the log** | Keep driving over the log | same as PC |
 | **MEGA BUBBLE (ult)** | When the charge gauge reads 100 % ("MEGA BUBBLE READY" banner + chime): **raise both hands to eye level in front of you** and hold 0.4 s | Bubble burst at the targets ahead, then a 2.5 s dash |
 | **Pickups** | Drive over them | Candies every 3 m (+15, combo pitch rises), rockets at ⅓ and ⅔ of the long straights = 2.5 s dash |

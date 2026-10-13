@@ -7,8 +7,8 @@ namespace Diva.VR
 {
     /// <summary>
     /// Vision Pro 上的手势：身体当摇杆，手负责精细操作（头和手都是头显给的 3D 位置，单位米）。
-    /// 身体前倾 = 前进，左右倾 = 转向（相对坐好时头的位置）；拇指食指捏合 = 喷水（朝你看的方向）；
-    /// 手放到嘴边 = 喝水；双手举过头顶 0.5 秒 = 大招 / 确认。
+    /// 握杆推 = 前进 / 转向（DivaVRLever），歪头也能转（和电脑版的压肩 / 歪头一样）；拇指食指捏合 = 喷水（朝你看的方向）；
+    /// 手放到嘴边或竖大拇指 0.4 秒 = 喝水 / 补水；双手举到眼前保持 = 大招 / 确认。
     /// </summary>
     public class DivaVRHands : MonoBehaviour
     {
@@ -24,13 +24,19 @@ namespace Diva.VR
         public float ultBelowEye = .12f, ultHold = .4f;
         [Tooltip("一只手追踪丢了多久以内当作还在。")]
         public float blipSeconds = .3f;
+        [Tooltip("歪头转弯（和电脑版的压肩 / 歪头一样）：头相对坐好时侧倾多少度开始转、多少度转满。杆推着的时候以杆为准。")]
+        public float tiltStart = 8f, tiltFull = 22f;
+        [Tooltip("竖大拇指补水（和电脑版一样）：拇指朝上、其他手指握起来，保持多少秒。")]
+        public float thumbsUpHold = .4f;
 
         XRHandSubsystem hands;
         DivaVRHandlebars handlebars;
         DivaVRLever lever;
         Vector3 neutral;
+        float neutralRoll;
         bool hasNeutral;
         float ultSince = -1;
+        readonly float[] thumbsUpSince = { -1f, -1f };
         readonly float[] lastUpAt = { -10f, -10f };
         static readonly XRHandJointID[] MouthJoints = { XRHandJointID.Palm, XRHandJointID.IndexTip, XRHandJointID.MiddleTip, XRHandJointID.ThumbTip, XRHandJointID.Wrist };
         static readonly List<XRHandSubsystem> found = new List<XRHandSubsystem>();
@@ -87,8 +93,31 @@ namespace Diva.VR
                 if (hand.isTracked && hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var pose)) tips.Add(space.TransformPoint(pose.position));
         }
 
-        /// <summary>记下坐好时头的位置（追踪空间），之后的前倾和左右倾都相对它算。</summary>
-        public void SetNeutral(Vector3 headLocal) { neutral = headLocal; hasNeutral = true; }
+        /// <summary>记下坐好时头的位置（追踪空间），之后的前倾和左右倾都相对它算；歪头转弯也相对此时的头部侧倾算。</summary>
+        public void SetNeutral(Vector3 headLocal) { neutral = headLocal; hasNeutral = true; neutralRoll = DivaVR.Head ? HeadRoll(DivaVR.Head) : 0; }
+
+        /// <summary>头的侧倾角度（度）：左耳往下（往自己左边歪）为负，右耳往下为正。</summary>
+        static float HeadRoll(Transform head) => -Mathf.Asin(Mathf.Clamp(head.right.y, -1, 1)) * Mathf.Rad2Deg;
+
+        /// <summary>当前歪头转向量 -1..1（相对坐好时的侧倾；没歪到 tiltStart 就是 0）。</summary>
+        public float HeadTilt(Transform head)
+        {
+            float roll = Mathf.DeltaAngle(neutralRoll, HeadRoll(head));
+            return Mathf.Sign(roll) * Mathf.InverseLerp(tiltStart, tiltFull, Mathf.Abs(roll));
+        }
+
+        /// <summary>竖大拇指：拇指尖在手腕上方、指向上，食指和中指尖收在掌心附近。</summary>
+        static bool ThumbsUp(XRHand hand, Transform space)
+        {
+            if (!hand.GetJoint(XRHandJointID.ThumbTip).TryGetPose(out var thumb) || !hand.GetJoint(XRHandJointID.ThumbMetacarpal).TryGetPose(out var thumbBase) ||
+                !hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out var wrist) || !hand.GetJoint(XRHandJointID.Palm).TryGetPose(out var palm) ||
+                !hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var index) || !hand.GetJoint(XRHandJointID.MiddleTip).TryGetPose(out var middle)) return false;
+            Vector3 tip = space.TransformPoint(thumb.position), root = space.TransformPoint(thumbBase.position), w = space.TransformPoint(wrist.position), p = space.TransformPoint(palm.position);
+            var thumbDir = tip - root;
+            if (thumbDir.magnitude < .03f || Vector3.Dot(thumbDir.normalized, Vector3.up) < .6f || tip.y < w.y + .04f) return false;
+            // 其他手指握起来：指尖离掌心很近（伸直的食指离掌心 8 厘米以上）
+            return Vector3.Distance(space.TransformPoint(index.position), p) < .055f && Vector3.Distance(space.TransformPoint(middle.position), p) < .055f;
+        }
 
         /// <summary>
         /// head：主摄像机；space：追踪空间（摄像机的父节点，手的关节位置也在这个空间里）。
@@ -109,6 +138,8 @@ namespace Diva.VR
             // 走和转弯：握拳拉杆（DivaVRLever）。前倾 / 侧倾把头当油门，太晕，不用了
             if (lever) { lever.Read(hands, space, head); f.go = lever.Go; f.steer = lever.Steer; }
             else if (handlebars) { handlebars.Read(hands, space); f.go = handlebars.Go; f.steer = handlebars.Steer; }
+            // 歪头转弯（和电脑版"压肩或歪头"对齐）：杆没推左右时，头往哪边歪就往哪边转
+            if (Mathf.Abs(f.steer) < .05f) f.steer = HeadTilt(head);
             var mouth = head.position - head.up * .09f + head.forward * .04f;
             var fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
             int up = 0, i = 0;
@@ -126,6 +157,9 @@ namespace Diva.VR
                 bool index = hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var indexPose);
                 // 捏合 = 喷水；握着把手时手指本来就是弯的，不算（系统的"看 + 捏"另外算）
                 if (!onGrip && thumb && index && Vector3.Distance(thumbPose.position, indexPose.position) < pinchDistance) f.shoot = true;
+                // 竖大拇指保持 0.4 秒 = 补水（和电脑版一样；手放嘴边照旧也可以）。握杆的那只手不算
+                if (!onGrip && ThumbsUp(hand, space)) { if (thumbsUpSince[i] < 0) thumbsUpSince[i] = now; if (now - thumbsUpSince[i] >= thumbsUpHold) f.drink = true; }
+                else thumbsUpSince[i] = -1;
                 // 手到嘴边：手掌 / 任一指尖 / 手腕哪个离嘴最近算哪个，19 厘米内、不高过眼睛、在脸前面就算（以前只看食指尖，手一歪就不算）
                 foreach (var jid in MouthJoints)
                     if (hand.GetJoint(jid).TryGetPose(out var jp))
