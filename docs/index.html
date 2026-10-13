@@ -43,7 +43,7 @@ body {
 a { color: var(--teal); }
 a:focus-visible, button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
 img { max-width: 100%; display: block; }
-.wrap { max-width: 1120px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 40px); }
+.wrap { max-width: 1360px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 40px); }
 section { padding-block: clamp(56px, 8vw, 96px); }
 h1, h2, h3 { font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: .95; margin: 0; text-wrap: balance; letter-spacing: .01em; }
 h2 { font-size: clamp(40px, 6vw, 64px); }
@@ -66,9 +66,9 @@ p { margin: 0; max-width: 65ch; }
 
 /* hero */
 .hero { padding-block: clamp(36px, 6vw, 64px) 0; }
-.hero-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 6fr); gap: clamp(24px, 4vw, 48px); align-items: center; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); gap: clamp(24px, 4vw, 48px); align-items: center; }
 @media (max-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
-.title { font-size: clamp(88px, 15vw, 168px); line-height: .8; color: var(--ink); }
+.title { font-size: clamp(88px, 13vw, 190px); line-height: .8; color: var(--ink); }
 .title .skew { text-shadow: 6px 6px 0 var(--pink); }
 .tagline { font-family: var(--display); font-weight: 800; font-size: clamp(28px, 3.6vw, 40px); text-transform: uppercase; line-height: 1; margin-top: 18px; }
 .tagline em { font-style: normal; color: var(--teal); }
@@ -117,7 +117,7 @@ kbd { font-family: var(--display); font-weight: 800; font-size: 15px; background
 .panel ol b { color: var(--ink); font-weight: 600; }
 
 /* moments gallery */
-.moments { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.moments { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; }
 .moment { grid-column: span 2; margin: 0; background: var(--plum); border: 1px solid var(--line); overflow: hidden; display: grid; }
 .moment.wide { grid-column: span 3; }
 @media (max-width: 900px) { .moment, .moment.wide { grid-column: span 3; } }
