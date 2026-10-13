@@ -27,6 +27,7 @@ Eva 的代码都在 **`Assets/DivaGame/`**，场景物体都在 `Diva.unity` 的
 | 16 | 🔒 **单人和三人动作识别锁定**（`GESTURES_LOCKED.md`，修改前必须 double check） | 见下方第 16 条 |
 | 17 | 赛道上倒下的木头往路中间挪 1 米（离中心线 4 → 3 米），一端压到路边；"跨过木头"任务点跟着移动 | `DivaGameBuilder.PlaceCourseLog`；Restore Course Colours 会放回原处 |
 | 18 | 木头任务改成"绕过树干"（顺着赛道走过木头就算完成，不需要手势）；接近未完成的任务时，任务点上方出现悬浮发光箭头 | `DivaGameManager`（`TaskCheck.Pass`）、`Runtime/DivaTaskMarkers.cs`、`DivaText.Task` 中文名 |
+| 19 | 摄像头识别页加角色介绍卡：P1 走路 / P2 方向 / P3 攻击 + 吃喝，每张卡下面一句怎么做（和代码一致）；和原来的 P1/P2/P3 按钮一样，识别到这个玩家整张卡变绿并显示"已识别"，没识别到是深色"等待中"；下面一行写大招（任何人双手举过头顶）。单人模式三张卡不写 P 号。只改了界面，没动锁定的手势文件 | `DivaShowCameraCheck.cs`、`DivaText.cs`（`check.role*` / `check.how*` / `check.ult*`） |
 
 ## 1. 路线图（`029748d`）
 `ROADMAP.md`：大象射击游戏的玩法和分工计划。

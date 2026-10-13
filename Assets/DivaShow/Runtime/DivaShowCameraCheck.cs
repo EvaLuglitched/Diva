@@ -7,22 +7,28 @@ namespace Diva.Show
 {
     // Eva：开始流程改成 主页（选颜色 + 人数 → START）→ 大屏摄像头识别页 → 全员绿色保持 5 秒 → 自动保存站姿（校准）→ Eva 的开场。
     // 摄像头识别页只在 Camera 模式出现；Test controls / 键盘模式按 START 直接进开场。
+    // 画面下方每个玩家一张卡：角色 + 一句怎么操作，和 DivaControlState 一致（P1 前进，P2 转弯，P3 瞄准/喷水/竖拇指吃喝）。
     public partial class DivaShowDirector
     {
         /// <summary>Seconds every player must stay recognised before the neutral pose is saved and the game starts.</summary>
         const float CheckHoldSeconds = 5;
+        /// <summary>Camera picture area on the check page (the role cards sit below it).</summary>
+        const float CheckWidth = 1104, CheckHeight = 621, CheckY = 27;
 
         RectTransform checkRoot;
         RawImage checkImage;
         RectTransform checkImageRect;
         DivaSlant checkFrame;
-        TextMeshProUGUI checkTitle, checkSub, checkCount, checkStatus;
-        readonly List<(DivaSlant plate, TextMeshProUGUI label)> checkChips = new List<(DivaSlant, TextMeshProUGUI)>();
+        TextMeshProUGUI checkTitle, checkSub, checkCount, checkStatus, checkUlt;
+        readonly List<(DivaSlant plate, TextMeshProUGUI role, TextMeshProUGUI state, TextMeshProUGUI how)> checkCards =
+            new List<(DivaSlant, TextMeshProUGUI, TextMeshProUGUI, TextMeshProUGUI)>();
         float checkHeldSince = -1;
         bool checkStarting;
 
         static readonly Color Recognised = new Color(.35f, .95f, .5f);
         static readonly Color Waiting = new Color(.55f, .55f, .62f);
+        // Role card background: green while that player is recognised (like the old P1/P2/P3 chips), dark while waiting.
+        static readonly Color CardOn = new Color(.13f, .58f, .3f, .92f), CardOnBottom = new Color(.62f, .62f, .62f, 1);
 
         // ------------------------------------------------------------------ build (called from BuildUi)
         void BuildCameraCheck()
@@ -33,29 +39,37 @@ namespace Diva.Show
             dim.raycastTarget = false;
 
             var top = new Vector2(.5f, 1);
-            checkTitle = DivaUi.Text(checkRoot, "Title", top, new Vector2(0, -78), new Vector2(1600, 110), 84, Color.white);
+            checkTitle = DivaUi.Text(checkRoot, "Title", top, new Vector2(0, -28), new Vector2(1600, 110), 84, Color.white);
             DivaUi.Localize(checkTitle, () => DivaText.T("check.title"));
             DivaUi.Glow(checkTitle, new Color(1, .3f, .7f, .9f));
-            checkSub = DivaUi.Text(checkRoot, "Subtitle", top, new Vector2(0, -150), new Vector2(1700, 56), 36, new Color(1, 1, 1, .92f), TextAlignmentOptions.Center, false);
+            checkSub = DivaUi.Text(checkRoot, "Subtitle", top, new Vector2(0, -128), new Vector2(1700, 50), 36, new Color(1, 1, 1, .92f), TextAlignmentOptions.Center, false);
 
             var centre = new Vector2(.5f, .5f);
-            checkFrame = DivaUi.Panel(checkRoot, "Frame", centre, new Vector2(0, -6), new Vector2(1304, 744), Waiting, DivaUi.WithAlpha(Waiting, .6f), 0);
-            checkImageRect = DivaUi.Rect(checkRoot, "Image", centre, new Vector2(0, -6), new Vector2(1280, 720));
+            var picture = new Vector2(0, CheckY);
+            checkFrame = DivaUi.Panel(checkRoot, "Frame", centre, picture, new Vector2(CheckWidth + 24, CheckHeight + 24), Waiting, DivaUi.WithAlpha(Waiting, .6f), 0);
+            checkImageRect = DivaUi.Rect(checkRoot, "Image", centre, picture, new Vector2(CheckWidth, CheckHeight));
             checkImage = checkImageRect.gameObject.AddComponent<RawImage>();
             checkImage.raycastTarget = false;
-            checkStatus = DivaUi.Text(checkRoot, "Camera Status", centre, new Vector2(0, -6), new Vector2(1100, 200), 38, new Color(1, .85f, .7f), TextAlignmentOptions.Center, false);
+            checkStatus = DivaUi.Text(checkRoot, "Camera Status", centre, picture, new Vector2(1000, 200), 38, new Color(1, .85f, .7f), TextAlignmentOptions.Center, false);
             checkStatus.textWrappingMode = TextWrappingModes.Normal;
-            checkCount = DivaUi.Text(checkRoot, "Countdown", centre, new Vector2(0, 0), new Vector2(1200, 300), 150, Color.white);
+            checkCount = DivaUi.Text(checkRoot, "Countdown", centre, picture, new Vector2(1100, 300), 150, Color.white);
             DivaUi.Glow(checkCount, new Color(.2f, .9f, .45f, .9f), .7f, .45f, .12f);
 
+            // Role cards: left stripe and READY / WAIT show whether that player is recognised.
             var bottom = new Vector2(.5f, 0);
             for (int i = 0; i < 3; i++)
             {
-                var plate = DivaUi.Panel(checkRoot, "Player " + (i + 1), bottom, new Vector2((i - 1) * 300, 78), new Vector2(260, 70), Waiting, DivaUi.WithAlpha(Waiting, .6f), 14);
-                var label = DivaUi.Text(plate.transform, "Label", centre, Vector2.zero, new Vector2(260, 70), 36, Color.white);
-                checkChips.Add((plate, label));
+                var plate = DivaUi.Panel(checkRoot, "Player " + (i + 1), bottom, new Vector2((i - 1) * 600, 88), new Vector2(560, 144), Ink, DivaUi.WithAlpha(Ink, .5f), 14);
+                plate.stripe = Waiting; plate.stripeWidth = 12;
+                var role = DivaUi.Text(plate.transform, "Role", centre, new Vector2(10, 40), new Vector2(500, 50), 36, Color.white, TextAlignmentOptions.Left);
+                var state = DivaUi.Text(plate.transform, "State", centre, new Vector2(10, 40), new Vector2(500, 50), 26, Waiting, TextAlignmentOptions.Right, false);
+                var how = DivaUi.Text(plate.transform, "How", centre, new Vector2(10, -24), new Vector2(500, 76), 26, new Color(1, 1, 1, .9f), TextAlignmentOptions.TopLeft, false);
+                how.textWrappingMode = TextWrappingModes.Normal;
+                how.enableAutoSizing = true; how.fontSizeMin = 18; how.fontSizeMax = 26;
+                checkCards.Add((plate, role, state, how));
             }
-            var keys = DivaUi.Text(checkRoot, "Key Hint", bottom, new Vector2(0, 22), new Vector2(1700, 34), 24, new Color(1, 1, 1, .65f), TextAlignmentOptions.Center, false);
+            checkUlt = DivaUi.Text(checkRoot, "Ult Hint", bottom, new Vector2(0, 48), new Vector2(1700, 32), 24, new Color(1, .85f, .4f, .9f), TextAlignmentOptions.Center, false);
+            var keys = DivaUi.Text(checkRoot, "Key Hint", bottom, new Vector2(0, 14), new Vector2(1700, 32), 24, new Color(1, 1, 1, .65f), TextAlignmentOptions.Center, false);
             DivaUi.Localize(keys, () => DivaText.T("check.keys"));
             checkRoot.gameObject.SetActive(false);
         }
@@ -66,7 +80,6 @@ namespace Diva.Show
             checkHeldSince = -1;
             checkStarting = false;
             if (controller && controller.CalibrationPending) controller.CancelCalibrationCountdown();
-            if (checkSub) checkSub.text = DivaText.T(singlePlayer ? "check.sub1" : "check.sub3");
             if (checkCount) checkCount.text = "";
         }
 
@@ -87,25 +100,23 @@ namespace Diva.Show
             if (tex && tex.height > 0)
             {
                 float aspect = (float)tex.width / tex.height;
-                checkImageRect.sizeDelta = aspect >= 16f / 9 ? new Vector2(1280, 1280 / aspect) : new Vector2(720 * aspect, 720);
+                checkImageRect.sizeDelta = aspect >= CheckWidth / CheckHeight ? new Vector2(CheckWidth, CheckWidth / aspect) : new Vector2(CheckHeight * aspect, CheckHeight);
             }
             checkFrame.rectTransform.sizeDelta = checkImageRect.sizeDelta + new Vector2(24, 24);
             string problem = CameraProblem();
             checkStatus.text = problem ?? "";
 
             // Who is recognised (assigned by the camera bridge, fresh and confident enough).
+            // One player: the three cards are that person's three jobs, all following player 1.
             demo.AllVisible(now);   // applies the confidence / timeout settings
+            checkSub.text = DivaText.T(singlePlayer ? "check.sub1" : "check.sub3");
+            checkUlt.text = DivaText.T(singlePlayer ? "check.ult1" : "check.ult3");
             int seen = 0;
-            for (int i = 0; i < checkChips.Count; i++)
+            for (int i = 0; i < checkCards.Count; i++)
             {
-                bool used = i < count;
-                checkChips[i].plate.gameObject.SetActive(used);
-                if (!used) continue;
-                bool ok = demo.State.Visible(i + 1, now);
-                if (ok) seen++;
-                var c = ok ? Recognised : Waiting;
-                checkChips[i].plate.Set(c, c * .7f);
-                checkChips[i].label.text = (singlePlayer ? DivaText.T("check.you") : "P" + (i + 1)) + "  " + DivaText.T(ok ? "check.ok" : "check.wait");
+                bool ok = demo.State.Visible(singlePlayer ? 1 : i + 1, now);
+                if (ok && (!singlePlayer || i == 0)) seen++;
+                ShowCheckCard(i, ok);
             }
             bool all = problem == null && seen == count;
             var frame = all ? Recognised : Waiting;
@@ -128,6 +139,23 @@ namespace Diva.Show
                 StartAfterSelect();
             }
             else checkHeldSince = -1;   // someone slipped out at the last moment: count again
+        }
+
+        /// <summary>Role card i (0..2): role name, how to do it, and whether that player is recognised.</summary>
+        void ShowCheckCard(int i, bool ok)
+        {
+            var card = checkCards[i];
+            var c = ok ? Recognised : Waiting;
+            if (card.plate.stripe != c)
+            {
+                card.plate.stripe = c;
+                if (ok) card.plate.Set(CardOn, CardOnBottom); else card.plate.Set(Ink, DivaUi.WithAlpha(Ink, .5f));
+            }
+            string role = DivaText.T("check.role" + (i + 1));
+            card.role.text = singlePlayer ? role : "P" + (i + 1) + "  ·  " + role;
+            card.state.text = DivaText.T(ok ? "check.ok" : "check.wait");
+            card.state.color = ok ? Color.white : Waiting;   // white on the green card
+            card.how.text = DivaText.T("check.how" + (i + 1));
         }
 
         /// <summary>Leave the home page / camera check: Eva's race intro (or the power-up when there is none).</summary>
