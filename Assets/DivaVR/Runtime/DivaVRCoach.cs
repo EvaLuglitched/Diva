@@ -157,7 +157,7 @@ namespace Diva.VR
                 labelDist.text = $"{dist:0} m";
                 // 14 米以内：距离换成要做的动作，闪着；到了圈里写"到了"
                 string act = current.check == TaskCheck.CurlTrunk ? ((current.label ?? "").ToLowerInvariant().Contains("drink") ? "coach.drink" : "coach.eat")
-                           : current.check == TaskCheck.LiftLegs ? "coach.log" : null;
+                           : current.check == TaskCheck.LiftLegs || current.check == TaskCheck.Pass ? "coach.log" : null;
                 bool near = act != null && dist < 14;
                 labelAction.gameObject.SetActive(near); labelDist.gameObject.SetActive(!near);
                 if (near)

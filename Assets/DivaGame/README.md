@@ -45,7 +45,10 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 - P3's spray gesture calls `DivaLaserBlaster.Fire(aim)` on every water burst, aimed by P3; the trunk water
   jet shows the shot and the beam is hidden (`showBeam`). Space and the HUD button still work.
 - Course tasks use the gestures (the body sliders are not driven in Diva mode): a 0.4-second thumbs-up (P3 drink)
-  counts as curling the trunk for the eat/drink tasks, P1 pumping counts as lifting the legs at the log.
+  counts as curling the trunk for the eat/drink tasks. The log task is "Go around the fallen log": it completes when
+  the elephant walks past the log along the path (`TaskCheck.Pass`), no gesture needed.
+- `DivaTaskMarkers`: a floating, bobbing, glowing arrow over each unfinished task (bush pink, basin cyan, log yellow,
+  finish mint) appears when the elephant is within 16 m of it and disappears once the task is done.
 - DivaDemo no longer spawns its own five placeholder spheres when these targets exist.
 
 ## What changed in `Assets/DigiPhant/Scenes/DigiPhant.unity`
@@ -57,6 +60,12 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 | Elephant travel radius 15 → **30** | DigiPhant Controls → Locomotion → Stage Radius |
 | Purple-blue procedural sky, trilight ambient, linear fog, warm soft-shadow sun (colour 1/.9/.78, intensity 1.5) | Lighting settings, Key Light |
 | Post-processing on the main camera; far clip ≥ 400 | Main Camera |
+
+## Course log
+
+The course's "03 Fallen log" is placed 3 m from the path centre line (the course generator uses 4 m), so one end
+rests on the road edge and the elephant passes right by / over it for the log task (`PlaceCourseLog`, fixed value, so
+rebuilding never moves it further). **Restore Course Colours** puts it back at 4 m.
 
 ## Finish and ending
 

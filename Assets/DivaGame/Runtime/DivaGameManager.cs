@@ -6,7 +6,8 @@ using DigiPhant;
 
 namespace Diva
 {
-    public enum TaskCheck { Reach, CurlTrunk, LiftLegs }
+    /// <summary>Pass: done when the elephant goes past the landmark along the path (no gesture needed).</summary>
+    public enum TaskCheck { Reach, CurlTrunk, LiftLegs, Pass }
 
     [Serializable] public class CourseTask
     {
@@ -16,7 +17,11 @@ namespace Diva
         public TaskCheck check = TaskCheck.Reach;
         [Tooltip("Optional: an action clip (e.g. eat, drink) that also completes the task when it plays nearby.")]
         public string action;
+        [Tooltip("Pass tasks: the path's direction at the landmark (world space). Done once the elephant crosses the line " +
+                 "through the landmark across the path, within `radius` of it.")]
+        public Vector3 passForward = Vector3.forward;
         [NonSerialized] public float doneAt = -1;
+        [NonSerialized] public bool beforePass;
         public bool Done => doneAt >= 0;
     }
 
@@ -39,6 +44,9 @@ namespace Diva
         public int TargetsHit { get; private set; }
         public float RunSeconds => startTime < 0 ? 0 : (finishTime >= 0 ? finishTime : Time.time) - startTime;
         public bool Finished => finishTime >= 0;
+        /// <summary>The elephant has left the start and the run is not over.</summary>
+        public bool Running => startTime >= 0 && !Finished;
+        public Transform Elephant => elephant;
         public int TasksDone => tasks.Count(t => t.Done);
         public bool AllTasksDone => tasks.Length > 0 && tasks.All(t => t.Done);
 
@@ -85,7 +93,7 @@ namespace Diva
             Score = TargetsHit = 0;
             startTime = finishTime = -1;
             beforeLine = false;
-            foreach (var task in tasks) task.doneAt = -1;
+            foreach (var task in tasks) { task.doneAt = -1; task.beforePass = false; }
             foreach (var target in DivaTarget.All) target.ResetTarget();
             if (elephant) startPosition = elephant.position;
         }
@@ -109,6 +117,11 @@ namespace Diva
             foreach (var task in tasks)
             {
                 if (finishLine && task.check == TaskCheck.Reach) continue;   // completed by crossing the line below
+                if (task.check == TaskCheck.Pass)
+                {
+                    if (!task.Done && task.landmark && PassedLandmark(task, position)) task.doneAt = Time.time - startTime;
+                    continue;
+                }
                 if (task.Done || !task.landmark || Flat(position - task.landmark.position).magnitude > task.radius) continue;
                 bool ok = task.check == TaskCheck.Reach
                     || task.check == TaskCheck.LiftLegs && LegsLifted
@@ -124,6 +137,19 @@ namespace Diva
         }
 
         bool beforeLine;
+
+        /// <summary>True on the frame the elephant goes past a Pass task's landmark: it was just before the line through
+        /// the landmark (across the path) and within `radius` of it, and is now past that line.</summary>
+        static bool PassedLandmark(CourseTask task, Vector3 position)
+        {
+            Vector3 forward = Flat(task.passForward).normalized, offset = Flat(position - task.landmark.position);
+            if (forward.sqrMagnitude < .5f) return false;
+            float along = Vector3.Dot(offset, forward), across = Vector3.Dot(offset, Vector3.Cross(Vector3.up, forward));
+            bool near = Mathf.Abs(across) <= task.radius;
+            bool passed = task.beforePass && near && along >= 0;
+            task.beforePass = near && along < 0 && along > -10;
+            return passed;
+        }
 
         /// <summary>
         /// True on the frame the elephant passes through the arch: it was just in front of the line, within the arch's

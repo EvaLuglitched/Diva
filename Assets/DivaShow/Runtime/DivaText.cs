@@ -44,7 +44,7 @@ namespace Diva.Show
             string l = label.ToLowerInvariant();
             if (l.Contains("eat") || l.Contains("feed")) return "吃东西";
             if (l.Contains("drink") || l.Contains("water")) return "喝水";
-            if (l.Contains("log") || l.Contains("step")) return "跨过木头";
+            if (l.Contains("log") || l.Contains("step")) return "绕过树干";
             if (l.Contains("finish") || l.Contains("arch")) return "到达终点";
             return label;
         }
@@ -155,7 +155,7 @@ namespace Diva.Show
             ["coach.eat.vr"] = ("HAND TO MOUTH — EAT", "手放嘴边 吃东西"),
             ["coach.eat.b.vr"] = ("your trunk grabs a snack", "象鼻会去够吃的"),
             ["coach.log.vr"] = ("KEEP PUSHING", "继续推"),
-            ["coach.log.b.vr"] = ("walk over the fallen log", "从倒下的木头上走过去"),
+            ["coach.log.b.vr"] = ("drive past the log along the path", "顺着赛道开过木头就行"),
             ["coach.shoot.vr"] = ("LOOK AT THE TARGET + PINCH", "看着靶子 捏一下"),
             ["coach.shoot.b.vr"] = ("trunk cannon", "象鼻水炮"),
             ["coach.drink.vr"] = ("HAND TO MOUTH — DRINK", "手放嘴边 喝水"),
@@ -173,10 +173,26 @@ namespace Diva.Show
             ["status.waiting"] = ("Step into the camera view", "请站到摄像头前"),
             ["status.start"] = ("Pick a colour and players, then START", "选好颜色和人数，点 START"),
             ["check.title"] = ("CAMERA CHECK", "摄像头识别"),
-            ["check.sub1"] = ("Step into the camera view and stand naturally, arms down", "站进摄像头画面，自然站好，双手放下"),
+            ["check.sub1"] = ("One player does all three jobs. Step into the camera view and stand naturally, arms down",
+                              "一个人负责全部三项。站进摄像头画面，自然站好，双手放下"),
             ["check.sub3"] = ("Three players side by side: P1 left · P2 middle · P3 right. Stand naturally, arms down",
                               "三位玩家并排站好：P1 左 · P2 中 · P3 右，自然站好，双手放下"),
-            ["check.you"] = ("YOU", "玩家"),
+            // 角色卡（和 DivaControlState 一致：P1 前进，P2 转弯，P3 瞄准 / 喷水 / 竖拇指吃喝和补水；大招任何人都能放）
+            ["check.role1"] = ("WALKER", "走路"),
+            ["check.role2"] = ("DIRECTION", "方向"),
+            ["check.role3"] = ("ATTACK + EAT", "攻击 + 吃喝"),
+            ["check.how1"] = ("Swing both arms up and down to walk", "双臂上下摆动就往前走，停下就停"),
+            ["check.how2"] = ("Tilt your shoulders or head the way you want to turn", "往哪边压肩或歪头，就往哪边转"),
+            ["check.how3"] = ("Raise one arm to aim · push both hands forward to spray\nThumbs-up = eat, drink & refill water",
+                              "举一只手瞄准 · 双手前推喷水\n竖大拇指 = 吃喝 + 补水"),
+            // 火柴人动画下面的小字（DivaStickFigure.CaptionKey）
+            ["check.cap.swing"] = ("SWING ARMS", "摆臂"),
+            ["check.cap.left"] = ("LEFT", "向左"),
+            ["check.cap.right"] = ("RIGHT", "向右"),
+            ["check.cap.shoot"] = ("SHOOT", "喷水"),
+            ["check.cap.drink"] = ("DRINK + EAT", "喝水 + 吃东西"),
+            ["check.ult1"] = ("Both hands above your head = MEGA BUBBLE (when charged)", "双手举过头顶 = 超级泡泡（充满后）"),
+            ["check.ult3"] = ("Anyone: both hands above your head = MEGA BUBBLE (when charged)", "任何人：双手举过头顶 = 超级泡泡（充满后）"),
             ["check.ok"] = ("READY", "已识别"),
             ["check.wait"] = ("WAIT", "等待中"),
             ["check.hold"] = ("Recognised! Hold still… {0}", "识别成功！保持不动…{0}"),
@@ -243,8 +259,8 @@ namespace Diva.Show
             ["coach.drink"] = ("DRINK HERE", "在这里喝水"),
             ["coach.drink.b"] = ("thumbs-up 0.4 s (or F)  ·  refills water too", "竖拇指 0.4 秒（或 F）  ·  顺便补水"),
             ["coach.drink.b3"] = ("P3: thumbs-up 0.4 s", "P3 竖拇指 0.4 秒"),
-            ["coach.log"] = ("KEEP RUNNING", "继续跑"),
-            ["coach.log.b"] = ("walk over the log", "从木头上走过去"),
+            ["coach.log"] = ("GO AROUND THE LOG", "绕过树干"),
+            ["coach.log.b"] = ("just walk past it along the path", "顺着赛道走过去就行"),
             ["coach.water"] = ("WATER LOW", "水快没了"),
             ["coach.water.b"] = ("thumbs-up 0.4 s to refill (or F)", "竖拇指 0.4 秒补水（或 F）"),
             ["coach.water.b3"] = ("P3: thumbs-up 0.4 s to refill", "P3 竖拇指 0.4 秒补水"),

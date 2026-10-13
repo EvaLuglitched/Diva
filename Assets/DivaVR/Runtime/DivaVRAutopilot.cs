@@ -113,13 +113,16 @@ namespace Diva.VR
             var task = game ? game.tasks.FirstOrDefault(t => !t.Done && t.landmark) : null;
             if (task != null)
             {
-                var to = Vector3.ProjectOnPlane(task.landmark.position - root.position, Vector3.up);
+                var goal = task.landmark.position;
+                // Eva 的"绕过树干"（Pass）：要从任务点那条线走过去才算，所以目标放在任务点后面 5 米，别停在它跟前
+                if (task.check == TaskCheck.Pass) goal += Vector3.ProjectOnPlane(task.passForward, Vector3.up).normalized * 5f;
+                var to = Vector3.ProjectOnPlane(goal - root.position, Vector3.up);
                 float dist = to.magnitude;
                 // 朝目标的方向为中心，左右各试几个角度，挑最空、又最接近目标的方向（场地边缘也算障碍）
                 var heading = PickHeading(root, to / Mathf.Max(.01f, dist), dist, out float clear);
                 float angle = Vector3.SignedAngle(fwd, heading, Vector3.up);
                 f.steer = Mathf.Clamp(angle / 30f, -1, 1);
-                f.go = Mathf.Abs(angle) > 70 ? .25f : dist < task.radius * .5f ? 0 : clear < 2.5f ? .35f : 1;
+                f.go = Mathf.Abs(angle) > 70 ? .25f : dist < task.radius * .5f && task.check != TaskCheck.Pass ? 0 : clear < 2.5f ? .35f : 1;
                 if (dist < task.radius * .8f && task.check == TaskCheck.CurlTrunk) { f.go = 0; f.steer = 0; f.drink = true; }
                 if (dist < task.radius * .8f && task.check == TaskCheck.LiftLegs) f.go = .5f;
             }
