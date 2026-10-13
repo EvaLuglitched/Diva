@@ -12,7 +12,7 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
 # ---------- macOS (Apple silicon): the bridge goes inside the app, so camera gestures need no Python
-APP="$ROOT/Builds/Release/macOS/Diva.app"
+APP="${MAC_APP:-$ROOT/Builds/Release/macOS/Diva.app}"  # MAC_APP: repackage an app that is not in Builds/ (e.g. after a bridge-only fix)
 if [ -d "$APP" ]; then
   M="$STAGE/Diva $VERSION (macOS)"; mkdir -p "$M"
   cp -R "$APP" "$M/Diva.app"
