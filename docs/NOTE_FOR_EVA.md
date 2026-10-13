@@ -17,7 +17,7 @@ Nothing in the gesture rules, the three-player detection or your intro code chan
 needs you (owner only).
 
 **Product page:** `docs/index.html` is a game page with the v1.1 downloads, how to play, the Vision Pro version and how the
-three of us built it (dates and who did what, from the git history). To put it online, please turn on GitHub Pages
+three of us built it (a dated timeline written as one team, from the git history). To put it online, please turn on GitHub Pages
 (owner only): Settings > Pages > Deploy from a branch > `main`, folder `/docs`. It then appears at
 https://evaluglitched.github.io/Diva/ and the README already links there.
 
