@@ -57,13 +57,22 @@
 | --- | --- |
 | Bloom | 阈值提高到 1.15，只有霓虹、发光部件和特效会晕开，亮色地面不再一片发白；高质量滤波 |
 | 调色 | 对比 +20，饱和 +10，暗部偏冷紫、亮部偏暖，一点暖白平衡，柔和暗角 |
-| 明暗反差 | 环境光 ×0.85，太阳光 ×1.08；SSAO 稍强（强度 0.6，半径 0.4，在 `Assets/Settings/PC_Renderer.asset`） |
+| 明暗反差 | 环境光 ×0.85，太阳光 ×1.08；SSAO 稍强（强度 0.6，半径 0.4，半分辩率算，在 `Assets/Settings/PC_Renderer.asset`）；阴影 4096、60 米（`PC_RPAsset`） |
 | 轮廓光 | 一盏只照大象和机甲的冷色光（灯光图层 7），跟着镜头始终从后上方打，把主角从背景里分出来 |
-| 反射 | 覆盖整条赛道的反射探针，开局渲染一次，机甲的金属和光面反射糖果小镇 |
+| 反射 | 覆盖整条赛道的反射探针，开局渲染一次，机甲的金属和光面反射糖果小镇（画质档里的「实时反射探针」原来是关的，探针其实没渲染过；现在运行时打开） |
 | 抗锯齿 | 主摄像机 SMAA（高） |
 | 天空 | 场景里主摄像机的背景是纯色深蓝，看不到 Eva 做的紫蓝渐变天空；这里改成显示天空 |
 | 过场镜头避让 | 开局给没有碰撞体的道具各加一个看不见的网格碰撞体（Ignore Raycast 层，只给镜头检测用）。过场镜头和画中画被挡住时，绕着大象转一点角度避开，再不行才升高或拉近 |
 | 过场电影感 | 选涂装、Eva 开场绕圈、大招、结束、高光回放、结算时：景深对焦大象（85mm f/4）和一点胶片颗粒；大招爆开、冲刺、连击时短暂的色差和 Bloom 加强 |
+| 比赛中的景深（3A 感） | 比赛里也留一点景深，但只虚远景（高斯，35 米开始、120 米全虚）：大象、靶子、道具都清楚，没有近景一糊；进过场切到 85mm f/4 的 Bokeh 对焦大象。字段 Gameplay Depth Of Field、Gameplay Blur Start / End / Radius、Cutscene Aperture。头显上不开（眼睛对不了焦会晕） |
+| 动态模糊 | 比赛中镜头动态模糊（强度 0.14，只算相机运动），冲刺时加倍；过场和头显上关。字段 Motion Blur |
+
+### 帧率守护（DivaShowPerf）
+
+桌面版运行时 Diva Show 自己挂一个 `DivaShowPerf`（后台测试和头显不挂）：开垂直同步、不限帧，画面跟着显示器走（M1 / M2 Max 的
+MacBook Pro 是 ProMotion 120 Hz，就是 120 fps，节奏均匀没有撕裂）；每 2 秒看一次平均帧时间，跟不上刷新率就把 URP 的渲染分辩率
+降一档（每次 0.1，最低 0.7），余量够了再慢慢升回去。改的是内存里的管线资源，退出时还原。Console 里 `DIVA_SHOW perf:` 每 10 秒一行帧率。
+关掉 *Adaptive* 就一直原分辩率。冰墙的折射要相机的不透明纹理拷贝，只在墙在镜头前方 70 米内时才向主相机要（`PC_RPAsset` 不再全程开）。
 
 ## 录屏
 
@@ -121,6 +130,8 @@
 | Assist Degrees | 辅助瞄准：锁定的靶子超出水炮锥角多少度以内仍保持锁定 |
 | Ice Wall / Wall Distance / Wall Height / Wall Max Width | 冰墙开关、离终点线的距离、高度、最大宽度 |
 | Wall Push Charge / Wall Break Bonus | 顶墙每秒充能、炸墙奖励分 |
+| DivaLook：Gameplay Depth Of Field / Gameplay Blur Start、End、Radius / Cutscene Aperture / Motion Blur | 比赛中的远景虚化、过场光圈、动态模糊强度（见"光影"） |
+| DivaShowPerf：Min Scale / Adaptive | 帧率守护最低降到多少分辩率、要不要自动调（运行时才有这个组件） |
 
 ## 文件
 
@@ -137,7 +148,8 @@
 | `Runtime/DivaLeaderboard.cs` | 本机排行榜 `diva_leaderboard.json`（在 `Application.persistentDataPath`） |
 | `Runtime/DivaShowFx.cs` | 圆台光环、烟火、彩带、烟花、巨型泡泡 |
 | `Runtime/DivaLook.cs` | 全局光影和后期（见上） |
-| `Runtime/DivaShowSound.cs` | 界面音效（程序合成） |
+| `Runtime/DivaShowPerf.cs` | 桌面版帧率守护：垂直同步 + 自适应渲染分辩率（见上） |
+| `Runtime/DivaShowSound.cs` | 界面音效（程序合成，在后台线程合成，第一次用到才建 AudioClip） |
 | `Runtime/DivaText.cs` | 中英文文字表 |
 | `Runtime/DivaUi.cs`、`DivaSlant.cs`、`DivaRing.cs` | 界面小工具：斜切面板、圆环、发光字 |
 | `Editor/DivaShowSetup.cs` | 安装菜单和命令行入口 |
