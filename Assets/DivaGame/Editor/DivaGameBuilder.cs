@@ -574,6 +574,22 @@ public static class DivaGameBuilder
         return pad;
     }
 
+    /// <summary>Point and direction on the course route at a fraction of its length (course-local), same as the
+    /// course generator's PointAlongRoute.</summary>
+    static (Vector3 point, Vector3 forward) RouteAt(float fraction)
+    {
+        var route = SavannahCourseGenerator.Route;
+        float distance = Mathf.Clamp01(fraction) * SavannahCourseGenerator.CourseLength;
+        for (int i = 1; i < route.Length; i++)
+        {
+            float segment = Vector3.Distance(route[i - 1], route[i]);
+            if (distance <= segment || i == route.Length - 1)
+                return (Vector3.Lerp(route[i - 1], route[i], Mathf.Clamp01(distance / segment)), (route[i] - route[i - 1]).normalized);
+            distance -= segment;
+        }
+        return (route[route.Length - 1], Vector3.forward);
+    }
+
     /// <summary>The finish line built by BuildFinish, for the game manager (crossing it ends the run).</summary>
     static Transform finishLine;
 
@@ -895,21 +911,9 @@ public static class DivaGameBuilder
     {
         var log = course.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name.StartsWith("03 "));
         if (!log) return;
-        float distance = CourseLogFraction * SavannahCourseGenerator.CourseLength;
-        var route = SavannahCourseGenerator.Route;
-        for (int i = 1; i < route.Length; i++)
-        {
-            float segment = Vector3.Distance(route[i - 1], route[i]);
-            if (distance <= segment || i == route.Length - 1)
-            {
-                Vector3 forward = (route[i] - route[i - 1]).normalized;
-                log.localPosition = Vector3.Lerp(route[i - 1], route[i], Mathf.Clamp01(distance / segment))
-                                    + Vector3.Cross(Vector3.up, forward) * sideOffset;
-                EditorUtility.SetDirty(log);
-                return;
-            }
-            distance -= segment;
-        }
+        var (point, forward) = RouteAt(CourseLogFraction);
+        log.localPosition = point + Vector3.Cross(Vector3.up, forward) * sideOffset;
+        EditorUtility.SetDirty(log);
     }
 
     [MenuItem("Diva/Game/Restore Course Colours")]
@@ -1058,10 +1062,14 @@ public static class DivaGameBuilder
         {
             new CourseTask { label = "Eat at the feeding bush", landmark = Landmark("01 "), radius = 5.5f, check = TaskCheck.CurlTrunk, action = "eat" },
             new CourseTask { label = "Drink at the water basin", landmark = Landmark("02 "), radius = 5.5f, check = TaskCheck.CurlTrunk, action = "drink" },
-            new CourseTask { label = "Step over the fallen log", landmark = Landmark("03 "), radius = 5, check = TaskCheck.LiftLegs },
+            // Eva: go around the log - done as soon as the elephant gets past the log section of the path (no gesture).
+            new CourseTask { label = "Go around the fallen log", landmark = Landmark("03 "), radius = 7, check = TaskCheck.Pass,
+                             passForward = course.TransformDirection(RouteAt(CourseLogFraction).forward) },
             new CourseTask { label = "Cross the finish arch", landmark = Landmark("04 "), radius = 4, check = TaskCheck.Reach },
         };
 
+        // Floating arrows over the tasks that are not done yet, shown when the elephant comes near them.
+        root.AddComponent<DivaTaskMarkers>().game = game;
         // Keyboard play alongside the gestures (W/A/D, U/I, Space, F); see Runtime/DivaKeyboardControls.cs.
         root.AddComponent<DivaKeyboardControls>();
         var intro = root.AddComponent<DivaIntro>();
@@ -1392,6 +1400,7 @@ public static class DivaGameBuilder
             ("start-chase", elephant.position - elephant.forward * 7 + Vector3.up * 6.5f, elephant.position + elephant.forward * 14 + Vector3.up * 1.5f, 60),
             ("start-pad", frame.TransformPoint(new Vector3(-5.5f, 6.5f, -6)), frame.TransformPoint(new Vector3(0, 0, 1)), 60),
             ("finish", frame.TransformPoint(new Vector3(-4, 6, 22)), frame.TransformPoint(new Vector3(-19, 0, 18)), 60),
+            ("basin", frame.TransformPoint(new Vector3(2.5f, 5, -13.5f)), frame.TransformPoint(new Vector3(9.5f, 1.5f, -21)), 60),
             ("log", frame.TransformPoint(new Vector3(21.5f, 4.5f, 3)), frame.TransformPoint(new Vector3(16.5f, .5f, 12.5f)), 60),
             ("bend", frame.TransformPoint(new Vector3(-9, 10, -2)), frame.TransformPoint(new Vector3(-17, 0, 3)), 60),
             ("course-low", frame.TransformPoint(new Vector3(-17, 3.2f, -16)), frame.TransformPoint(new Vector3(8, 1.5f, -17)), 60),
@@ -1399,6 +1408,8 @@ public static class DivaGameBuilder
             ("street", frame.TransformPoint(new Vector3(-20, 2, 35.5f)), frame.TransformPoint(new Vector3(20, 4, 36)), 65),
             ("rocket", frame.TransformPoint(new Vector3(-125, 24, -20)), root.transform.Find("Giant rocket").position + Vector3.down * 25, 55),   // side-on view of the rocket on its orbit
         };
+        var taskArrows = root.GetComponent<DivaTaskMarkers>();
+        if (taskArrows) taskArrows.ShowAllForPreview();   // all task arrows visible in the stills
         var go = new GameObject("Preview camera");
         try
         {
@@ -1436,7 +1447,8 @@ public static class DivaGameBuilder
             rt.Release();
             Debug.Log("DIVA_PREVIEW_SHOTS: " + folder);
         }
-        finally { UnityEngine.Object.DestroyImmediate(go); }
+        finally {
+            if (taskArrows) taskArrows.ClearPreview(); UnityEngine.Object.DestroyImmediate(go); }
     }
 
     /// <summary>Renders keyframes of the race intro (camera, rocket position, mech power-up) to Recordings/preview/intro-*.png.</summary>

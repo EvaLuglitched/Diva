@@ -38,7 +38,7 @@ namespace Diva.Show
             string l = label.ToLowerInvariant();
             if (l.Contains("eat") || l.Contains("feed")) return "吃东西";
             if (l.Contains("drink") || l.Contains("water")) return "喝水";
-            if (l.Contains("log") || l.Contains("step")) return "跨过木头";
+            if (l.Contains("log") || l.Contains("step")) return "绕过树干";
             if (l.Contains("finish") || l.Contains("arch")) return "到达终点";
             return label;
         }

@@ -21,7 +21,7 @@ P3：任意一只手竖起拇指，其余四指弯曲，保持 0.4 秒补水；�
   -> DivaControlState.Step：按角色合成 Forward, Turn, Aim, Shoot, Drink, Water（水箱）, Bursts
        ├─ DigiPhantLocomotion：Forward / Turn -> 移动速度 -> 走路、跑步、转向动画
        ├─ DivaDemo.LateUpdate（执行顺序 200）：摆鼻子；每发喷水调用游戏层的 DivaLaserBlaster.Fire(瞄准角度) 打靶计分
-       ├─ DivaGameManager：HUD 分数；课程任务用 Diva 手势判定（喝水 = 卷鼻子吃/喝，P1 摆臂 = 抬腿跨木头）
+       ├─ DivaGameManager：HUD 分数；课程任务用 Diva 手势判定（喝水 = 卷鼻子吃/喝，绕过树干 = 顺着赛道走过木头即可，不需要手势）
        ├─ DivaMechGestureLink（执行顺序 210）：Shoot -> 鼻尖水枪（抛物线落到被打的靶子），Drink -> 泡泡炮
        └─ DivaBoosters、DivaMechAudio：读移动速度 -> 推进器火焰、引擎声、脚步声
 ```
