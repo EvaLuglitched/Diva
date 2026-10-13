@@ -138,6 +138,8 @@ namespace Diva.Show
             ["vr.stat.speed"] = ("SPEED", "速度"), ["vr.stat.cannon"] = ("CANNON", "水炮"), ["vr.stat.bubble"] = ("BUBBLE", "泡泡"),
             ["vr.ult.ready"] = ("MEGA BUBBLE READY", "大招已就绪"), ["vr.ult.ready.b"] = ("raise both hands to eye level", "双手举到眼前"),
             ["coach.water.vr"] = ("WATER LOW — REFILL", "水快没了 去补水"), ["coach.water.b.vr"] = ("hand to mouth at the fountain", "到水池边手放嘴边"),
+            ["coach.wall.b.vr"] = ("only the MEGA BUBBLE breaks it  ·  push the lever into it, shoot targets or eat candy to charge", "只有超级泡泡能炸开  ·  杆往前推顶着墙、打靶、吃糖都能充能"),
+            ["coach.wall.ult.b.vr"] = ("raise both hands to eye level and hold  ·  the bubble smashes the wall, then you charge through", "双手举到眼前举住  ·  泡泡炸开冰墙，然后冲过去"),
             ["vr.finish.sub"] = ("full lap of Candy Town", "糖果镇 完整一圈"),
             ["vr.menu.sub"] = ("one lap round Candy Town  ·  four stops  ·  the finish arch", "绕糖果镇一圈 · 四个站 · 冲过终点拱门"),
             ["vr.menu.start"] = ("START THE RACE", "开始比赛"),

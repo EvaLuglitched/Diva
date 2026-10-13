@@ -25,12 +25,18 @@ namespace Diva.VR
             show.FireChanged += OnFire;
             show.GoldenChanged += OnGolden;
             show.WorldText += OnWorldText;
+            show.WallBumped += OnWallBump;
+            show.WallChanged += OnWall;
             DivaShowDirector.PhaseChanged += OnPhase;
         }
 
+        // 终点前的冰墙：顶到了座舱震一下；炸开了大震 + 空间音效
+        void OnWallBump() { if (cockpit) cockpit.Rumble(.45f); }
+        void OnWall(bool up) { if (!up && cockpit) cockpit.Rumble(1f); }
+
         void OnDestroy()
         {
-            if (show) { show.FireChanged -= OnFire; show.GoldenChanged -= OnGolden; show.WorldText -= OnWorldText; }
+            if (show) { show.FireChanged -= OnFire; show.GoldenChanged -= OnGolden; show.WorldText -= OnWorldText; show.WallBumped -= OnWallBump; show.WallChanged -= OnWall; }
             DivaShowDirector.PhaseChanged -= OnPhase;
         }
 
