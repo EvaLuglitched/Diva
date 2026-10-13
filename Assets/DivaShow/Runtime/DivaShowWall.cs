@@ -17,7 +17,7 @@ namespace Diva.Show
         [Tooltip("An ice wall across the road before the finish arch; only the MEGA BUBBLE breaks it.")]
         public bool iceWall = true;
         [Tooltip("Metres before the finish line; column height; widest the wall may get (it stops at the buildings on each side).")]
-        public float wallDistance = 14f, wallHeight = 5.5f, wallMaxWidth = 22f;
+        public float wallDistance = 14f, wallHeight = 4.2f, wallMaxWidth = 18f;
         [Tooltip("Ultimate charge per second while pushing against the wall, so a player without a charge is never stuck.")]
         public float wallPushCharge = 10f;
         public int wallBreakBonus = 50;
@@ -67,11 +67,11 @@ namespace Diva.Show
             wallRng = new System.Random(11);
             float width = wallLeft + wallRight, mid = (wallRight - wallLeft) * .5f;
             // 前排：一根挨一根，中间高、两边矮（圆弧形的轮廓）；后排错开半根，矮一截，墙才有厚度
-            for (float x = -wallLeft - .4f; x <= wallRight + .4f; x += WRand(1.15f, 1.5f))
+            for (float x = -wallLeft - .3f; x <= wallRight + .3f; x += WRand(1.05f, 1.35f))
             {
                 float edge = Mathf.Abs(x - mid) / Mathf.Max(1f, width * .5f);          // 0 中间 … 1 两端
                 float h = wallHeight * Mathf.Lerp(WRand(1.0f, 1.18f), WRand(.68f, .88f), edge * edge);
-                float r = WRand(.62f, .95f);
+                float r = WRand(.55f, .85f);
                 var lean = new Vector2(Mathf.Sign(x - mid) * WRand(.05f, .22f) * r, WRand(-.1f, .1f) * r);   // 两边的柱子往外歪一点
                 Column(wallCentre + wallRight3 * x + wallForward * WRand(-.25f, .25f), r, h, lean, true);
                 float h2 = h * WRand(.5f, .72f);
