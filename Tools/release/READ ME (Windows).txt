@@ -1,0 +1,26 @@
+Diva for Windows (10 or 11, 64-bit)
+Team Diva: Eva, Carl, Vicky · DesComp Project 2 (DigiPhant) · https://github.com/EvaLuglitched/Diva
+
+PLAY
+1. Unzip the whole folder (keep Diva.exe, Diva_Data, DivaTracking and the other files together).
+2. Run Diva.exe. If Windows SmartScreen appears: More info > Run anyway.
+   The keyboard works right away (controls below).
+
+CAMERA GESTURES (once)
+1. Install Python 3.10 or newer from https://www.python.org/downloads/ (tick "Add python.exe to PATH").
+2. Double-click DivaTracking\setup_camera.bat. It installs MediaPipe and OpenCV into DivaTracking\.venv (needs internet).
+3. Start Diva.exe again: the camera starts by itself. If it stays dark: Settings > Privacy & security > Camera >
+   allow camera access and allow desktop apps.
+The tracking runs on this computer; nothing is uploaded.
+
+CONTROLS (one player does everything; 3 PLAYERS splits them left to right)
+  Walk / run ........ pump both arms up and down            keyboard W
+  Turn .............. tilt your shoulders or head            A / D
+  Aim the trunk ..... raise one arm                          U / I
+  Spray water ....... push both open hands forward (hold)    Space
+  Eat, drink, refill  thumbs-up for 0.4 s                    F
+  MEGA BUBBLE ....... both hands above your head 0.8 s       E
+  Menus ............. raise one arm = next skin, both hands up = start    arrows, Enter
+  F1 setup panel · F2 frame rate · Esc skip
+
+Note: this Windows build was made on a Mac and has not been played on a Windows PC by the team yet.
