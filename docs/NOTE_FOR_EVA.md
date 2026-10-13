@@ -1,5 +1,22 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-13 (night) — Windows v1.3: your v1.2 / v1.3 changes on Windows, camera switch, 60 fps cap keeps adapting
+
+Carl asked to bring Windows up to date: it was still on v1.1 (no re-lock, no recovery, no auto restart, old walking rule).
+Branch `carl/windows-v1.3`, from `main` at your v1.3 (`e9eda40`). Nothing in the gesture rules, the bridge or your intro changed.
+
+| Where | What | Why |
+| --- | --- | --- |
+| `DigiPhantCameraPreview.cs` | **Next camera**: C on the camera check, or F1 > Next camera; the choice is remembered (PlayerPrefs) and the tracking restarts with it | Windows always opened camera 0 with no way to change it; a USB webcam, a virtual camera (OBS, Teams) or a face-login IR camera can be number 0 |
+| `DigiPhantCameraPreview.cs` | The bridge's "Camera could not open … try --camera 1" is shown as "no picture from camera N (Windows Settings > … ; wrong camera? F1 > Next camera)" | players cannot use a command-line option; `bridge.py` is locked, so the wording changes in Unity only |
+| `DivaShowPerf.cs` | With your camera cap on (vsync 2 on 120 Hz), the resolution still adapts; it never halves again to 30 fps | in v1.3 the adapting only ran at vsync 1, so a 120 / 144 Hz screen with a weaker GPU stayed at full resolution below 60 fps. `Tools/perf_sim` got three camera-on cases (E–G): all pass; your v1.3 file fails F (stays at scale 1.00, 54 fps) |
+| `DivaText.cs` | Camera check key hint: "C: next camera" | |
+| `Tools/release/READ ME (Windows).txt` | How to switch cameras; tracking restarts by itself | |
+
+The Windows bridge (`diva_bridge.exe`) was frozen from v1.3's `TrackingOverrides` on GitHub's Windows machines.
+Tested there (no webcam, no GPU): self-test, a keyboard race with no errors, auto restart, C and F1 > Next camera.
+Not tested: live camera play on a Windows PC, switching between two real cameras.
+
 ## 2026-10-13 (evening) — v1.1: downloads that run directly, smoother with the camera, lighter opening blur
 
 Carl played a live round on the release build with the camera and asked for downloads that run directly on Mac and

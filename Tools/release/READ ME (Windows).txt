@@ -9,6 +9,9 @@ PLAY
    20 s (it prepares the tracking once); after that a few seconds.
    If the picture stays dark: Settings > Privacy & security > Camera > turn on "Camera access" and
    "Let desktop apps access your camera", close other apps that use the camera (Teams, Zoom), then click Retry.
+   Wrong camera (a USB webcam, a virtual camera or a face-login camera)? Press C on the camera check page, or
+   F1 > Next camera at any time, until you see yourself. Diva remembers the camera for next time.
+   If the tracking ever stops, it starts again by itself.
 The keyboard works at any time, with or without the camera.
 
 CONTROLS (one player does everything; 3 PLAYERS splits them left to right)
@@ -19,7 +22,7 @@ CONTROLS (one player does everything; 3 PLAYERS splits them left to right)
   Eat, drink, refill  thumbs-up for 0.4 s                    F
   MEGA BUBBLE ....... both hands above your head 0.8 s       E
   Menus ............. raise one arm = next skin, both hands up = start    arrows, Enter
-  F1 setup panel · F2 frame rate · Esc skip
+  F1 setup panel · F2 frame rate · Esc skip · C next camera (camera check page)
 
-Tested on Windows Server 2025 (GitHub Actions, no webcam): the game, the tracking start-up and the models.
-Live camera play on a Windows PC: not yet tested by the team.
+Tested on Windows Server 2025 (GitHub Actions, no webcam): the game, a keyboard race, the tracking start-up,
+the models and switching cameras. Live camera play on a Windows PC: not yet tested by the team.

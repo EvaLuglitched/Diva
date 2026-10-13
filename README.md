@@ -22,9 +22,9 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
 
-## Download v1.3 (macOS) · v1.1 (Windows, Vision Pro)
+## Download v1.3 (macOS, Windows) · v1.1 (Vision Pro)
 
-Ready-to-play builds: macOS **https://github.com/EvaLuglitched/Diva/releases/tag/v1.3**, Windows and Vision Pro
+Ready-to-play builds: macOS and Windows **https://github.com/EvaLuglitched/Diva/releases/tag/v1.3**, Vision Pro
 **https://github.com/EvaLuglitched/Diva/releases/tag/v1.1** (all releases: https://github.com/EvaLuglitched/Diva/releases)
 
 v1.3 (macOS): walking is much easier for beginners (one arm swinging well and the other moving a little is enough;
@@ -33,12 +33,16 @@ the camera is on, so the two no longer fight over the processor).
 
 v1.2 (macOS): whoever stays in front of the camera keeps playing (a player who leaves is replaced by the person still in
 view after 1 s), no tracking crash with several people in view, the Mac always uses its own camera (not a nearby iPhone),
-and the tracking restarts by itself if it ever stops. Windows and Vision Pro have not been rebuilt yet and stay on v1.1.
+and the tracking restarts by itself if it ever stops.
+
+v1.3 for Windows has all of the above (the walking rule, re-lock, recovery and restart; the camera cap is for 120 Hz+
+screens) plus **Next camera**: C on the camera check, or F1 > Next camera, when a PC opens the wrong camera (USB
+webcam, virtual camera, face-login camera). Vision Pro has not been rebuilt yet and stays on v1.1.
 
 | Platform | File | First start | Camera gestures |
 | --- | --- | --- | --- |
 | macOS, Apple silicon (M1 and newer) | [Diva-v1.3-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.3/Diva-v1.3-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
-| Windows 10 / 11, 64-bit | [Diva-v1.1-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks |
+| Windows 10 / 11, 64-bit | [Diva-v1.3-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.3/Diva-v1.3-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks; wrong camera: C on the camera check or F1 > Next camera |
 | Apple Vision Pro | [Diva-VR-v1.1-visionOS.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-VR-v1.1-visionOS.zip) | development-signed: installs on the team's registered headsets | headset hand tracking |
 
 The keyboard works in every desktop build without a camera. Each zip has a short READ ME. The very first camera start
@@ -158,9 +162,10 @@ v1.1 checks (2026-10-13), automated unless stated:
   permission, camera check, calibration, gold lap. About 113 fps at full resolution with the camera tracking running.
   A copy marked as downloaded is stopped by Gatekeeper until it is allowed; once allowed, its camera bridge loads all
   three models.
-- Windows, on GitHub's Windows Server 2025 machines (no webcam, software graphics): the v1.1 zip unpacked into
-  Downloads; `Diva.exe` reaches the home page in about 4 s and starts its built-in bridge, which loads the models
-  (first start 4.6 s, later 1.2 s) and reports that there is no camera.
+- Windows, on GitHub's Windows Server 2025 machines (no webcam, software graphics): the v1.3 zip unpacked into
+  Downloads; the bridge self-test passes (first start 5 s, later 1.3 s); a keyboard race from the home page to the
+  race with no errors; with no camera the tracking restarts by itself (2, 4, 8, 16, 30 s); C on the camera check and
+  F1 > Next camera restart it and the choice is saved.
 - Not tested yet: live camera play on a Windows PC, a full three-person live performance and a fresh recording; see
   [docs/PLAYTEST_TODO.md](docs/PLAYTEST_TODO.md) and the limitations in [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md).
 

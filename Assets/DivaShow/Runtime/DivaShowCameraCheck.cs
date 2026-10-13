@@ -116,6 +116,8 @@ namespace Diva.Show
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame) { sound.Play("tick"); Enter(ShowPhase.Select); return; }
+            // C：换下一个摄像头（电脑上有 USB 摄像头、虚拟摄像头或人脸登录的红外摄像头时，0 号不一定是对的那个）
+            if (kb != null && kb.cKey.wasPressedThisFrame && cameraPreview) { sound.Play("tick"); cameraPreview.NextCamera(); }
             if (confirmEdge) { sound.Play("confirm"); StartAfterSelect(); return; }   // skip: keyboard play, no calibration
 
             orbitAngle = orbitCenter + orbitDrag + 40 * Mathf.Sin((PhaseTime + 20) * .25f);

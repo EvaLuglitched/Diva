@@ -15,8 +15,10 @@ static class Program
     static int failures;
 
     // work(scale, t) = milliseconds of CPU/GPU work a frame needs; vsync turns it into the frame period
-    static (float scale, int vsync, float avgFps, float fullScaleShare, List<string> log) Run(Func<float, float, float> work, float seconds)
+    static (float scale, int vsync, float avgFps, float fullScaleShare, List<string> log) Run(Func<float, float, float> work, float seconds, bool camera = false)
     {
+        // camera = the camera tracking is on (v1.3: the game is capped at 60 fps on a 120 Hz screen while it runs)
+        UnityEngine.Object.Found = camera ? new DigiPhant.DigiPhantController { name = "Elephant", inputMode = DigiPhant.InputMode.Camera } : null;
         var urp = new UniversalRenderPipelineAsset { renderScale = 1 };
         GraphicsSettings.currentRenderPipeline = urp;
         QualitySettings.vSyncCount = 1; Time.unscaledTime = 0;
@@ -86,6 +88,31 @@ static class Program
         var d = Run((s, t) => 6f, 90);
         Show("D. Light load (6 ms)", d);
         if (expectNew) Check("never touches resolution or vsync", d.scale > .999f && d.vsync == 1 && !d.log.Exists(l => l.Contains("->")));
+        // E–G (Carl 2026-10-13): camera tracking on, so the game is capped at 60 fps on the 120 Hz screen (vsync 2)
+        var e = Run((s, t) => 6f, 90, camera: true);
+        Show("E. Camera on, light load (6 ms)", e);
+        if (expectNew)
+        {
+            Check("capped at 60 fps (vsync 2)", e.vsync == 2 && e.log.Exists(l => l.Contains("capped at 60")));
+            Check("full resolution, about 60 fps", e.scale > .999f && e.avgFps > 57 && e.avgFps < 63);
+        }
+        // F. Camera on, GPU-bound: 18.5 ms at full resolution misses the 16.7 ms of 60 fps; lower resolution helps
+        var f = Run((s, t) => Math.Max(6f, 4.5f + 14f * s * s), 120, camera: true);
+        Show("F. Camera on, GPU-bound (18.5 ms at full resolution, 13.5 ms at 0.8)", f);
+        if (expectNew)
+        {
+            Check("lowers the resolution to hold 60 fps under the camera cap", f.scale < .95f && f.scale >= .6f);
+            Check("stays capped at 60 (vsync 2, never 30)", f.vsync == 2 && !f.log.Exists(l => l.Contains("steady")));
+            Check("about 60 fps", f.avgFps > 57);
+        }
+        // G. Camera on, CPU-bound: 20 ms whatever the resolution
+        var g = Run((s, t) => 20f, 120, camera: true);
+        Show("G. Camera on, CPU-bound (20 ms at any resolution)", g);
+        if (expectNew)
+        {
+            Check("keeps full resolution (lower resolution does not help)", g.scale > .999f);
+            Check("stays at vsync 2 (no drop to 30 fps)", g.vsync == 2);
+        }
         Console.WriteLine(expectNew ? $"\n{(failures == 0 ? "ALL PASS" : failures + " FAILED")}" : "\n(old version: behaviour only, no checks)");
         Environment.Exit(failures);
     }

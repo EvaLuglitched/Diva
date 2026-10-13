@@ -130,7 +130,7 @@ namespace DigiPhant
                 string detail;
                 lock (outputLock) detail = bridgeOutput;
                 // Show the bridge's own error (missing model, unknown --diva option, camera not opening...) instead of a guess.
-                string reason = BridgeReason(detail);
+                string reason = PlayerReason(BridgeReason(detail));
                 Status = reason != null ? "Camera stopped: " + reason + " Fix it, then Retry."
                                         : "Camera stopped. Check camera permission or close an old tracking window, then Retry.";
                 if (!string.IsNullOrWhiteSpace(detail)) UnityEngine.Debug.LogWarning("DigiPhant camera bridge: " + detail);
@@ -182,19 +182,68 @@ namespace DigiPhant
             (controller.upperBodyOnly ? " --upper-body-only" : "") + (divaMode ? " --diva" : "");
 
         /// <summary>
-        /// The camera number for the bridge. On a Mac it is the built-in camera's place in the bridge's list
+        /// The camera number for the bridge. A camera the player picked with Next camera wins (remembered between starts).
+        /// Otherwise on a Mac it is the built-in camera's place in the bridge's list
         /// (DigiPhantMacCameras): an iPhone nearby (Continuity Camera) can take number 0, and the game used to open the
         /// phone, or lose the camera when the phone went away. Elsewhere, or with preferBuiltInCamera off: cameraIndex.
         /// </summary>
         int CameraForBridge()
         {
+            int chosen = PlayerPrefs.GetInt(ChosenCameraKey, -1);
+            if (chosen >= 0) return CameraInUse = Mathf.Min(chosen, 8);
             int configured = Mathf.Clamp(cameraIndex, 0, 8);
-            if (!preferBuiltInCamera) return configured;
+            if (!preferBuiltInCamera) return CameraInUse = configured;
             int builtIn = DigiPhantMacCameras.BuiltInIndex(out string cameras);
             if (cameras != null)
                 UnityEngine.Debug.Log("DIGIPHANT cameras (bridge order): " + cameras +
                                       (builtIn >= 0 ? " -> using camera " + builtIn : " -> no built-in camera, using camera " + configured));
-            return builtIn >= 0 ? Mathf.Min(builtIn, 8) : configured;
+            return CameraInUse = builtIn >= 0 ? Mathf.Min(builtIn, 8) : configured;
+        }
+
+        const string ChosenCameraKey = "DigiPhant.ChosenCamera";
+        /// <summary>The camera number the tracking was last started with (0 = the first camera).</summary>
+        public int CameraInUse { get; private set; }
+
+        /// <summary>How many cameras this computer lists: the bridge's own order on a Mac, Unity's list elsewhere (at least 1).</summary>
+        public static int CameraCount
+        {
+            get
+            {
+                var mac = DigiPhantMacCameras.List();
+                if (mac != null) return Mathf.Clamp(mac.Count, 1, 9);
+                try { return Mathf.Clamp(WebCamTexture.devices.Length, 1, 9); }
+                catch (Exception) { return 1; }
+            }
+        }
+
+        /// <summary>
+        /// Next camera (C on the camera check, or F1 > Next camera). The bridge opens one camera number and players had no
+        /// way to change it: on a PC a USB webcam, a virtual camera (OBS, Teams) or an IR face-login camera can be number 0,
+        /// and the old message said "try --camera 1", a command-line option players cannot use. Steps to the next camera,
+        /// remembers it for the next start, and restarts the tracking with it.
+        /// </summary>
+        public void NextCamera()
+        {
+            int count = CameraCount;
+            int next = (CameraInUse + 1) % count;
+            PlayerPrefs.SetInt(ChosenCameraKey, next);
+            PlayerPrefs.Save();
+            UnityEngine.Debug.Log($"DIGIPHANT camera {next} chosen (camera {next + 1} of {count})");
+            BeginPreview();
+            CameraInUse = next;
+            Status = count > 1 ? $"Camera {next + 1} of {count}: starting it..." : "Only one camera found on this computer: starting it again...";
+        }
+
+        /// <summary>
+        /// The bridge's "Camera could not open … try --camera 1" (bridge.py is locked) in words a player can act on, with the
+        /// camera number so a switch shows. F1 > Next camera works in every phase (C only on the camera check page).
+        /// </summary>
+        string PlayerReason(string reason)
+        {
+            if (reason == null || !reason.Contains("--camera")) return reason;
+            return Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsEditor
+                ? $"no picture from camera {CameraInUse + 1} (Windows Settings > Privacy & security > Camera: allow desktop apps; close Teams / Zoom; wrong camera? F1 > Next camera)."
+                : $"no picture from camera {CameraInUse + 1} (close FaceTime / Zoom; wrong camera? F1 > Next camera).";
         }
 
         void StartBridge(string executable, string arguments, string workingDirectory, string status)
@@ -382,6 +431,10 @@ namespace DigiPhant
             GUILayout.Label(Status, new GUIStyle(GUI.skin.label) { wordWrap = true, fontSize = 11 });
             if (GUILayout.Button("Retry", GUILayout.Width(54))) BeginPreview();
             GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"Camera {CameraInUse + 1}", new GUIStyle(GUI.skin.label) { fontSize = 11 });
+            if (GUILayout.Button("Next camera", GUILayout.Width(100))) NextCamera();
+            GUILayout.EndHorizontal();
         }
         void OnGUI()
         {
@@ -395,7 +448,8 @@ namespace DigiPhant
             GUI.DrawTexture(picture, Texture2D.blackTexture, ScaleMode.StretchToFill, false);
             if (HasLiveFrame) GUI.DrawTexture(picture, texture, ScaleMode.ScaleToFit);
             var labelStyle = new GUIStyle(GUI.skin.label) { wordWrap = true, fontSize = 11 };
-            GUI.Label(new Rect(box.x + 8, box.y + height + 22, width - 75, 55), Status, labelStyle);
+            GUI.Label(new Rect(box.x + 8, box.y + height + 22, width - 135, 55), Status, labelStyle);
+            if (GUI.Button(new Rect(box.xMax - 124, box.y + height + 30, 58, 26), "Next")) NextCamera();
             if (GUI.Button(new Rect(box.xMax - 62, box.y + height + 30, 54, 26), "Retry")) BeginPreview();
         }
     }
