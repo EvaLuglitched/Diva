@@ -15,9 +15,10 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 
 LOCKED = {
-    # Walking (P1 / solo): pump both arms
-    'min_quality': .30, 'go_window': .80, 'go_range': .14, 'go_stop_delay': .35, 'go_step': .045,
-    'go_hand_min_height': -1.25, 'go_dropout': .3,
+    # Walking (P1 / solo): pump the arms. 2026-10-13 approved change (Eva): one arm .10 + the other .05 (was both .14),
+    # 1 s window, 0.5 s pause, slower motion counts, swings down to the thighs, 0.5 s of blurred wrists kept.
+    'min_quality': .30, 'go_window': 1.0, 'go_range': .10, 'go_range_other': .05, 'go_stop_delay': .5, 'go_step': .03,
+    'go_hand_min_height': -1.8, 'go_dropout': .5,
     # Turning (P2 / solo): tilt the shoulders or the head, no hips
     'steer_tilt_start': .14, 'steer_tilt_release': .08, 'steer_tilt_full': .40, 'steer_direction': -1.,
     'steer_dropout': .3,
@@ -29,7 +30,7 @@ LOCKED = {
     'thumb_hold': .4, 'thumb_max_gap': .6, 'thumb_angle_min': 150., 'thumb_up_cos': .70, 'thumb_extension': .5,
     'curled_angle_max': 135., 'thumb_model_score': .5,
     # Ultimate (anyone): both hands above the head for 0.8 s
-    'ult_height': .85, 'ult_hold': .8,
+    'ult_height': .85, 'ult_hold': .8, 'ult_walk_hold': .4,
 }
 
 # Key lines of the locked role / mode rules (file, exact text).
