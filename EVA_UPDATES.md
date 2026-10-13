@@ -25,6 +25,7 @@ Eva 的代码都在 **`Assets/DivaGame/`**，场景物体都在 `Diva.unity` 的
 | 14 | 走路（摆臂 GO）放宽 + 每帧诊断记录 | 见下方第 14 条 |
 | 15 | 镜像摄像头画面、转弯改为压肩/歪头（不需要髋部）、遮挡不再全员中断 | 见下方第 15 条 |
 | 16 | 🔒 **单人和三人动作识别锁定**（`GESTURES_LOCKED.md`，修改前必须 double check） | 见下方第 16 条 |
+| 17 | 赛道上倒下的木头往路中间挪 1 米（离中心线 4 → 3 米），一端压到路边；"跨过木头"任务点跟着移动 | `DivaGameBuilder.PlaceCourseLog`；Restore Course Colours 会放回原处 |
 
 ## 1. 路线图（`029748d`）
 `ROADMAP.md`：大象射击游戏的玩法和分工计划。

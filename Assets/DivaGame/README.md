@@ -58,6 +58,12 @@ rebuilds the playable scene (or open Diva.unity and use **Diva > Game > Build Ga
 | Purple-blue procedural sky, trilight ambient, linear fog, warm soft-shadow sun (colour 1/.9/.78, intensity 1.5) | Lighting settings, Key Light |
 | Post-processing on the main camera; far clip ≥ 400 | Main Camera |
 
+## Course log
+
+The course's "03 Fallen log" is placed 3 m from the path centre line (the course generator uses 4 m), so one end
+rests on the road edge and the elephant passes right by / over it for the log task (`PlaceCourseLog`, fixed value, so
+rebuilding never moves it further). **Restore Course Colours** puts it back at 4 m.
+
 ## Finish and ending
 
 The last neon arch stands on the course's finish point, in place of the course's small finish gate (its renderers

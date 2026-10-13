@@ -86,6 +86,7 @@ public static class DivaGameBuilder
         // Share the course's frame, so route coordinates from the generator apply directly.
         root.transform.SetPositionAndRotation(course.transform.position, course.transform.rotation);
 
+        PlaceCourseLog(course.transform, LogSideOffset);   // before Layout reads the landmark positions
         var layout = new Layout(course.transform);
         BuildStreets(Group(root.transform, "Streets"));
         BuildTown(Group(root.transform, "Town"));
@@ -883,6 +884,34 @@ public static class DivaGameBuilder
         return string.Join("/", parts);
     }
 
+    /// <summary>The course's fallen log sits this far to the side of the path centre line (the course generator
+    /// uses -4; Eva moved it 1 m toward the path so the elephant passes right by / over its end for the log task).</summary>
+    const float LogSideOffset = -3f;
+    const float CourseLogFraction = .74f, CourseLogSideOffset = -4f;
+
+    /// <summary>Puts the course's "03 Fallen log" at a fixed side offset from the path (same formula as the course
+    /// generator's PointAlongRoute), so rebuilding never moves it further.</summary>
+    static void PlaceCourseLog(Transform course, float sideOffset)
+    {
+        var log = course.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name.StartsWith("03 "));
+        if (!log) return;
+        float distance = CourseLogFraction * SavannahCourseGenerator.CourseLength;
+        var route = SavannahCourseGenerator.Route;
+        for (int i = 1; i < route.Length; i++)
+        {
+            float segment = Vector3.Distance(route[i - 1], route[i]);
+            if (distance <= segment || i == route.Length - 1)
+            {
+                Vector3 forward = (route[i] - route[i - 1]).normalized;
+                log.localPosition = Vector3.Lerp(route[i - 1], route[i], Mathf.Clamp01(distance / segment))
+                                    + Vector3.Cross(Vector3.up, forward) * sideOffset;
+                EditorUtility.SetDirty(log);
+                return;
+            }
+            distance -= segment;
+        }
+    }
+
     [MenuItem("Diva/Game/Restore Course Colours")]
     public static void RestoreCourseColours()
     {
@@ -893,6 +922,7 @@ public static class DivaGameBuilder
             if (originals.TryGetValue(CoursePath(course.transform, renderer.transform), out var source))
                 renderer.sharedMaterials = source;
         foreach (var renderer in course.GetComponentsInChildren<Renderer>(true)) renderer.enabled = true;
+        PlaceCourseLog(course.transform, CourseLogSideOffset);   // and the log back where the course put it
         EditorSceneManager.MarkSceneDirty(course.scene);
     }
 
@@ -1362,6 +1392,7 @@ public static class DivaGameBuilder
             ("start-chase", elephant.position - elephant.forward * 7 + Vector3.up * 6.5f, elephant.position + elephant.forward * 14 + Vector3.up * 1.5f, 60),
             ("start-pad", frame.TransformPoint(new Vector3(-5.5f, 6.5f, -6)), frame.TransformPoint(new Vector3(0, 0, 1)), 60),
             ("finish", frame.TransformPoint(new Vector3(-4, 6, 22)), frame.TransformPoint(new Vector3(-19, 0, 18)), 60),
+            ("log", frame.TransformPoint(new Vector3(21.5f, 4.5f, 3)), frame.TransformPoint(new Vector3(16.5f, .5f, 12.5f)), 60),
             ("bend", frame.TransformPoint(new Vector3(-9, 10, -2)), frame.TransformPoint(new Vector3(-17, 0, 3)), 60),
             ("course-low", frame.TransformPoint(new Vector3(-17, 3.2f, -16)), frame.TransformPoint(new Vector3(8, 1.5f, -17)), 60),
             ("finish-side", frame.TransformPoint(new Vector3(10, 4.5f, 12)), frame.TransformPoint(new Vector3(-12, 1.5f, 18)), 60),
