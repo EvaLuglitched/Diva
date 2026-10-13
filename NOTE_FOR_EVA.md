@@ -1,5 +1,33 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-12 — race extras, shared between PC and Vision Pro (branch `carl/race-meta`)
+
+Carl wanted the Vision Pro extras in the PC game too, so the rules now live in the shared Diva Show layer and the VR
+branch will only add its cockpit presentation on top. Nothing in the scene changed; nothing in the locked gesture
+files changed. What players see (details in `DIVA_TRY_IT.md` → "Race extras", Chinese in `Assets/DivaShow/README.md`):
+
+- candy (+15, rising "ding" pitch) and small rockets on the route (rocket = 2.5 s dash; a dash also follows every
+  MEGA BUBBLE), ON FIRE (score x1.5 for 12 s), GOLDEN TARGET (3x for 10 s), low-water warning, coach tips + a beacon
+  and waypoint on the next stop, lap medals (gold ≤50 s / silver ≤80 s / bronze), a PLAY OF THE RACE hero card at the
+  finish (replaces the old finish banner), aim assist (the locked target stays locked while spraying), water .022 per
+  burst instead of .008.
+
+Files to read: `Assets/DivaShow/Runtime/DivaShowMeta.cs` (rules), `DivaShowCoach.cs`, `DivaShowHero.cs`,
+`DivaShowPickups.cs`; small hooks in `DivaShowPlay.cs`, `DivaShowHud.cs`, `DivaShowEnd.cs`, `DivaShowDirector.cs`,
+`DivaShowUi.cs`, `DivaText.cs`; `DivaShowSound.cs` is the VR branch's richer version (same API plus pitch, 3D, loops).
+
+Two tiny additions to your files, both optional and off by default:
+- `DigiPhantLocomotion.externalForward` (not serialised): a minimum forward input Diva Show sets to 1 during a dash,
+  so the elephant charges even if P1 stops pumping. Everything else in `Evaluate` is as before.
+- `DivaLaserBlaster.targetOverride` (not serialised): if set, picks the target for each shot instead of `FindTarget`.
+  Diva Show uses it for the sticky lock; without Diva Show the blaster behaves exactly as before.
+
+After pulling: nothing to rebuild. The new numbers are Inspector fields on *Diva Show* ("Race meta") with defaults, so
+your saved scene needs no edit. Tested: a full automatic round in batch mode (keyboard path, test mode) plus the four
+validators. Not tested: how it feels with the real camera (is ON FIRE too easy? are the medal times right?). Please
+tell me if the hero card should keep your "COURSE COMPLETE · tasks" wording instead of PLAY OF THE RACE.
+
+
 Hi Eva, Carl here. This push adds the full match flow (`Assets/DivaShow`) and connects it to your race intro.
 We changed none of your files. Read this before your next push so our next merge stays easy.
 

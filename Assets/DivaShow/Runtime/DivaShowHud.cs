@@ -19,7 +19,9 @@ namespace Diva.Show
 
         TextMeshProUGUI scoreText, scoreLabel, timeText, comboText, comboLabel, ultPercent, ultPrompt;
         readonly List<(TextMeshProUGUI mark, TextMeshProUGUI label)> taskRows = new List<(TextMeshProUGUI, TextMeshProUGUI)>();
-        SkillSlot boostSlot, cannonSlot, bubbleSlot;
+        SkillSlot boostSlot, cannonSlot, bubbleSlot, fireSlot;
+        RawImage fireGlow;
+        TextMeshProUGUI lockLabel;
         DivaRing ultRing, ultBack, lockRing;
         DivaSlant ultPromptPlate;
         RectTransform lockMarker;
@@ -56,6 +58,8 @@ namespace Diva.Show
             boostSlot = Slot("Boost", new Vector2(-470, 34), () => DivaText.T("skill.boost"), () => DivaText.T("key.boost"));
             cannonSlot = Slot("Cannon", new Vector2(-215, 34), () => DivaText.T("skill.cannon"), () => DivaText.T("key.cannon"));
             bubbleSlot = Slot("Bubble", new Vector2(215, 34), () => DivaText.T("skill.bubble"), () => DivaText.T("key.bubble"));
+            // 燃烧条：技能栏最右边的空位（打靶 / 吃糖 / 任务攒满就 ×1.5）
+            fireSlot = Slot("Fire", new Vector2(470, 34), () => DivaText.T("fire.name"), () => DivaText.T("fire.hint"));
             ultBack = Ring(hudRoot, "Ult Back", bottom, new Vector2(0, 40), 168, 16, new Color(0, 0, 0, .55f));
             ultRing = Ring(hudRoot, "Ult Charge", bottom, new Vector2(0, 40), 168, 16, Color.white);
             ultPercent = DivaUi.Text(hudRoot, "Ult Percent", bottom, new Vector2(0, 92), new Vector2(160, 70), 54, Color.white);
@@ -72,6 +76,10 @@ namespace Diva.Show
             lockRing = lockMarker.gameObject.AddComponent<DivaRing>(); lockRing.thickness = 4; lockRing.raycastTarget = false;
             var dot = Ring(lockMarker, "Dot", new Vector2(.5f, .5f), Vector2.zero, 14, 7, Color.white);
             dot.raycastTarget = false;
+            // 锁到金靶子时标记下面写 ×3（标记自己在转，字放在旁边不跟着转）
+            lockLabel = DivaUi.Text(hudRoot, "Lock Label", new Vector2(.5f, .5f), Vector2.zero, new Vector2(160, 36), 30, GoldColour);
+            DivaUi.Glow(lockLabel, new Color(1f, .5f, .1f, .9f), .6f, .4f, .15f);
+            lockLabel.gameObject.SetActive(false);
 
             comboText = DivaUi.Text(hudRoot, "Combo", new Vector2(1, .5f), new Vector2(-70, 60), new Vector2(260, 110), 104, Color.white, TextAlignmentOptions.Right);
             comboLabel = DivaUi.Text(hudRoot, "Combo Label", new Vector2(1, .5f), new Vector2(-74, -6), new Vector2(360, 40), 30, Color.white, TextAlignmentOptions.Right);
@@ -87,6 +95,17 @@ namespace Diva.Show
             });
             speedLines.color = new Color(1, 1, 1, 0);
             speedRt.SetAsFirstSibling();
+            // 燃烧时画面四边一圈橙红的光
+            var glowRt = DivaUi.Stretch(hudRoot, "Fire Glow");
+            fireGlow = glowRt.gameObject.AddComponent<RawImage>();
+            fireGlow.raycastTarget = false;
+            fireGlow.texture = DivaUi.MakeTexture("Diva Fire Glow", 128, (x, y) =>
+            {
+                float r = Mathf.Max(Mathf.Abs(x), Mathf.Abs(y));
+                return new Color(1, 1, 1, Mathf.Pow(Mathf.Clamp01((r - .5f) / .5f), 1.6f));
+            });
+            fireGlow.color = new Color(1, .45f, .15f, 0);
+            glowRt.SetAsFirstSibling();
 
             var right = new Vector2(1, .5f);
             pipFrame = DivaUi.Panel(hudRoot, "Pip Frame", right, new Vector2(-30, -150), new Vector2(510, 300), Ink, Ink, 0);
@@ -95,6 +114,7 @@ namespace Diva.Show
             pipImage = pipRt.gameObject.AddComponent<RawImage>(); pipImage.raycastTarget = false;
             pipLabel = DivaUi.Text(hudRoot, "Pip Label", right, new Vector2(-60, 0), new Vector2(480, 44), 34, Color.white, TextAlignmentOptions.Right);
             SetPip(false);
+            BuildCoachHud();
         }
 
         SkillSlot Slot(string name, Vector2 pos, System.Func<string> title, System.Func<string> hint)
@@ -156,8 +176,14 @@ namespace Diva.Show
             float speed = locomotion ? Mathf.Abs(locomotion.CurrentSpeed) : 0;
             float run = locomotion ? Mathf.Max(.1f, locomotion.runSpeed) : 4.5f;
             UpdateSlot(boostSlot, boosting, Mathf.Clamp01(speed / run), Primary);
-            UpdateSlot(cannonSlot, demo.State.Shoot, demo.State.Water, new Color(.35f, .8f, 1f));
+            // 水快没了：水条红色闪
+            bool lowWater = demo.State.Water < .25f;
+            var waterColour = lowWater ? Color.Lerp(new Color(.35f, .8f, 1f), new Color(1f, .3f, .3f), .55f + .45f * Mathf.Sin(DivaClock.Time * 8)) : new Color(.35f, .8f, 1f);
+            UpdateSlot(cannonSlot, demo.State.Shoot, demo.State.Water, waterColour);
             UpdateSlot(bubbleSlot, demo.State.Drink, bubbleCooldown, new Color(.85f, .6f, 1f));
+            UpdateSlot(fireSlot, OnFire, FireLevel, OnFire ? Color.Lerp(FireColour, Color.white, .3f + .3f * Mathf.Sin(DivaClock.Time * 10)) : FireColour);
+            fireSlot.hint.text = OnFire ? DivaText.F("fire.on", Mathf.CeilToInt(Mathf.Max(0, fireUntil - Time.unscaledTime))) : DivaText.T("fire.hint");
+            fireGlow.color = new Color(1, .45f, .15f, Mathf.Lerp(fireGlow.color.a, OnFire ? .2f + .08f * Mathf.Sin(DivaClock.Time * 6) : 0, 1 - Mathf.Exp(-DivaClock.DeltaTime * 5)));
             ultRing.SetFill(charge / 100f);
             bool ready = charge >= 100;
             float pulse = .5f + .5f * Mathf.Sin(DivaClock.Time * 8);
@@ -169,17 +195,20 @@ namespace Diva.Show
             ultPromptPlate.gameObject.SetActive(ultPrompt.gameObject.activeSelf);
             if (ready) { ultPrompt.alpha = .75f + .25f * pulse; ultPrompt.color = Color.Lerp(Accent, Color.white, .55f); ultPromptPlate.stripe = Accent; ultPromptPlate.stripeWidth = 8; ultPromptPlate.SetVerticesDirty(); }
 
-            // 锁定标记：水枪会打的那个靶子（和 DivaLaserBlaster.FindTarget 同一个判定）
-            var target = Phase == ShowPhase.Play && laser ? laser.FindTarget(demo.State.Aim * demo.trunkAimDegrees) : null;
+            // 锁定标记：水枪会打的那个靶子（辅助瞄准的同一个判定，DivaShowMeta.AssistTarget）；金靶子金色 + ×3
+            var target = Phase == ShowPhase.Play && laser ? AssistTarget(demo.State.Aim * demo.trunkAimDegrees) : null;
             bool show = target && ScreenPoint(target.AimPoint, out var p);
             lockMarker.gameObject.SetActive(show);
+            bool goldLock = show && target == golden;
+            lockLabel.gameObject.SetActive(goldLock);
             if (show && ScreenPoint(target.AimPoint, out p))
             {
                 lockMarker.anchoredPosition = p;
                 lockMarker.localRotation = Quaternion.Euler(0, 0, DivaClock.Time * 90);
                 lockRing.SetFill(.85f);
-                lockRing.color = demo.State.Shoot ? new Color(1, .35f, .35f) : DivaUi.WithAlpha(Color.white, .8f);
-                lockMarker.localScale = Vector3.one * (demo.State.Shoot ? .85f : 1);
+                lockRing.color = goldLock ? GoldColour : demo.State.Shoot ? new Color(1, .35f, .35f) : DivaUi.WithAlpha(Color.white, .8f);
+                lockMarker.localScale = Vector3.one * (demo.State.Shoot ? .85f : 1) * (goldLock ? 1.25f : 1);
+                if (goldLock) { lockLabel.text = "×3"; lockLabel.rectTransform.anchoredPosition = p + new Vector2(0, -58); }
             }
 
             float comboAge = DivaClock.Time - lastHitTime;
@@ -200,6 +229,7 @@ namespace Diva.Show
             speedLines.uvRect = new Rect(Random.Range(-.01f, .01f), Random.Range(-.01f, .01f), 1, 1);
             fovKick = Mathf.Lerp(fovKick, boosting ? 8 : 0, 1 - Mathf.Exp(-DivaClock.DeltaTime * 4));
 
+            UpdateCoachHud();
             UpdateFeed();
             UpdatePopups();
         }

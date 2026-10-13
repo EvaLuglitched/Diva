@@ -12,7 +12,7 @@ namespace Diva.Show
         class RunStats
         {
             public float distance, topSpeed, turned, bubbleTime, sprayTime;
-            public int hits, shots0, bestCombo, ults, ultHits;
+            public int hits, shots0, bestCombo, ults, ultHits, candies;
             public readonly int[] roleHits = new int[4];
         }
 
@@ -43,6 +43,7 @@ namespace Diva.Show
             tasksDone = game ? new bool[game.tasks.Length] : new bool[0];
             foreach (var f in feed) if (f.plate) Destroy(f.plate.gameObject);
             feed.Clear();
+            MetaStartRun();
             BeginTrial();
         }
 
@@ -64,8 +65,8 @@ namespace Diva.Show
             if (demo.State.Drink) stats.bubbleTime += dt;
             if (demo.State.Shoot) stats.sprayTime += dt;
 
-            // 推进冲刺：接近最高速持续 1 秒
-            bool fast = speed >= locomotion.runSpeed * .88f;
+            // 推进冲刺：接近最高速持续 1 秒（火箭冲刺期间也算）
+            bool fast = speed >= locomotion.runSpeed * .88f || Dashing;
             rushTime = fast ? rushTime + dt : 0;
             if (boosting && !fast) boosting = false;
             if (!boosting && rushTime > 1 && Time.time > rushCooldown)
@@ -116,6 +117,7 @@ namespace Diva.Show
                     {
                         tasksDone[i] = true;
                         charge = Mathf.Min(100, charge + chargePerTask);
+                        Heat(.3f);
                         string label = DivaText.Task(game.tasks[i].label);
                         Banner(DivaText.T("skill.task"), label, new Color(.45f, 1f, .6f));
                         Feed(DivaText.T("skill.task") + " · " + label, new Color(.45f, 1f, .6f));
@@ -153,16 +155,22 @@ namespace Diva.Show
             float t = Time.time - runStart;
             stats.hits++;
             if (Phase == ShowPhase.Ult) stats.ultHits++;
-            Popup("+" + target.points, target.AimPoint, Color.white);
+            // 金靶子的分已经是三倍；燃烧时再 ×1.5（多出来的记进奖励分）
+            bool gold = target == golden;
+            int shown = Mathf.RoundToInt(target.points * ScoreMultiplier);
+            Popup("+" + shown, target.AimPoint, gold ? GoldColour : Color.white);
             sound.Play("hit", .8f);
-            fx.Flash(target.AimPoint, Accent, 2.2f, .25f);
+            if (gold) sound.Play("combo", .8f, 1.3f);
+            fx.Flash(target.AimPoint, gold ? GoldColour : Accent, 2.2f, .25f);
             // 大招打中的不算连击，也不再给大招充能
             if (Phase == ShowPhase.Ult) { replay.Mark(t, "hit", 10, "skill.ult", target); return; }
             charge = Mathf.Min(100, charge + chargePerHit);
+            if (ScoreMultiplier > 1) bonus += shown - target.points;
+            Heat(.22f);
             combo = DivaClock.Time - lastHitTime <= ComboWindow ? combo + 1 : 1;
             lastHitTime = DivaClock.Time;
             stats.bestCombo = Mathf.Max(stats.bestCombo, combo);
-            Feed(DivaText.F("feed.hit", target.points), new Color(.35f, .8f, 1f));
+            Feed(gold ? DivaText.T("golden") + "  +" + shown : DivaText.F("feed.hit", shown), gold ? GoldColour : new Color(.35f, .8f, 1f));
             replay.Mark(t, "hit", 30, combo >= 3 ? "skill.combo3" : "skill.cannon", target);
             if (combo == 3 || combo == 5)
             {

@@ -49,10 +49,11 @@ namespace Diva.Show
             selectRoot = DivaUi.Stretch(root, "Select");
             highlightRoot = DivaUi.Stretch(root, "Highlight");
             resultsRoot = DivaUi.Stretch(root, "Results");
+            heroRoot = DivaUi.Stretch(root, "Hero");
             countdownRoot = DivaUi.Stretch(root, "Countdown");
             bannerRoot = DivaUi.Stretch(root, "Banner");
             topRoot = DivaUi.Stretch(root, "Top");
-            BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildCameraFeed(); BuildCameraCheck();
+            BuildTop(); BuildSelect(); BuildHud(); BuildBanner(); BuildCountdown(); BuildHighlightUi(); BuildResultsUi(); BuildHero(); BuildCameraFeed(); BuildCameraCheck();
         }
 
         void ShowRoots()
@@ -64,6 +65,7 @@ namespace Diva.Show
             countdownRoot.gameObject.SetActive(Phase == ShowPhase.Countdown || Phase == ShowPhase.Play && PhaseTime < 1);
             highlightRoot.gameObject.SetActive(Phase == ShowPhase.Highlight);
             resultsRoot.gameObject.SetActive(Phase == ShowPhase.Results);
+            heroRoot.gameObject.SetActive(Phase == ShowPhase.Finish);
             topRoot.gameObject.SetActive(Phase != ShowPhase.Highlight && Phase != ShowPhase.Intro && Phase != ShowPhase.RaceIntro);
         }
 

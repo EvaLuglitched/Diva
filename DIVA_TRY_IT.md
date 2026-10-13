@@ -15,6 +15,28 @@ Keyboard: arrows switch skins, Enter starts or skips, U fires the ultimate, L sw
 Keyboard play works together with the gestures, even without a camera: W (or ↑) go, A/D (or ←/→) turn, U/I aim (U also fires a charged ultimate),
 hold Space to spray, F to drink, H hides the key legend. See Assets/DivaGame/README.md.
 
+## Race extras (same rules on PC and Vision Pro)
+These run on top of Eva's scoring and tasks (`Assets/DivaShow/Runtime/DivaShowMeta.cs`); the scene is unchanged.
+- **Candy +15**: candy floats along the route between the stops; drive through it. Eating several in a row raises the
+  "ding" pitch. **Small rockets** (two per straight) give +15 and a **ROCKET DASH**: 2.5 s at full speed, boosters on.
+  The dash also fires after every MEGA BUBBLE ("CHARGE!").
+- **ON FIRE**: hits (+.22), candy (+.08) and tasks (+.3) fill the orange meter at the bottom right; full = 12 s of
+  score x1.5 with an orange screen edge. It cools down when nothing happens.
+- **GOLDEN TARGET**: every ~24 s one target ahead turns gold for 10 s (3x points, gold disc behind it, "x3" on the
+  lock marker). The cannon locks it first.
+- **Aim assist**: while you spray, the locked target stays locked (no flicking between two targets); the lock marker
+  always shows what the next burst hits.
+- **Water**: a burst now costs .022 (was .008), so the tank empties in ~45 bursts. Under 25% the water bar flashes red,
+  a beep plays every 6 s and the coach says to refill (thumbs-up 0.4 s / F).
+- **Coach**: a pink beacon stands on the next stop with a waypoint label (name and metres; it sticks to the screen
+  edge when the stop is off screen). Tips pop up at the bottom when you have not started running, when a target is
+  ahead, when you reach the bush / basin / log, and when water is low. Three-player mode names the player (P1/P2/P3).
+- **Lap medals**: GOLD LAP at or under 50 s, SILVER LAP under 80 s, else BRONZE LAP (Eva's run timer). Time-outs get
+  no medal.
+- **PLAY OF THE RACE**: the finish shows a hero card instead of the old banner: time, tasks, skin, the score counting
+  up, then the medal stamp. The highlight replay and results follow as before; the results line shows the medal too.
+All numbers are Inspector fields on the Diva Show object ("Race meta").
+
 ## One person, one role (testing)
 Press F1 for the setup panel. Select Try alone, then P1 Move, P2 Turn or P3 Water. Keep Camera selected.
 Click Get ready (10 seconds), then stand naturally with arms down until ready.

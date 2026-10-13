@@ -170,6 +170,7 @@ namespace Diva.Show
             if (skins) skins.Changed += OnSkinChanged;
             BuildUi();
             CollectOccluders();
+            MetaStart();
             if (skins && skins.Current < 0) skins.Apply(skins.startSkin);
             Enter(ShowPhase.Intro);
         }
@@ -177,6 +178,7 @@ namespace Diva.Show
         void OnDisable()
         {
             FlushTrial("interrupted");
+            MetaDisable();
             DivaTarget.Hit -= OnTargetHit;
             DivaText.Changed -= OnLanguage;
             if (skins) skins.Changed -= OnSkinChanged;
@@ -221,6 +223,7 @@ namespace Diva.Show
                 case ShowPhase.Highlight: EnterHighlight(); break;
                 case ShowPhase.Results: EnterResults(); break;
             }
+            MetaPhase(previous, next);
             ShowRoots();
             Debug.Log("DIVA_SHOW_PHASE " + next);
             PhaseChanged?.Invoke(next);
@@ -257,8 +260,10 @@ namespace Diva.Show
                 case ShowPhase.Highlight: UpdateHighlight(); break;
                 case ShowPhase.Results: UpdateResults(); break;
             }
+            MetaUpdate();
             UpdateHud();
             UpdateBanners();
+            UpdateHero();
             CacheTrialState();
         }
 

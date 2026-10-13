@@ -27,6 +27,8 @@ namespace Diva
         public bool showBeam = true;
         public int Shots { get; private set; }
         public int Hits { get; private set; }
+        /// <summary>Optional: who picks the target for each shot, given the aim in degrees (Diva Show's aim assist keeps a lock steady). Null = FindTarget.</summary>
+        [System.NonSerialized] public System.Func<float, DivaTarget> targetOverride;
 
         LineRenderer beam;
         AudioSource audioSource;
@@ -84,7 +86,7 @@ namespace Diva
             if (!elephant || Time.time - lastShot < cooldownSeconds) return;
             lastShot = Time.time;
             Shots++;
-            var target = FindTarget(aimDegrees);
+            var target = targetOverride != null ? targetOverride(aimDegrees) : FindTarget(aimDegrees);
             Vector3 origin = Origin;
             Vector3 end = target ? target.AimPoint : origin + AimForward(aimDegrees) * range;
             beam.SetPosition(0, origin);

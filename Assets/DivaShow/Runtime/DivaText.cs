@@ -30,6 +30,7 @@ namespace Diva.Show
 
         public static string T(string key) => Table.TryGetValue(key, out var v) ? (Chinese ? v.zh : v.en) : key;
         public static string F(string key, params object[] args) => string.Format(T(key), args);
+        public static bool Has(string key) => Table.ContainsKey(key);
 
         // Eva 的任务名是英文写在场景里的；按关键词给出中文
         public static string Task(string label)
@@ -119,6 +120,44 @@ namespace Diva.Show
             ["feed.hit"] = ("Target hit  +{0}", "命中靶子  +{0}"),
             ["feed.combo"] = ("{0}  +{1}", "{0}  +{1}"),
             ["feed.ult"] = ("{0} hit {1} targets", "{0} 打中 {1} 个靶子"),
+            // ---- 比赛节奏（DivaShowMeta：PC 和 VR 共用）
+            ["feed.candy"] = ("CANDY  +{0}", "糖果  +{0}"),
+            ["feed.rocket"] = ("ROCKET!", "火箭！"),
+            ["dash"] = ("ROCKET DASH", "火箭冲刺"),
+            ["dash.ult"] = ("CHARGE!", "冲锋！"),
+            ["dash.b"] = ("full speed ahead for 2.5 s", "2.5 秒全速前冲"),
+            ["fire"] = ("ON FIRE!", "燃起来了！"),
+            ["fire.b"] = ("score ×1.5 for 12 s", "12 秒内得分 ×1.5"),
+            ["fire.name"] = ("ON FIRE", "燃烧"),
+            ["fire.hint"] = ("HIT · CANDY · TASK", "打靶 · 吃糖 · 任务"),
+            ["fire.on"] = ("×1.5  ·  {0}s", "×1.5  ·  {0} 秒"),
+            ["golden"] = ("GOLDEN TARGET!", "黄金靶子！"),
+            ["golden.b"] = ("3× points for 10 s", "10 秒内三倍分"),
+            ["medal.gold"] = ("GOLD LAP", "金牌圈速"),
+            ["medal.silver"] = ("SILVER LAP", "银牌圈速"),
+            ["medal.bronze"] = ("BRONZE LAP", "铜牌圈速"),
+            ["hero.title"] = ("PLAY OF THE RACE", "全场最佳"),
+            ["hero.champion"] = ("CHAMPION", "冠军"),
+            // 教练提示（单人 .b；三人模式 .b3 说明是哪位玩家的动作）
+            ["coach.run"] = ("RUN!", "跑起来！"),
+            ["coach.run.b"] = ("pump your arms to go (or hold W)  ·  follow the beacon to the next stop", "摆动双臂前进（或按住 W）  ·  跟着光柱去下一站"),
+            ["coach.run.b3"] = ("P1: pump your arms to go  ·  P2: lean to steer toward the beacon", "P1 摆动双臂前进  ·  P2 身体倾斜朝光柱转"),
+            ["coach.shoot"] = ("TARGET AHEAD", "前方有靶子"),
+            ["coach.shoot.b"] = ("push both hands forward to spray (or Space)  ·  the lock marker shows what you'll hit", "双手往前推喷水（或空格）  ·  锁定标记就是会打中的靶子"),
+            ["coach.shoot.b3"] = ("P3: push both hands forward to spray  ·  raise an arm to aim", "P3 双手往前推喷水  ·  举一只手瞄准"),
+            ["coach.eat"] = ("EAT HERE", "在这里吃"),
+            ["coach.eat.b"] = ("hold a thumbs-up for 0.4 s (or F)", "竖起拇指保持 0.4 秒（或按 F）"),
+            ["coach.eat.b3"] = ("P3: hold a thumbs-up for 0.4 s", "P3 竖起拇指保持 0.4 秒"),
+            ["coach.drink"] = ("DRINK HERE", "在这里喝水"),
+            ["coach.drink.b"] = ("hold a thumbs-up for 0.4 s (or F)  ·  this also refills your water", "竖起拇指保持 0.4 秒（或按 F）  ·  顺便把水补满"),
+            ["coach.drink.b3"] = ("P3: hold a thumbs-up for 0.4 s  ·  this also refills the water", "P3 竖起拇指保持 0.4 秒  ·  顺便把水补满"),
+            ["coach.log"] = ("KEEP RUNNING", "继续跑"),
+            ["coach.log.b"] = ("walk right over the fallen log", "直接从倒下的木头上走过去"),
+            ["coach.water"] = ("WATER LOW", "水快没了"),
+            ["coach.water.b"] = ("hold a thumbs-up for 0.4 s to refill (or F)", "竖起拇指保持 0.4 秒补水（或按 F）"),
+            ["coach.water.b3"] = ("P3: hold a thumbs-up for 0.4 s to refill", "P3 竖起拇指保持 0.4 秒补水"),
+            ["coach.here"] = ("YOU'RE HERE", "到了"),
+            ["stat.candies"] = ("Candy", "糖果"),
 
             ["finish"] = ("COURSE COMPLETE", "完成赛道"),
             ["timeup"] = ("TIME UP", "时间到"),
