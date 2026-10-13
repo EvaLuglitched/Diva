@@ -25,6 +25,16 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+rem Load MediaPipe and the three models once now: the first import builds Matplotlib's font cache (it stays in
+rem %USERPROFILE%\.matplotlib), so the camera does not sit dark for that the first time Diva starts it.
+echo.
+echo Preparing the body tracking once (loads the models; the first time can take a minute)...
+.venv\Scripts\python.exe diva_bridge.py --selftest .
+if errorlevel 1 (
+  echo The tracking check failed. Send a photo of this window to the team.
+  pause
+  exit /b 1
+)
 echo.
 echo Camera gestures are ready. Start Diva.exe; the camera starts by itself.
 echo If Windows blocks the camera: Settings ^> Privacy ^& security ^> Camera ^> allow desktop apps.

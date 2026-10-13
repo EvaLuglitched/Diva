@@ -33,7 +33,7 @@ namespace Diva.Show
         [Tooltip("A light far-field depth of field during play as well (3A racer look): nothing nearer than Gameplay Blur Start softens, so the elephant, the targets and the road stay sharp; only the far houses and the sky edge go soft.")]
         public bool gameplayDepthOfField = true;
         [Tooltip("f-stop of the cinematic (bokeh) depth of field in cutscenes; small = strong blur.")]
-        [Range(1.4f, 22)] public float cutsceneAperture = 4f;
+        [Range(1.4f, 22)] public float cutsceneAperture = 5.6f;   // Carl 试玩（10/13）：f/4 开场有点重，收一档
         [Tooltip("Gameplay depth of field (Gaussian, far field only): metres where the softening starts / is full, and its radius.")]
         public float gameplayBlurStart = 35f, gameplayBlurEnd = 120f;
         [Range(.5f, 1.5f)] public float gameplayBlurRadius = 1f;
@@ -41,6 +41,9 @@ namespace Diva.Show
         [Range(0, .6f)] public float motionBlur = .14f;
         /// <summary>0..1 while the elephant is rushing (set by DivaShowDirector): motion blur doubles.</summary>
         [System.NonSerialized] public float boost;
+        /// <summary>0..1, how much of the gameplay far-field blur applies (set by DivaShowDirector): 0 in Eva's intro flight,
+        /// whose aerial shots see the whole town from far away (it would all go soft), 1 in play. Changes fade, never jump.</summary>
+        [System.NonSerialized] public float farBlur = 1;
 
         [Header("Light")]
         public Color rimColour = new Color(.72f, .84f, 1f);
@@ -75,7 +78,7 @@ namespace Diva.Show
         Color savedKeyColor = Color.white;
         float savedShadow = 1;
         Color savedSky, savedEquator, savedGround;
-        float pulse, blend;
+        float pulse, blend, farBlurNow = 1;
         const float VrBloom = .5f;
         CameraClearFlags previousClear;
         AntialiasingMode previousAa;
@@ -306,15 +309,14 @@ namespace Diva.Show
             float dt = DivaClock.DeltaTime;
             blend = Mathf.MoveTowards(blend, cinematicDepthOfField ? Mathf.Clamp01(cinematic) : 0, dt * 2.5f);
             pulse = Mathf.MoveTowards(pulse, 0, dt * 2.2f);
+            farBlurNow = Mathf.MoveTowards(farBlurNow, Mathf.Clamp01(farBlur), dt * 1.5f);
             // VR：景深、动态模糊、胶片颗粒、色差、暗角都会让人不舒服（眼睛对不了焦、画面边缘发暗像近视），全部关掉
             bool vr = Diva.VR.DivaVR.Active;
             if (vr) blend = 0;
-            // 景深（桌面版）：过场对焦大象、f/4 的电影感；比赛里也留一点（f/11、50 毫米），只有远处的房子和天边变软，靶子都在清楚的范围里。
-            // 两者之间平滑过渡，切阶段时不跳
-            // 景深（桌面版）：过场是 Bokeh（对焦大象，光圈从几乎全清楚的 f/22 渐开到 f/4）；比赛里是高斯远景虚化——只虚 35 米以外，
+            // 景深（桌面版）：过场是 Bokeh（对焦大象，光圈从几乎全清楚的 f/22 渐开到 cutsceneAperture，f/5.6）；比赛里是高斯远景虚化——只虚 35 米以外，
             // 大象、靶子、道具都清楚，也没有 Bokeh 那种近景一糊（近处的东西比远处糊得更厉害，打靶时很干扰）。
             // 两种模式切换点放在过渡的中段（blend .35），那一下最不显眼。VR 里整个关掉
-            bool playDof = gameplayDepthOfField && cinematicDepthOfField && !vr;
+            bool playDof = gameplayDepthOfField && cinematicDepthOfField && !vr && farBlurNow > .02f;
             dof.active = !vr && cinematicDepthOfField && (blend > .02f || playDof);
             if (dof.active)
             {
@@ -323,7 +325,9 @@ namespace Diva.Show
                 dof.focusDistance.value = Mathf.Max(.5f, focusDistance);
                 dof.aperture.value = Mathf.Lerp(22, cutsceneAperture, blend);
                 dof.focalLength.value = 85;
-                dof.gaussianStart.value = gameplayBlurStart; dof.gaussianEnd.value = Mathf.Max(gameplayBlurStart + 1, gameplayBlurEnd); dof.gaussianMaxRadius.value = gameplayBlurRadius;
+                // 远景虚化淡入淡出：起点从 400 米外（看不出来）慢慢拉近到 35 米，不会一下子糊上去
+                float start = Mathf.Lerp(400, gameplayBlurStart, farBlurNow);
+                dof.gaussianStart.value = start; dof.gaussianEnd.value = Mathf.Max(start + 1, Mathf.Lerp(600, gameplayBlurEnd, farBlurNow)); dof.gaussianMaxRadius.value = gameplayBlurRadius;
             }
             blur.intensity.value = vr ? 0 : motionBlur * (1 - blend) * (1 + Mathf.Clamp01(boost));
             blur.active = blur.intensity.value > .005f;
