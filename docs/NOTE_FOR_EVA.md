@@ -1,5 +1,54 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-13 (late night) — v1.5: single player tracks faster (you approved the bridge change), Mac and Windows together
+
+Single player could hardly walk in the app. The tracking ran at 12–16 fps alone but about 30 with three players: solo ran
+the full pose model and then the Gesture Recognizer (6 hands, the whole frame) on every camera frame, one after the other.
+Measured on Carl's M1 Max with a person in a 1280×720 frame:
+
+| One player, per frame | ms | tracking fps |
+| --- | --- | --- |
+| v1.4: pose + hands every frame | 64 | ~15.6 |
+| **v1.5: hands every other frame** | 45 | ~22 |
+| pose only (reference) | 26 | 30 (camera limit) |
+
+| Where | What |
+| --- | --- |
+| 🔒 `bridge.py` | `SOLO_HANDS_EVERY = 2`, `hands_due()`: solo runs hand / gesture recognition on every other frame and reuses the last hands in between, as the group already does on 'fast'. The first hands are never skipped. No gesture rule or threshold changed; three players unchanged |
+| `test_solo_hands.py` (new), `test_gesture_lock.py` | the cadence, the first frame, the group cadence; two new locked lines |
+| `GESTURES_LOCKED.md` | the approved change, with "Eva (via Carl)" |
+
+**Your PR #18 (roles stay in each player's spot) is in v1.5**, plus one addition you approved via Carl: in a group game the
+per-frame matching ranks each role by the distance to its saved spot (`anchored` in `PerformerTracker.assign`). Your
+change covered the 1 s re-lock; the per-frame nearest match still let a person behind P2 (within 0.20 of P2's last
+position) take the role the moment P2 was hidden, and keep it after P2 came back, so P2 could not steer until that person
+left. Now the player back in their own spot wins the role back at once. A player who drifts is still followed (near the
+spot or near the last position both admit a body); one player is unchanged. `test_spot_anchor.py` (4 cases): the
+"person behind P2" case fails without the change; your `test_role_spots.py` passes with it.
+
+v1.5 also carries the Windows changes below (Next camera, the readable camera message, the 60 fps cap that keeps adapting)
+on both platforms. Windows has the same solo problem (same bridge; its CPU is slower), so it gets the same fix.
+Not changed: the walking thresholds. The replay of your 13:57 solo round (v1.3 rule 78 % walking, v1.4 62 %) suggests the
+0.25 s stop pause could be relaxed for one player, but that data is not on Carl's Mac, so it is left for you.
+
+## 2026-10-13 (night) — Windows v1.3 and v1.4: your v1.2–v1.4 changes on Windows, camera switch, 60 fps cap keeps adapting
+
+Carl asked to bring Windows up to date: it was still on v1.1 (no re-lock, no recovery, no auto restart, old walking rule).
+Branch `carl/windows-v1.3`, from `main` at your v1.3 (`e9eda40`), then `carl/windows-v1.4` with your v1.4 merged in (the
+final presentation version). Nothing in the gesture rules, the bridge or your intro changed.
+
+| Where | What | Why |
+| --- | --- | --- |
+| `DigiPhantCameraPreview.cs` | **Next camera**: C on the camera check, or F1 > Next camera; the choice is remembered (PlayerPrefs) and the tracking restarts with it | Windows always opened camera 0 with no way to change it; a USB webcam, a virtual camera (OBS, Teams) or a face-login IR camera can be number 0 |
+| `DigiPhantCameraPreview.cs` | The bridge's "Camera could not open … try --camera 1" is shown as "no picture from camera N (Windows Settings > … ; wrong camera? F1 > Next camera)" | players cannot use a command-line option; `bridge.py` is locked, so the wording changes in Unity only |
+| `DivaShowPerf.cs` | With your camera cap on (vsync 2 on 120 Hz), the resolution still adapts; it never halves again to 30 fps | in v1.3 the adapting only ran at vsync 1, so a 120 / 144 Hz screen with a weaker GPU stayed at full resolution below 60 fps. `Tools/perf_sim` got three camera-on cases (E–G): all pass; your v1.3 file fails F (stays at scale 1.00, 54 fps) |
+| `DivaText.cs` | Camera check key hint: "C: next camera" | |
+| `Tools/release/READ ME (Windows).txt` | How to switch cameras; tracking restarts by itself | |
+
+Each Windows bridge (`diva_bridge.exe`) was frozen from that version's `TrackingOverrides` on GitHub's Windows machines.
+Tested there (no webcam, no GPU): self-test, a keyboard race with no errors, auto restart, C and F1 > Next camera.
+Not tested: live camera play on a Windows PC, switching between two real cameras.
+
 ## 2026-10-13 (evening) — v1.1: downloads that run directly, smoother with the camera, lighter opening blur
 
 Carl played a live round on the release build with the camera and asked for downloads that run directly on Mac and

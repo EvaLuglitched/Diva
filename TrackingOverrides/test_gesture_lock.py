@@ -43,7 +43,16 @@ LOCKED_LINES = [
     # 2026-10-13 approved change (Eva): a missing player's role passes to the person still in view after 1 s, and a
     # Gesture Recognizer failure rebuilds it instead of ending the bridge.
     ('TrackingOverrides/bridge.py', 'self.relock_seconds = 1.0'),
+    # 2026-10-13 approved change (Eva): after calibration roles stay in each player's spot; role colours in the preview.
+    ('TrackingOverrides/bridge.py', 'self.home = list(self.positions)   # calibrated: everyone\'s spot for the rest of the game'),
+    ('TrackingOverrides/bridge.py', 'colors = [(70, 70, 255), (255, 150, 40), (90, 220, 90), (60, 220, 255)]'),
     ('TrackingOverrides/bridge.py', 'gesture_recognizer = RecoveringRecognizer(lambda: vision.GestureRecognizer.create_from_options(gesture_options))'),
+    # 2026-10-13 approved change (Eva, v1.5): in a group game roles are ranked by the distance to each player's spot.
+    ('TrackingOverrides/bridge.py', 'anchored = self.home is not None and self.count >= 2'),
+    ('TrackingOverrides/bridge.py', 'distances = [math.dist(self.home[s] if anchored else self.positions[s], centers[i]) for s, i in pairs]'),
+    # 2026-10-13 approved change (Eva, v1.5): one player runs hand / gesture recognition on every other frame.
+    ('TrackingOverrides/bridge.py', 'SOLO_HANDS_EVERY = 2'),
+    ('TrackingOverrides/bridge.py', 'if p3_slot in bodies and hands_due(args.people, hand_frame, profile, last_hand_rows is not None):'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p1 = count == 1 ? (soloRole == 1 || all ? Read(1, now) : null) : Read(1, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p2 = count == 1 ? (soloRole == 2 || all ? Read(1, now) : null) : Read(2, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p3 = count == 1 ? (soloRole == 3 || all ? Read(1, now) : null) : Read(3, now);'),

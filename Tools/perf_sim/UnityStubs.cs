@@ -2,13 +2,23 @@
 using System;
 namespace UnityEngine
 {
-    public class Object { public static implicit operator bool(Object o) => !ReferenceEquals(o, null); }
-    public class MonoBehaviour : Object { }
+    public class Object
+    {
+        public string name = "";
+        public static implicit operator bool(Object o) => !ReferenceEquals(o, null);
+        /// <summary>What FindAnyObjectByType returns in the simulation (the elephant's controls, or none).</summary>
+        public static Object Found;
+        public static T FindAnyObjectByType<T>(FindObjectsInactive inactive) where T : Object => Found as T;
+    }
+    public enum FindObjectsInactive { Exclude, Include }
+    public class MonoBehaviour : Object { public T GetComponent<T>() where T : class => null; }
     public class RangeAttribute : Attribute { public RangeAttribute(float a, float b) { } }
     public class TooltipAttribute : Attribute { public TooltipAttribute(string s) { } }
     public static class Mathf
     {
         public static float Max(float a, float b) => Math.Max(a, b);
+        public static int Max(int a, int b) => Math.Max(a, b);
+        public static int RoundToInt(float f) => (int)Math.Round(f);
         public static float Min(float a, float b) => Math.Min(a, b);
         public static float Abs(float a) => Math.Abs(a);
         public static float Exp(float a) => (float)Math.Exp(a);
@@ -43,3 +53,9 @@ namespace UnityEngine.InputSystem
     public class KeyControl { public bool wasPressedThisFrame => false; }
     public class Keyboard { public static Keyboard current => null; public KeyControl f2Key = new KeyControl(); }
 }
+namespace DigiPhant
+{
+    public enum InputMode { TestSliders, Camera }
+    public class DigiPhantController : UnityEngine.MonoBehaviour { public InputMode inputMode; public int ReceivedFrames { get; set; } }
+}
+namespace Diva.Show { public class DivaShowDirector : UnityEngine.MonoBehaviour { public DigiPhant.DigiPhantController controller; } }

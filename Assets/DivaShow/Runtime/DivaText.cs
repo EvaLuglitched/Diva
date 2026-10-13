@@ -109,7 +109,7 @@ namespace Diva.Show
             ["check.wait"] = ("WAIT", "等待中"),
             ["check.hold"] = ("Recognised! Hold still… {0}", "识别成功！保持不动…{0}"),
             ["check.go"] = ("GO!", "开始！"),
-            ["check.keys"] = ("Enter: skip (keyboard play)   ·   Esc: back", "回车：跳过（用键盘玩）   ·   Esc：返回"),
+            ["check.keys"] = ("Enter: skip (keyboard play)   ·   C: next camera   ·   Esc: back", "回车：跳过（用键盘玩）   ·   C：换摄像头   ·   Esc：返回"),
             ["status.camera"] = ("No camera picture: {0}  ·  F1 → Retry, or Test controls / keyboard", "摄像头没有画面：{0}  ·  按 F1 点 Retry，或改用 Test controls / 键盘"),
             ["status.waiting3"] = ("Waiting for {0}", "等待 {0} 入镜"),
             ["status.calibrating"] = ("Stand naturally… ready in {0}", "自然站好…{0} 秒后就绪"),

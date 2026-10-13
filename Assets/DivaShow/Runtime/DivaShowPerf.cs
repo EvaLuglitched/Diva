@@ -105,7 +105,7 @@ namespace Diva.Show
             int floor = FloorVSync;
             if (VSync < floor)
             {
-                VSync = floor; QualitySettings.vSyncCount = floor; cameraCapped = true; hold = 1;
+                VSync = floor; QualitySettings.vSyncCount = floor; cameraCapped = true; hold = 1; probing = false;
                 Debug.Log($"DIVA_SHOW perf: camera tracking on -> game capped at {RefreshHz / floor:0} fps so the tracking keeps 30 fps");
             }
             else if (cameraCapped && floor == 1)
@@ -137,7 +137,9 @@ namespace Diva.Show
             }
             if (adaptive && urp)
             {
-                if (VSync == 1) AdaptAtFullRate(budget);
+                // 在允许的最高帧率上调分辩率：平时是显示器的全速，开着摄像头就是锁好的 60（Carl 2026-10-13：原来只在 vsync 1
+                // 时调，锁到 60 以后显卡跟不上也不会降分辩率，120/144 Hz 屏配弱显卡的电脑会一直卡在 40 帧左右）
+                if (VSync == FloorVSync) AdaptAtFullRate(budget);
                 else if (Time.unscaledTime > nextProbe && FloorVSync == 1)
                 {
                     // 半速时帧时间被垂直同步卡在两次刷新上，看不出余量：隔一阵试一次全速，跟得上就留下
@@ -178,7 +180,8 @@ namespace Diva.Show
             // 分辩率降到底了、或者降了也没用，还差很多：锁到显示器一半的刷新率（120 Hz 屏就是稳稳的 60）。只差一点就留在全速
             bool cannotScale = scale <= minScale + .001f || Time.unscaledTime < noDropUntil;
             misses = AverageMs > budget * SevereMiss && cannotScale ? misses + 1 : 0;
-            if (halfRateFallback && misses >= 2) HalfRate("cannot hold");
+            // 摄像头锁帧时已经是半速，不再往下减半（120 Hz 屏会掉到 30）
+            if (halfRateFallback && misses >= 2 && FloorVSync == 1) HalfRate("cannot hold");
         }
 
         void HalfRate(string why)

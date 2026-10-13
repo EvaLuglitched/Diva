@@ -138,6 +138,19 @@ def performance_profile(name='auto'):
     return dict(name='fast', lite=True, max_width=640, hands_every=2)
 
 
+# One player (approved by Eva, 2026-10-13, v1.5): hands on every other frame, as the group already does on 'fast'.
+# Solo ran the full pose model and then the Gesture Recognizer (6 hands, full frame) in the camera loop on every frame:
+# 64 ms a frame, about 15 fps on an M1 Max, slower on a Windows CPU, so the walking rule saw too few samples. Every
+# other frame: 45 ms, about 22 fps. Spray and the 0.4 s thumbs-up still get about 11-15 hand updates a second.
+SOLO_HANDS_EVERY = 2
+
+
+def hands_due(people, hand_frame, profile, have_last):
+    """Whether this frame runs hand / gesture recognition (the frames between reuse the last hands)."""
+    every = SOLO_HANDS_EVERY if people == 1 else profile['hands_every']
+    return not have_last or hand_frame % every == 0
+
+
 class GroupPoseDetector:
     """Pose detection policy.
 
@@ -260,16 +273,22 @@ class PerformerTracker:
         self.relock_seconds = 1.0
         self.missing_since = [None] * count
         self.relocked = []
+        # 2026-10-13 (Eva): once Unity saves the neutral pose (the game starts), each player's spot is remembered and
+        # roles never move to another spot: a missing player's role only comes back to someone in that player's own
+        # spot (P1 left, P2 middle, P3 right), whenever they leave or return. Nobody can take another player's role.
+        self.home = None
 
     def reset(self):
         self.positions = None
         self.locked = False
         self.missing_since = [None] * self.count
         self.relocked = []
+        self.home = None
 
     def lock(self):
         if self.positions is not None and all(p is not None for p in self.positions):
             self.locked = True
+            self.home = list(self.positions)   # calibrated: everyone's spot for the rest of the game
 
     @property
     def filled(self):
@@ -297,14 +316,21 @@ class PerformerTracker:
             if len(order) >= self.count:
                 self.locked = True
             return {slot + 1: index for slot, index in enumerate(order)}
+        # 2026-10-13 (Carl, extends Eva's spots): in a group game each role is ranked by the distance to its saved spot,
+        # so the player standing in their own spot always wins it back from whoever held it meanwhile (a person behind
+        # them, a second detection of someone). A player who drifts is still followed: near the spot or near where the
+        # role was last seen both admit a body. One player is unchanged (the role follows whoever is in view).
+        anchored = self.home is not None and self.count >= 2
         candidates = []
         for assignment in itertools.product(range(-1, len(centers)), repeat=self.count):
             used = [i for i in assignment if i >= 0]
             if len(set(used)) != len(used):
                 continue
-            distances = [math.dist(self.positions[s], centers[i]) for s, i in enumerate(assignment) if i >= 0]
-            if any(d > self.max_distance for d in distances):
+            pairs = [(s, i) for s, i in enumerate(assignment) if i >= 0]
+            if any(math.dist(self.positions[s], centers[i]) > self.max_distance
+                   and not (anchored and math.dist(self.home[s], centers[i]) <= self.max_distance) for s, i in pairs):
                 continue
+            distances = [math.dist(self.home[s] if anchored else self.positions[s], centers[i]) for s, i in pairs]
             candidates.append((-len(used), sum(distances), assignment))
         candidates.sort()
         best = candidates[0]
@@ -328,7 +354,15 @@ class PerformerTracker:
                          and now - self.missing_since[s] >= self.relock_seconds), key=lambda s: self.missing_since[s]):
             if not free:
                 break
-            index = min(free, key=lambda i: math.dist(self.positions[s], centers[i]))
+            if self.home is not None:
+                # In the game: only someone standing in this player's own spot (their nearest home, left to right)
+                # takes the role back; a person in another player's spot never does.
+                own = [i for i in free if min(range(self.count), key=lambda k: abs(self.home[k][0] - centers[i][0])) == s]
+                if not own:
+                    continue
+                index = min(own, key=lambda i: abs(self.home[s][0] - centers[i][0]))
+            else:
+                index = min(free, key=lambda i: math.dist(self.positions[s], centers[i]))
             free.remove(index)
             result[s + 1] = index
             self.positions[s] = centers[index]
@@ -568,7 +602,8 @@ def main():
              (27, 29), (29, 31), (27, 31), (28, 30), (30, 32), (28, 32),
              (0, 7), (0, 8), (7, 11), (8, 12)]
     # Every recognised (assigned) player is drawn green, unassigned bodies grey; the P1/P2/P3 label shows the role.
-    colors = [(100, 230, 100)] * 4
+    # Role colours in the preview (BGR), also used on Unity's camera check: P1 red, P2 blue, P3 green, P4 yellow.
+    colors = [(70, 70, 255), (255, 150, 40), (90, 220, 90), (60, 220, 255)]
     previous_timestamp = -1
     last_preview = 0.0
     preview_id = 0
@@ -709,7 +744,7 @@ def main():
                     # bodies first so another player's palm cannot fire P3's gun.
                     matched_hands = {}
                     hand_frame += 1
-                    if p3_slot in bodies and (args.people == 1 or hand_frame % profile['hands_every'] == 0 or last_hand_rows is None):
+                    if p3_slot in bodies and hands_due(args.people, hand_frame, profile, last_hand_rows is not None):
                         hand_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                         if gesture_recognizer is not None:
                             hand_result = gesture_recognizer.recognize_for_video(hand_image, timestamp)
@@ -722,7 +757,7 @@ def main():
                             hand_rows = [dict(landmarks=h) for h in hand_result.hand_landmarks]
                         last_hand_rows = hand_rows
                     elif p3_slot in bodies:
-                        hand_rows = last_hand_rows   # group mode, skipped frame: last hands (cheap, 15 fps is plenty for spray / refill)
+                        hand_rows = last_hand_rows   # skipped frame (solo, or group on 'fast'): last hands (cheap, 15 fps is plenty for spray / refill)
                     if p3_slot in bodies:
                         all_bodies = {f'observed-{i}': row[3] for i, row in enumerate(observations)}
                         associated = associate_hands(hand_rows, all_bodies, gestures.config, frame.shape[1] / frame.shape[0])
