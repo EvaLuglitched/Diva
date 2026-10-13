@@ -48,7 +48,10 @@ namespace Diva.Editor
                 Directory.CreateDirectory(outDir);
                 var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
                 {
-                    scenes = new[] { Scene }, locationPathName = full, target = target, options = BuildOptions.None,
+                    // Clean build every time: an incremental build kept the project's own name and id from the build cache
+                    // (JIVE_Digiphant, DefaultCompany, the URP template id) instead of the release's Diva / Team Diva / com.teamdiva.diva,
+                    // which also moved the log, the leaderboard and the camera permission (Eva, v1.3, 2026-10-13).
+                    scenes = new[] { Scene }, locationPathName = full, target = target, options = BuildOptions.CleanBuildCache,
                 });
                 var s = report.summary;
                 Debug.Log($"DIVA_RELEASE_BUILD {target} {s.result} {s.totalSize / (1024 * 1024)} MB errors {s.totalErrors} in {s.totalTime.TotalSeconds:0} s -> {full}");

@@ -37,7 +37,7 @@ namespace Diva.Show
         public float TrackingFps { get; private set; }
 
         DigiPhant.DigiPhantController controller;
-        int lastReceived; float lastReceivedAt;
+        int lastReceived; float lastReceivedAt, nextFind;
         bool cameraCapped;
         /// <summary>Smallest vSync interval allowed now: with the camera tracking on, enough to stay at or below cameraFrameCap.</summary>
         int FloorVSync => cameraFrameCap > 0 && controller && controller.inputMode == DigiPhant.InputMode.Camera
@@ -62,7 +62,6 @@ namespace Diva.Show
             urp = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
             if (urp) baseScale = scale = urp.renderScale;
             hold = 8;   // 开头着色器还在编译、帧率不准：先不量
-            controller = FindAnyObjectByType<DigiPhant.DigiPhantController>();
             Debug.Log($"DIVA_SHOW perf: vsync on, display {RefreshHz:0} Hz, render scale {scale:0.00}, adaptive {adaptive}");
         }
 
@@ -93,6 +92,15 @@ namespace Diva.Show
             if (kb != null && kb.f2Key.wasPressedThisFrame) showStats = !showStats;
             float dt = Time.unscaledDeltaTime;
             fpsNow = Mathf.Lerp(fpsNow, 1 / Mathf.Max(1e-4f, dt), 1 - Mathf.Exp(-dt * 2));
+            // The elephant's controls (the show director's, on this same object): keep looking once a second until found.
+            if (!controller && Time.unscaledTime >= nextFind)
+            {
+                nextFind = Time.unscaledTime + 1;
+                var director = GetComponent<DivaShowDirector>();
+                controller = director && director.controller ? director.controller
+                           : FindAnyObjectByType<DigiPhant.DigiPhantController>(FindObjectsInactive.Include);
+                if (controller) Debug.Log($"DIVA_SHOW perf: watching {controller.name} (input {controller.inputMode}) for the camera frame cap");
+            }
             // Camera tracking on: cap the game so the tracking keeps its CPU (and its 30 fps). Off: the cap goes away.
             int floor = FloorVSync;
             if (VSync < floor)
