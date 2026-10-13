@@ -27,7 +27,7 @@ Ready-to-play builds: **https://github.com/EvaLuglitched/Diva/releases/tag/v1.0*
 
 | Platform | File | Camera gestures |
 | --- | --- | --- |
-| macOS, Apple silicon (M1 and newer) | [Diva-v1.0-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.0/Diva-v1.0-macOS-AppleSilicon.zip) | built in: allow the camera when macOS asks |
+| macOS, Apple silicon (M1 and newer) | [Diva-v1.0-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.0/Diva-v1.0-macOS-AppleSilicon.zip) | built in: macOS asks for the camera when the game opens, one click on Allow |
 | Windows 10 / 11, 64-bit | [Diva-v1.0-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.0/Diva-v1.0-Windows-x64.zip) | run `DivaTracking\setup_camera.bat` once (needs Python 3.10+) |
 | Apple Vision Pro | [Diva-VR-v1.0-visionOS.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.0/Diva-VR-v1.0-visionOS.zip) | headset hand tracking; installs on the team's registered headsets |
 

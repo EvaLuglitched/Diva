@@ -9,9 +9,10 @@ INSTALL
    then open it again.
 
 CAMERA
-Choose Camera mode (the default) and press START. macOS asks once whether Diva may use the camera: click Allow.
+As soon as Diva opens, macOS asks whether Diva may use the camera: click Allow. That is all.
 The body tracking (MediaPipe) is built into the app and runs on this Mac; nothing is uploaded.
-If you clicked Don't Allow: System Settings > Privacy & Security > Camera > turn on Diva, then restart Diva.
+If you clicked Don't Allow: click the green ALLOW CAMERA button on the home page, switch Diva on in the
+camera list, and come back: the game picks the camera up by itself.
 
 CONTROLS (one player does everything; 3 PLAYERS splits them left to right)
   Walk / run ........ pump both arms up and down            keyboard W
