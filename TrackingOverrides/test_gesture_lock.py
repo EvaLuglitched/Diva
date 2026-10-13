@@ -17,7 +17,9 @@ ROOT = HERE.parent
 LOCKED = {
     # Walking (P1 / solo): pump the arms. 2026-10-13 approved change (Eva): one arm .10 + the other .05 (was both .14),
     # 1 s window, 0.5 s pause, slower motion counts, swings down to the thighs, 0.5 s of blurred wrists kept.
-    'min_quality': .30, 'go_window': 1.0, 'go_range': .10, 'go_range_other': .05, 'go_stop_delay': .5, 'go_step': .03,
+    # Later on 2026-10-13 (Eva): stop on time. Motion vs the wrist 0.2 s ago (jitter no longer counts), pause 0.25 s.
+    'min_quality': .30, 'go_window': 1.0, 'go_range': .10, 'go_range_other': .05, 'go_stop_delay': .25, 'go_step': .04,
+    'go_motion_window': .2,
     'go_hand_min_height': -1.8, 'go_dropout': .5,
     # Turning (P2 / solo): tilt the shoulders or the head, no hips
     'steer_tilt_start': .14, 'steer_tilt_release': .08, 'steer_tilt_full': .40, 'steer_direction': -1.,

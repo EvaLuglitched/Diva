@@ -38,12 +38,13 @@ class EasierWalkTests(unittest.TestCase):
         self.assertGreater(walking_share(make), .95)
 
     def test_slow_swing_with_pauses_walks(self):
-        def make(t):   # up in 0.55 s, hold 0.48 s at the top, down in 0.55 s, hold 0.48 s at the bottom
-            u = t % 2.06
-            k = u / .55 if u < .55 else 1 if u < 1.03 else 1 - (u - 1.03) / .55 if u < 1.58 else 0
+        # Later on 2026-10-13 the pause before stopping became 0.25 s (stop on time). Measured against the wrist
+        # 0.2 s ago, a turnaround pause of up to about 0.35 s still keeps walking.
+        def make(t):   # up in 0.55 s, hold 0.35 s at the top, down in 0.55 s, hold 0.35 s at the bottom
+            u = t % 1.8
+            k = u / .55 if u < .55 else 1 if u < .9 else 1 - (u - .9) / .55 if u < 1.45 else 0
             return body(height=-.7 + .8 * k)
         self.assertGreater(walking_share(make, frames=300), .99)
-        self.assertLess(walking_share(make, frames=300, old=True), .9)   # the old rule stuttered at every pause
 
     def test_swing_down_to_the_thighs_walks(self):
         make = lambda t: body(height=-.75 + .85 * math.sin(2 * math.pi * t))   # lowest -1.6 torso lengths
