@@ -155,7 +155,7 @@ namespace Diva.Show
             {
                 checkDemoGroup.alpha = Mathf.Clamp01(demoAge / .3f) * Mathf.Clamp01((DemoSeconds - demoAge) / .5f);
                 foreach (var (figure, caption) in checkFigures) caption.text = DivaText.T(figure.CaptionKey);
-                for (int i = 0; i < checkFigureLabels.Count; i++) checkFigureLabels[i].text = singlePlayer ? "" : "P" + (i + 1);
+                for (int i = 0; i < checkFigureLabels.Count; i++) checkFigureLabels[i].text = singlePlayer ? "" : PlayerTag(i);
             }
             bool all = problem == null && seen == count;
             var frame = all ? Recognised : Waiting;
@@ -181,6 +181,13 @@ namespace Diva.Show
             else checkHeldSince = -1;   // someone slipped out at the last moment: count again
         }
 
+        /// <summary>
+        /// "P1" / "P2" / "P3" in the role colour the camera picture draws each player's skeleton in (bridge.py):
+        /// P1 red, P2 blue, P3 green, so a player can see on the cards which skeleton is theirs.
+        /// </summary>
+        static string PlayerTag(int i) => $"<color={PlayerColours[Mathf.Clamp(i, 0, 3)]}>P{i + 1}</color>";
+        static readonly string[] PlayerColours = { "#FF4646", "#2896FF", "#5ADC5A", "#FFDC3C" };
+
         /// <summary>Role card i (0..2): role name, how to do it, and whether that player is recognised.</summary>
         void ShowCheckCard(int i, bool ok)
         {
@@ -192,7 +199,7 @@ namespace Diva.Show
                 if (ok) card.plate.Set(CardOn, CardOnBottom); else card.plate.Set(Ink, DivaUi.WithAlpha(Ink, .5f));
             }
             string role = DivaText.T("check.role" + (i + 1));
-            card.role.text = singlePlayer ? role : "P" + (i + 1) + "  ·  " + role;
+            card.role.text = singlePlayer ? role : PlayerTag(i) + "  ·  " + role;
             card.state.text = DivaText.T(ok ? "check.ok" : "check.wait");
             card.state.color = ok ? Color.white : Waiting;   // white on the green card
             card.how.text = DivaText.T("check.how" + (i + 1));
