@@ -116,6 +116,24 @@ kbd { font-family: var(--display); font-weight: 800; font-size: 15px; background
 .panel ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--mist); }
 .panel ol b { color: var(--ink); font-weight: 600; }
 
+/* two ways to play */
+.modes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .modes { grid-template-columns: minmax(0, 1fr); } }
+.mode { background: var(--plum); border: 1px solid var(--line); border-top: 4px solid var(--pink); padding: clamp(18px, 2.4vw, 28px); display: grid; gap: 18px; min-width: 0; }
+.mode.vrmode { border-top-color: var(--teal); }
+.mode-head { display: grid; gap: 8px; }
+.mode-tag { justify-self: start; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 10px; background: var(--pink); color: #fff; transform: skewX(var(--slant)); }
+.vrmode .mode-tag { background: var(--teal); color: var(--night); }
+.mode-head h3 { font-size: clamp(28px, 3vw, 36px); }
+.mode-head p { color: var(--mist); font-size: 16px; }
+.mode h4 { font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: .1em; text-transform: uppercase; margin: 0; color: var(--gold); }
+.mode ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--mist); font-size: 16px; }
+.mode ol b { color: var(--ink); font-weight: 600; }
+.mode table { min-width: 520px; }
+.mode table.vr-table { min-width: 380px; }
+.vrmode th { border-bottom-color: var(--teal); }
+.mode table td:nth-child(4) { white-space: nowrap; }
+
 /* moments gallery */
 .moments { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; }
 .moment { grid-column: span 2; margin: 0; background: var(--plum); border: 1px solid var(--line); overflow: hidden; display: grid; }
@@ -205,7 +223,7 @@ footer .wrap { display: grid; gap: 10px; }
         <p class="eyebrow">Team Diva · DesComp Project 2 · DigiPhant</p>
         <h1 class="title"><span class="skew">Diva</span></h1>
         <p class="tagline">Drive a mech elephant<br>with <em>your whole body</em></p>
-        <p class="lede">Pump your arms to run, tilt your shoulders to turn, push your hands forward to spray water. A webcam reads one player or three, and the elephant races through Candy Town for a gold lap.</p>
+        <p class="lede">Pump your arms to run, tilt your shoulders to turn, push your hands forward to spray water. A webcam reads one player or three, or you ride in the cockpit on Apple Vision Pro, racing through Candy Town for a gold lap.</p>
         <div class="downloads" id="download">
           <a class="dl" data-os="mac" href="https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-v1.1-macOS-AppleSilicon.zip">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v11.2l4-4 1.4 1.4L12 17l-5.4-5.4L8 10.2l4 4V3h0zM5 19h14v2H5z"/></svg>
@@ -244,33 +262,66 @@ footer .wrap { display: grid; gap: 10px; }
     <div class="wrap">
       <div class="head">
         <p class="eyebrow">How you play</p>
-        <h2><span class="skew">Your body is the controller</span></h2>
-        <p class="lede">One player does every job, or three players split them left to right. The keyboard works at any time, with or without a camera.</p>
+        <h2><span class="skew">Two ways to drive</span></h2>
+        <p class="lede">On a Mac or a Windows PC you stand in front of a webcam and your whole body drives. On Apple Vision Pro you sit in the cockpit and the headset reads your hands and head. Same elephant, same Candy Town, same race.</p>
       </div>
-      <div class="play-grid">
-        <div class="table-scroll">
-          <table>
-            <thead><tr><th>Move</th><th>Gesture</th><th>Who</th><th>Key</th></tr></thead>
-            <tbody>
-              <tr><td>Walk / run</td><td>Pump both arms up and down</td><td><span class="role p1">P1</span></td><td><kbd>W</kbd></td></tr>
-              <tr><td>Turn</td><td>Tilt your shoulders or your head</td><td><span class="role p2">P2</span></td><td><kbd>A</kbd> <kbd>D</kbd></td></tr>
-              <tr><td>Aim the trunk</td><td>Raise one arm</td><td><span class="role p3">P3</span></td><td><kbd>U</kbd> <kbd>I</kbd></td></tr>
-              <tr><td>Spray water</td><td>Push both open hands forward and hold</td><td><span class="role p3">P3</span></td><td><kbd>Space</kbd></td></tr>
-              <tr><td>Eat, drink, refill</td><td>Thumbs-up for 0.4 s</td><td><span class="role p3">P3</span></td><td><kbd>F</kbd></td></tr>
-              <tr><td>Mega Bubble</td><td>Both hands above your head for 0.8 s</td><td><span class="role any">Anyone</span></td><td><kbd>E</kbd></td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="panel">
-          <h3>One lap of Candy Town</h3>
+      <div class="modes">
+        <article class="mode" id="play-desktop">
+          <header class="mode-head">
+            <span class="mode-tag">macOS · Windows</span>
+            <h3>Webcam: stand up and move</h3>
+            <p>One player does every job, or three players split them left to right. The keyboard works at any time, with or without a camera.</p>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Move</th><th>Gesture</th><th>Who</th><th>Key</th></tr></thead>
+              <tbody>
+                <tr><td>Walk / run</td><td>Pump both arms up and down</td><td><span class="role p1">P1</span></td><td><kbd>W</kbd></td></tr>
+                <tr><td>Turn</td><td>Tilt your shoulders or your head</td><td><span class="role p2">P2</span></td><td><kbd>A</kbd> <kbd>D</kbd></td></tr>
+                <tr><td>Aim the trunk</td><td>Raise one arm</td><td><span class="role p3">P3</span></td><td><kbd>U</kbd> <kbd>I</kbd></td></tr>
+                <tr><td>Spray water</td><td>Push both open hands forward and hold</td><td><span class="role p3">P3</span></td><td><kbd>Space</kbd></td></tr>
+                <tr><td>Eat, drink, refill</td><td>Thumbs-up for 0.4 s</td><td><span class="role p3">P3</span></td><td><kbd>F</kbd></td></tr>
+                <tr><td>Mega Bubble</td><td>Both hands above your head for 0.8 s</td><td><span class="role any">Anyone</span></td><td><kbd>E</kbd></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>One lap</h4>
           <ol>
-            <li><b>Pick a mech skin:</b> Classic Candy, Amethyst Night, Porcelain Sky or Cherry Campus.</li>
+            <li><b>Pick a mech skin</b> (raise one arm for the next one), choose 1 or 3 players, then START.</li>
             <li><b>Camera check:</b> stand back until your head to waist is in the picture. When every card turns green, hold still for 5 s and the game saves your standing pose.</li>
-            <li><b>Race:</b> shoot targets and candy, grab golden targets, go ON FIRE and finish four tasks: eat at the feeding bush, drink at the water basin, go around the fallen log, cross the finish arch.</li>
+            <li><b>Race:</b> shoot targets and candy, grab golden targets, go ON FIRE and finish the four tasks.</li>
             <li><b>The ice wall:</b> only a Mega Bubble smashes it, so save your charge.</li>
-            <li><b>Finish:</b> a hero card, a highlight replay of your best moments and the leaderboard.</li>
+            <li><b>Finish:</b> a hero card, a highlight replay and the leaderboard.</li>
           </ol>
-        </div>
+        </article>
+        <article class="mode vrmode" id="play-vision-pro">
+          <header class="mode-head">
+            <span class="mode-tag">Apple Vision Pro</span>
+            <h3>Headset: sit in the cockpit</h3>
+            <p>One player, life-size on the elephant's back. No webcam and no keyboard: the headset tracks your hands, your eyes and your head.</p>
+          </header>
+          <div class="table-scroll">
+            <table class="vr-table">
+              <thead><tr><th>Move</th><th>How</th></tr></thead>
+              <tbody>
+                <tr><td>Walk / run</td><td>Lean forward; sit back to stop</td></tr>
+                <tr><td>Turn</td><td>Tilt your head</td></tr>
+                <tr><td>Spray water</td><td>Look at a target and pinch; hold to keep spraying</td></tr>
+                <tr><td>Eat, drink, refill</td><td>Thumbs-up for 0.4 s, or a hand to your mouth</td></tr>
+                <tr><td>Mega Bubble</td><td>Raise both hands to eye level and hold</td></tr>
+                <tr><td>Buttons</td><td>Look at a button and pinch; PAUSE is on the dashboard</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>One lap</h4>
+          <ol>
+            <li><b>Look at START and pinch.</b> The camera flies over Candy Town and drops you into the cockpit.</li>
+            <li><b>Pick your paint:</b> pinch to try the next skin, then CHOOSE.</li>
+            <li><b>Learn the moves:</b> glowing ghost hands show each one, then you practise until every move ticks.</li>
+            <li><b>Set off:</b> raise both hands to eye level.</li>
+            <li><b>Race:</b> the coach points to each task; the same targets, tasks and ice wall, then the hero moment and the leaderboard.</li>
+          </ol>
+        </article>
       </div>
     </div>
   </section>
@@ -303,14 +354,8 @@ footer .wrap { display: grid; gap: 10px; }
       <div>
         <p class="eyebrow">Apple Vision Pro</p>
         <h2><span class="skew">Ride on its back</span></h2>
-        <p class="lede" style="margin-top:14px">The Vision Pro version puts you in a cockpit on the elephant, life-size in Candy Town. The headset reads your hands and head, so no webcam is needed.</p>
-        <dl>
-          <dt>Walk</dt><dd>Lean forward</dd>
-          <dt>Turn</dt><dd>Tilt your head</dd>
-          <dt>Spray</dt><dd>Look at a target and pinch</dd>
-          <dt>Drink</dt><dd>Thumbs-up</dd>
-          <dt>Ultimate</dt><dd>Both hands up to eye level</dd>
-        </dl>
+        <p class="lede" style="margin-top:14px">The Vision Pro version puts you in a cockpit on the elephant, life-size in Candy Town. You lean to run, tilt your head to turn and pinch at targets, and the headset does the tracking.</p>
+        <p class="fine" style="margin-top:18px"><a href="#play-vision-pro">Vision Pro controls and the first lap</a></p>
       </div>
     </div>
   </section>
