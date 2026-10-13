@@ -37,6 +37,10 @@ LOCKED_LINES = [
     ('TrackingOverrides/bridge.py', 'tracker.assign([(1 - o[0][0], o[0][1]) for o in observations])'),   # mirrored left-to-right roles
     ('TrackingOverrides/bridge.py', 'uncertain = {s for c in ties for s in range(self.count) if c[2][s] != best[2][s]}'),  # pause only ambiguous players
     ('TrackingOverrides/bridge.py', 'def __init__(self, count, max_distance=.20):'),
+    # 2026-10-13 approved change (Eva): a missing player's role passes to the person still in view after 1 s, and a
+    # Gesture Recognizer failure rebuilds it instead of ending the bridge.
+    ('TrackingOverrides/bridge.py', 'self.relock_seconds = 1.0'),
+    ('TrackingOverrides/bridge.py', 'gesture_recognizer = RecoveringRecognizer(lambda: vision.GestureRecognizer.create_from_options(gesture_options))'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p1 = count == 1 ? (soloRole == 1 || all ? Read(1, now) : null) : Read(1, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p2 = count == 1 ? (soloRole == 2 || all ? Read(1, now) : null) : Read(2, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p3 = count == 1 ? (soloRole == 3 || all ? Read(1, now) : null) : Read(3, now);'),
