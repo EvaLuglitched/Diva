@@ -22,10 +22,15 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
 
-## Download v1.4 (macOS, Windows) · v1.1 (Vision Pro)
+## Download v1.5 (macOS, Windows) · v1.1 (Vision Pro)
 
-Ready-to-play builds: macOS and Windows **https://github.com/EvaLuglitched/Diva/releases/tag/v1.4**, Vision Pro
+Ready-to-play builds: macOS and Windows **https://github.com/EvaLuglitched/Diva/releases/tag/v1.5**, Vision Pro
 **https://github.com/EvaLuglitched/Diva/releases/tag/v1.1** (all releases: https://github.com/EvaLuglitched/Diva/releases)
+
+v1.5 (macOS, Windows): single player tracks much faster (about 22 instead of 15 frames a second: the hand / thumbs-up
+recognition now runs on every other frame, as with three players), so one player can walk again. Mac and Windows are the
+same version again, and both get Next camera (C on the camera check, or F1 > Next camera), a camera message players can act
+on, and a 60 fps camera cap that still lowers the resolution when a 120 Hz+ screen needs it.
 
 v1.4 (macOS): the elephant stops on time, about 0.4 s after P1 stops swinging (was about 1 s: wrist jitter kept
 counting as movement), and the BOOSTER RUSH effect is off.
@@ -38,14 +43,12 @@ v1.2 (macOS): whoever stays in front of the camera keeps playing (a player who l
 view after 1 s), no tracking crash with several people in view, the Mac always uses its own camera (not a nearby iPhone),
 and the tracking restarts by itself if it ever stops.
 
-Windows (v1.3 and v1.4) has all of the above (the walking and stopping rules, re-lock, recovery and restart; the camera cap
-is for 120 Hz+ screens) plus **Next camera**: C on the camera check, or F1 > Next camera, when a PC opens the wrong camera (USB
-webcam, virtual camera, face-login camera). Vision Pro has not been rebuilt yet and stays on v1.1.
+Windows v1.3 and v1.4 had all of the above plus Next camera. Vision Pro has not been rebuilt yet and stays on v1.1.
 
 | Platform | File | First start | Camera gestures |
 | --- | --- | --- | --- |
-| macOS, Apple silicon (M1 and newer) | [Diva-v1.4-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.4/Diva-v1.4-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
-| Windows 10 / 11, 64-bit | [Diva-v1.4-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.4/Diva-v1.4-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks; wrong camera: C on the camera check or F1 > Next camera |
+| macOS, Apple silicon (M1 and newer) | [Diva-v1.5-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.5/Diva-v1.5-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
+| Windows 10 / 11, 64-bit | [Diva-v1.5-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.5/Diva-v1.5-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks; wrong camera: C on the camera check or F1 > Next camera |
 | Apple Vision Pro | [Diva-VR-v1.1-visionOS.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-VR-v1.1-visionOS.zip) | development-signed: installs on the team's registered headsets | headset hand tracking |
 
 The keyboard works in every desktop build without a camera. Each zip has a short READ ME. The very first camera start
@@ -165,7 +168,7 @@ v1.1 checks (2026-10-13), automated unless stated:
   permission, camera check, calibration, gold lap. About 113 fps at full resolution with the camera tracking running.
   A copy marked as downloaded is stopped by Gatekeeper until it is allowed; once allowed, its camera bridge loads all
   three models.
-- Windows, on GitHub's Windows Server 2025 machines (no webcam, software graphics): the v1.3 and v1.4 zips unpacked into
+- Windows, on GitHub's Windows Server 2025 machines (no webcam, software graphics): the v1.3, v1.4 and v1.5 zips unpacked into
   Downloads; the bridge self-test passes (first start 5 s, later 1.3 s); a keyboard race from the home page to the
   race with no errors; with no camera the tracking restarts by itself (2, 4, 8, 16, 30 s); C on the camera check and
   F1 > Next camera restart it and the choice is saved.
