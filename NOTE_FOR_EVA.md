@@ -20,8 +20,8 @@ whole blocked width so a skipped ice column never feels like an invisible wall.
 
 Performance (Diva Show layer only): pooled particle flashes / pops / score popups / feed rows, HUD texts rebuilt only when
 their value changes, sound synthesis on a background thread, candy materials shared, cached lookups. New runtime
-component `DivaShowPerf` (vSync + adaptive URP render scale, never below 0.7) and `DivaLook` gained a light gameplay
-depth of field (f/11) plus camera motion blur; both are off in VR. Details: `DIVA_TRY_IT.md` → "Picture and frame rate".
+component `DivaShowPerf` (vSync + adaptive URP render scale, never below 0.7) and `DivaLook` gained a light far-field gameplay
+depth of field (Gaussian from 35 m) plus camera motion blur; both are off in VR. Details: `DIVA_TRY_IT.md` → "Picture and frame rate".
 
 ## 2026-10-12 — race extras, shared between PC and Vision Pro (branch `carl/race-meta`)
 

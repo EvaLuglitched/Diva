@@ -46,11 +46,11 @@ All numbers are Inspector fields on the Diva Show object ("Race meta").
   (120 fps on a ProMotion screen) and, only when a frame misses that budget, lowers the URP render scale in 0.1 steps
   (never below 0.7), raising it back when there is headroom. It logs `DIVA_SHOW perf:` lines; untick *Adaptive* on the
   component to keep native resolution.
-- **3A look** (`DivaLook` on the Diva Show object): a light depth of field during play (f/11, 50 mm, the elephant and the
-  targets stay sharp, far houses soften) and f/4 cinematic focus in cutscenes; camera motion blur during play, stronger
+- **3A look** (`DivaLook` on the Diva Show object): a light far-field depth of field during play (Gaussian, from 35 m: the elephant, the
+  targets and the road stay sharp, far houses soften) and f/4 cinematic bokeh focus in cutscenes; camera motion blur during play, stronger
   while boosting; 4096 shadow map over 60 m; SSAO at half resolution; the town reflection probe now really renders
-  (the quality setting that disabled realtime probes is on). Fields: *Gameplay Depth Of Field*, *Cutscene / Gameplay
-  Aperture*, *Motion Blur*.
+  (the quality setting that disabled realtime probes is on). Fields: *Gameplay Depth Of Field*, *Gameplay Blur Start / End / Radius*,
+  *Cutscene Aperture*, *Motion Blur*.
 - The ice-wall refraction (a full-screen opaque copy) is only requested while the wall is within 70 m in front of the
   camera; `PC_RPAsset` no longer forces the opaque texture every frame.
 - Vision Pro: no depth of field, no motion blur (they hurt in a headset); the cockpit tracks the elephant's heading

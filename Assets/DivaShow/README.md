@@ -64,7 +64,7 @@
 | 天空 | 场景里主摄像机的背景是纯色深蓝，看不到 Eva 做的紫蓝渐变天空；这里改成显示天空 |
 | 过场镜头避让 | 开局给没有碰撞体的道具各加一个看不见的网格碰撞体（Ignore Raycast 层，只给镜头检测用）。过场镜头和画中画被挡住时，绕着大象转一点角度避开，再不行才升高或拉近 |
 | 过场电影感 | 选涂装、Eva 开场绕圈、大招、结束、高光回放、结算时：景深对焦大象（85mm f/4）和一点胶片颗粒；大招爆开、冲刺、连击时短暂的色差和 Bloom 加强 |
-| 比赛中的景深（3A 感） | 比赛里也留一点景深：50mm f/11 对焦大象，大象和水炮范围内的靶子都清楚，只有远处的房子和天边变软；进过场平滑过渡到 85mm f/4。字段 Gameplay Depth Of Field、Cutscene / Gameplay Aperture。头显上不开（眼睛对不了焦会晕） |
+| 比赛中的景深（3A 感） | 比赛里也留一点景深，但只虚远景（高斯，35 米开始、120 米全虚）：大象、靶子、道具都清楚，没有近景一糊；进过场切到 85mm f/4 的 Bokeh 对焦大象。字段 Gameplay Depth Of Field、Gameplay Blur Start / End / Radius、Cutscene Aperture。头显上不开（眼睛对不了焦会晕） |
 | 动态模糊 | 比赛中镜头动态模糊（强度 0.14，只算相机运动），冲刺时加倍；过场和头显上关。字段 Motion Blur |
 
 ### 帧率守护（DivaShowPerf）
@@ -130,7 +130,7 @@ MacBook Pro 是 ProMotion 120 Hz，就是 120 fps，节奏均匀没有撕裂）�
 | Assist Degrees | 辅助瞄准：锁定的靶子超出水炮锥角多少度以内仍保持锁定 |
 | Ice Wall / Wall Distance / Wall Height / Wall Max Width | 冰墙开关、离终点线的距离、高度、最大宽度 |
 | Wall Push Charge / Wall Break Bonus | 顶墙每秒充能、炸墙奖励分 |
-| DivaLook：Gameplay Depth Of Field / Cutscene Aperture / Gameplay Aperture / Motion Blur | 比赛中的景深、两档光圈、动态模糊强度（见"光影"） |
+| DivaLook：Gameplay Depth Of Field / Gameplay Blur Start、End、Radius / Cutscene Aperture / Motion Blur | 比赛中的远景虚化、过场光圈、动态模糊强度（见"光影"） |
 | DivaShowPerf：Min Scale / Adaptive | 帧率守护最低降到多少分辩率、要不要自动调（运行时才有这个组件） |
 
 ## 文件
