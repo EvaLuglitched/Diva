@@ -15,12 +15,15 @@ namespace Diva.Show
         public static Lang Current { get; private set; } = Lang.En;
         public static bool Chinese => Current == Lang.Zh;
         public static event Action Changed;
+        /// <summary>中文开关。Carl 2026-10-13：中文显示有 bug，先把切换整个拿掉（文字表留着，之后修好再开）。</summary>
+        public static bool LanguageSwitch = false;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { Current = Lang.En; Changed = null; }
 
         public static void Set(Lang lang)
         {
+            if (lang == Lang.Zh && !LanguageSwitch) return;
             if (lang == Current) return;
             Current = lang;
             Changed?.Invoke();
