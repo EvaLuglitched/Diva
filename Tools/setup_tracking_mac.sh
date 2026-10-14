@@ -46,6 +46,8 @@ if [ -x .venv/bin/python ] && ! .venv/bin/python -c 'import sys; sys.exit(0 if s
 [ -f pose_landmarker_full.task ] || curl -fsSL -o pose_landmarker_full.task "$POSE_URL"
 [ -f hand_landmarker.task ] || curl -fsSL -o hand_landmarker.task "$HAND_URL"
 cd ../..
+# v2.0 password lock: refuse commits that change a locked file without Eva's signature (see GESTURES_LOCKED.md)
+git config core.hooksPath .githooks 2>/dev/null || true
 # Our tests run where they live (the gesture-lock test checks the tracked files); the starter's recording test runs in Tracking
 DigiPhantStarter/Tracking/.venv/bin/python -m unittest discover -s TrackingOverrides -p 'test_*.py'
 (cd DigiPhantStarter/Tracking && .venv/bin/python -m unittest test_recording)

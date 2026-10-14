@@ -1,0 +1,26 @@
+# 🔒 Diva v2.0 lock: every push and pull request checks that the password-locked files (action detection, controls,
+# camera / player lock) are exactly as Eva signed them, then runs all tracking tests.
+name: Diva lock and tests
+on:
+  push:
+  pull_request:
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    env:
+      # Eva's public key (Tools/lock/diva_lock.py PINNED_PUBLIC_KEY); only her password can sign for it.
+      DIVA_LOCK_KEY: d80806f1a3020e287c432db6d4a754797cf0c41d23b004b888a482749de49cec
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Locked files are exactly as signed
+        run: |
+          grep -q "\"public_key\": \"$DIVA_LOCK_KEY\"" Tools/lock/lock.json || { echo "lock.json is not signed with Eva's key"; exit 1; }
+          python Tools/lock/diva_lock.py status
+          python Tools/lock/diva_lock.py verify
+      - name: Tracking tests
+        run: |
+          pip install -r TrackingOverrides/requirements.txt
+          python -m unittest discover -s TrackingOverrides -p "test_*.py"

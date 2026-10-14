@@ -1,9 +1,21 @@
-# 🔒 Locked gesture controls (see GESTURES_LOCKED.md): changes need Eva's review.
-# (GitHub enforces this only when "Require review from Code Owners" is on in the main branch protection.)
-/TrackingOverrides/diva_gestures.py            @EvaLuglitched
-/TrackingOverrides/diva_gestures.json          @EvaLuglitched
-/TrackingOverrides/bridge.py                   @EvaLuglitched
-/TrackingOverrides/test_gesture_lock.py        @EvaLuglitched
-/Assets/DigiPhant/Runtime/DivaControlState.cs  @EvaLuglitched
-/Assets/DigiPhant/Runtime/DivaDemo.cs          @EvaLuglitched
-/GESTURES_LOCKED.md                            @EvaLuglitched
+# 🔒 Diva v2.0 password lock (Tools/lock, GESTURES_LOCKED.md): the action detection, controls and camera / player lock
+# need Eva's review (and her password to re-sign Tools/lock/lock.json).
+# (GitHub enforces the review only when "Require review from Code Owners" is on in the main branch protection.)
+/TrackingOverrides/diva_gestures.py                      @EvaLuglitched
+/TrackingOverrides/diva_gestures.json                    @EvaLuglitched
+/TrackingOverrides/bridge.py                             @EvaLuglitched
+/TrackingOverrides/test_*.py                             @EvaLuglitched
+/Assets/DigiPhant/Runtime/DivaControlState.cs            @EvaLuglitched
+/Assets/DigiPhant/Runtime/DivaDemo.cs                    @EvaLuglitched
+/Assets/DigiPhant/Runtime/DigiPhantController.cs         @EvaLuglitched
+/Assets/DigiPhant/Runtime/DigiPhantLocomotion.cs         @EvaLuglitched
+/Assets/DigiPhant/Runtime/DigiPhantCameraPreview.cs      @EvaLuglitched
+/Assets/DigiPhant/Runtime/DigiPhantMacCameras.cs         @EvaLuglitched
+/Assets/DivaShow/Runtime/DivaShowCameraCheck.cs          @EvaLuglitched
+/Assets/DigiPhant/Editor/DivaSetup.cs                    @EvaLuglitched
+/Assets/DigiPhant/Editor/DivaStationaryTurnValidation.cs @EvaLuglitched
+/Assets/DivaShow/Editor/DivaLockCheck.cs                 @EvaLuglitched
+/Tools/lock/                                             @EvaLuglitched
+/.githooks/                                              @EvaLuglitched
+/.github/                                                @EvaLuglitched
+/GESTURES_LOCKED.md                                      @EvaLuglitched

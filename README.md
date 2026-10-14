@@ -117,6 +117,7 @@ python -m venv DigiPhantStarter/Tracking/.venv
 Invoke-WebRequest -Uri 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task' -OutFile DigiPhantStarter/Tracking/pose_landmarker_full.task
 Invoke-WebRequest -Uri 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task' -OutFile DigiPhantStarter/Tracking/hand_landmarker.task
 & DigiPhantStarter/Tracking/.venv/Scripts/python.exe -m unittest discover -s DigiPhantStarter/Tracking -p 'test_*.py'
+git config core.hooksPath .githooks
 ```
 
 Both paths: clone the starter **beside** `Assets` as `DigiPhantStarter` at the pinned commit, copy `Elephant/` and
@@ -124,6 +125,11 @@ Both paths: clone the starter **beside** `Assets` as `DigiPhantStarter` at the p
 starter's `Tracking/`, create the Python environment from `requirements.txt` and download the pose and hand models.
 Do not copy the starter's `DigiPhant/` or `SavannahCourse/` over ours: ours are adapted and tracked. Then open the scene
 in Unity 6000.6.3f1. The first open imports everything and takes a while.
+
+**Password lock (v2.0):** the action detection, the controls and the camera / player lock are signed with Eva's
+password (`Tools/lock/`, see [GESTURES_LOCKED.md](GESTURES_LOCKED.md)). After cloning, turn on the commit check once:
+`git config core.hooksPath .githooks`. `python3 Tools/lock/diva_lock.py verify` checks the locked files; GitHub and
+Unity (**DigiPhant > Diva > Verify Lock**, and every release build) check them too.
 
 Optional: the sky rocket and clouds are Fab models whose licence does not allow a public repository. Eva shares
 `Diva_Fab_Assets.zip` privately ([docs/FAB_SETUP.md](docs/FAB_SETUP.md)); without it the scene shows our stand-ins.
@@ -155,6 +161,11 @@ F1 → **Record performance** saves a silent Game-view MP4 to `Recordings/`; eve
 Details in [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md).
 
 ## Verification
+
+v2.0 checks (2026-10-13): 161 Python tests (including the password lock and the RFC 8032 signature vectors), the four
+Unity validators and **Verify Lock** pass with 0 compile errors; the real tracking bridge ran Vicky's recorded P1 / P3
+clips in one- and three-player mode; Eva played single-player and three-player live in Unity. What changed is in
+[GESTURES_LOCKED.md](GESTURES_LOCKED.md) and [docs/EVA_UPDATES.md](docs/EVA_UPDATES.md) (items 30–32).
 
 v1.1 checks (2026-10-13), automated unless stated:
 
