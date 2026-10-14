@@ -18,19 +18,25 @@ LOCKED = {
     # Walking (P1 / solo): pump the arms. 2026-10-13 approved change (Eva): one arm .10 + the other .05 (was both .14),
     # 1 s window, 0.5 s pause, slower motion counts, swings down to the thighs, 0.5 s of blurred wrists kept.
     # Later on 2026-10-13 (Eva): stop on time. Motion vs the wrist 0.2 s ago (jitter no longer counts), pause 0.25 s.
-    'min_quality': .30, 'go_window': 1.0, 'go_range': .10, 'go_range_other': .05, 'go_stop_delay': .25, 'go_step': .04,
-    'go_motion_window': .2,
+    # 2026-10-13 night (Eva, checked against Vicky's original GO/STOP data): a hand must come up to the navel (go_reach)
+    # once a second, so hanging hands never walk; swing sizes .14 / .08 (.10 / .05 matched a player holding still).
+    'min_quality': .30, 'go_window': 1.0, 'go_range': .14, 'go_range_other': .08, 'go_reach': -.6,
+    'go_stop_delay': .25, 'go_step': .04, 'go_motion_window': .2,
     'go_hand_min_height': -1.8, 'go_dropout': .5,
+    # 2026-10-13 night (Eva): a player missing from tracking under 0.6 s keeps the swing history and the turn.
+    'player_dropout': .6,
     # Turning (P2 / solo): tilt the shoulders or the head, no hips
     'steer_tilt_start': .14, 'steer_tilt_release': .08, 'steer_tilt_full': .40, 'steer_direction': -1.,
     'steer_dropout': .3,
     # Aim / spray (P3 / solo)
-    'aim_height': .65, 'hand_match_distance': .55, 'finger_angle': 145., 'finger_extension': 1.2,
+    'aim_height': .65, 'aim_still_window': .5, 'hand_match_distance': .55, 'finger_angle': 145., 'finger_extension': 1.2,
     'shoot_min_height': -.55, 'shoot_max_height': .65, 'shoot_forward_z': .20, 'shoot_elbow_angle': 140.,
     'shoot_aim_full_offset': .35, 'shoot_aim_deadzone': .06,
     # Refill (P3 / solo): thumbs-up held 0.4 s (Gesture Recognizer Thumb_Up or the geometric rule)
     'thumb_hold': .4, 'thumb_max_gap': .6, 'thumb_angle_min': 150., 'thumb_up_cos': .70, 'thumb_extension': .5,
     'curled_angle_max': 135., 'thumb_model_score': .5,
+    # 2026-10-13 night (Eva): a thumbs-up refills only held still and not while walking (solo pumping fists read as Thumb_Up).
+    'thumb_still': .15, 'thumb_still_window': .3,
     # Ultimate (anyone): both hands above the head for 0.8 s
     'ult_height': .85, 'ult_hold': .8, 'ult_walk_hold': .4,
 }
@@ -53,6 +59,13 @@ LOCKED_LINES = [
     # 2026-10-13 approved change (Eva, v1.5): one player runs hand / gesture recognition on every other frame.
     ('TrackingOverrides/bridge.py', 'SOLO_HANDS_EVERY = 2'),
     ('TrackingOverrides/bridge.py', 'if p3_slot in bodies and hands_due(args.people, hand_frame, profile, last_hand_rows is not None):'),
+    # 2026-10-13 night approved changes (Eva): P2 never depends on hips or wrists (confidence = shoulders when the wrists
+    # are unclear; players tracked by the shoulder midpoint); a few frames missing keep a player's state.
+    ('TrackingOverrides/bridge.py', 'center = shoulder_center(landmarks)'),
+    ('TrackingOverrides/bridge.py', 'gestures.retain(assignments, timestamp / 1000.)'),
+    ('TrackingOverrides/diva_gestures.py', "elif time is None or time-self.missing.setdefault(slot,time)>=self.config['player_dropout']:"),
+    # 2026-10-13 night approved change (Eva): no walking unless a hand came up to go_reach in the window.
+    ('TrackingOverrides/diva_gestures.py', "reach=max(r[2] for r in history)   # highest wrist in the window (torso lengths above the shoulders)"),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p1 = count == 1 ? (soloRole == 1 || all ? Read(1, now) : null) : Read(1, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p2 = count == 1 ? (soloRole == 2 || all ? Read(1, now) : null) : Read(2, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p3 = count == 1 ? (soloRole == 3 || all ? Read(1, now) : null) : Read(3, now);'),

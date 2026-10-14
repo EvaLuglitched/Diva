@@ -39,7 +39,7 @@ def run_video(path, people, slot, config_overrides, model, hand_model, calibrate
     import mediapipe as mp
     from mediapipe.tasks import python
     from mediapipe.tasks.python import vision
-    from bridge import GroupPoseDetector, PerformerTracker, extract_features
+    from bridge import GroupPoseDetector, PerformerTracker, extract_features, shoulder_center
     from diva_gestures import DivaGestureDetector, associate_hands
 
     gestures = DivaGestureDetector(HERE / 'diva_gestures.json')
@@ -82,10 +82,10 @@ def run_video(path, people, slot, config_overrides, model, hand_model, calibrate
             center, values, confidence = extract_features(landmarks)
             shoulder_quality = min(min(landmarks[j].visibility, landmarks[j].presence) for j in (11, 12))
             if confidence[4] >= usable or shoulder_quality >= usable:
-                observations.append((center, values, confidence, landmarks))
-        assignments = tracker.assign([o[0] for o in observations])
+                observations.append((shoulder_center(landmarks), values, confidence, landmarks))   # as the bridge
+        assignments = tracker.assign([(1 - o[0][0], o[0][1]) for o in observations])   # mirrored, as the bridge
         bodies = {s: observations[i][3] for s, i in assignments.items()}
-        gestures.retain(assignments)
+        gestures.retain(assignments, seconds)
         aspect = frame.shape[1] / frame.shape[0]
         matched = {}
         if p3_slot in bodies:

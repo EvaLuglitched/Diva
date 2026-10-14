@@ -22,10 +22,12 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
 
-## Download v1.5 (macOS, Windows) · v1.1 (Vision Pro)
+## Download v1.6 (macOS, Windows) · v1.1 (Vision Pro)
 
-Ready-to-play builds: macOS and Windows **https://github.com/EvaLuglitched/Diva/releases/tag/v1.5**, Vision Pro
+Ready-to-play builds: macOS and Windows **https://github.com/EvaLuglitched/Diva/releases/tag/v1.6**, Vision Pro
 **https://github.com/EvaLuglitched/Diva/releases/tag/v1.1** (all releases: https://github.com/EvaLuglitched/Diva/releases)
+
+v1.6 (macOS, Windows): lifting one arm to aim right after stopping no longer makes the elephant walk on (one player).
 
 v1.5 (macOS, Windows): single player tracks much faster (about 22 instead of 15 frames a second: the hand / thumbs-up
 recognition now runs on every other frame, as with three players), so one player can walk again. Mac and Windows are the
@@ -47,8 +49,8 @@ Windows v1.3 and v1.4 had all of the above plus Next camera. Vision Pro has not 
 
 | Platform | File | First start | Camera gestures |
 | --- | --- | --- | --- |
-| macOS, Apple silicon (M1 and newer) | [Diva-v1.5-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.5/Diva-v1.5-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
-| Windows 10 / 11, 64-bit | [Diva-v1.5-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.5/Diva-v1.5-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks; wrong camera: C on the camera check or F1 > Next camera |
+| macOS, Apple silicon (M1 and newer) | [Diva-v1.6-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.6/Diva-v1.6-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
+| Windows 10 / 11, 64-bit | [Diva-v1.6-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.6/Diva-v1.6-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks; wrong camera: C on the camera check or F1 > Next camera |
 | Apple Vision Pro | [Diva-VR-v1.1-visionOS.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-VR-v1.1-visionOS.zip) | development-signed: installs on the team's registered headsets | headset hand tracking |
 
 The keyboard works in every desktop build without a camera. Each zip has a short READ ME. The very first camera start
@@ -115,6 +117,7 @@ python -m venv DigiPhantStarter/Tracking/.venv
 Invoke-WebRequest -Uri 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task' -OutFile DigiPhantStarter/Tracking/pose_landmarker_full.task
 Invoke-WebRequest -Uri 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task' -OutFile DigiPhantStarter/Tracking/hand_landmarker.task
 & DigiPhantStarter/Tracking/.venv/Scripts/python.exe -m unittest discover -s DigiPhantStarter/Tracking -p 'test_*.py'
+git config core.hooksPath .githooks
 ```
 
 Both paths: clone the starter **beside** `Assets` as `DigiPhantStarter` at the pinned commit, copy `Elephant/` and
@@ -122,6 +125,11 @@ Both paths: clone the starter **beside** `Assets` as `DigiPhantStarter` at the p
 starter's `Tracking/`, create the Python environment from `requirements.txt` and download the pose and hand models.
 Do not copy the starter's `DigiPhant/` or `SavannahCourse/` over ours: ours are adapted and tracked. Then open the scene
 in Unity 6000.6.3f1. The first open imports everything and takes a while.
+
+**Password lock (v2.0):** the action detection, the controls and the camera / player lock are signed with Eva's
+password (`Tools/lock/`, see [GESTURES_LOCKED.md](GESTURES_LOCKED.md)). After cloning, turn on the commit check once:
+`git config core.hooksPath .githooks`. `python3 Tools/lock/diva_lock.py verify` checks the locked files; GitHub and
+Unity (**DigiPhant > Diva > Verify Lock**, and every release build) check them too.
 
 Optional: the sky rocket and clouds are Fab models whose licence does not allow a public repository. Eva shares
 `Diva_Fab_Assets.zip` privately ([docs/FAB_SETUP.md](docs/FAB_SETUP.md)); without it the scene shows our stand-ins.
@@ -154,6 +162,11 @@ Details in [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md).
 
 ## Verification
 
+v2.0 checks (2026-10-13): 161 Python tests (including the password lock and the RFC 8032 signature vectors), the four
+Unity validators and **Verify Lock** pass with 0 compile errors; the real tracking bridge ran Vicky's recorded P1 / P3
+clips in one- and three-player mode; Eva played single-player and three-player live in Unity. What changed is in
+[GESTURES_LOCKED.md](GESTURES_LOCKED.md) and [docs/EVA_UPDATES.md](docs/EVA_UPDATES.md) (items 30–32).
+
 v1.1 checks (2026-10-13), automated unless stated:
 
 - 93 Python tests in `TrackingOverrides/` pass, including the gesture-lock test, and the starter's 3 recording tests.
@@ -168,7 +181,7 @@ v1.1 checks (2026-10-13), automated unless stated:
   permission, camera check, calibration, gold lap. About 113 fps at full resolution with the camera tracking running.
   A copy marked as downloaded is stopped by Gatekeeper until it is allowed; once allowed, its camera bridge loads all
   three models.
-- Windows, on GitHub's Windows Server 2025 machines (no webcam, software graphics): the v1.3, v1.4 and v1.5 zips unpacked into
+- Windows, on GitHub's Windows Server 2025 machines (no webcam, software graphics): the v1.3 to v1.6 zips unpacked into
   Downloads; the bridge self-test passes (first start 5 s, later 1.3 s); a keyboard race from the home page to the
   race with no errors; with no camera the tracking restarts by itself (2, 4, 8, 16, 30 s); C on the camera check and
   F1 > Next camera restart it and the choice is saved.

@@ -79,6 +79,11 @@ def extract_features(landmarks, upper_body_only=False):
     return hip, [max(-3, min(3, v)) for v in raw], [quality(g) for g in groups]
 
 
+def shoulder_center(landmarks):
+    """Midpoint of the shoulders (image coordinates): where a player stands, without needing the hips."""
+    return ((landmarks[11].x + landmarks[12].x) / 2, (landmarks[11].y + landmarks[12].y) / 2)
+
+
 class OneEuro:
     """One-Euro filter (Casiez 2012): heavy smoothing when still, light smoothing when moving. One per channel."""
     __slots__ = ('min_cutoff', 'beta', 'd_cutoff', 'x', 'dx', 't')
@@ -708,6 +713,11 @@ def main():
                     center, values, confidence = extract_features(landmarks, args.upper_body_only)
                     shoulder_quality = min(min(landmarks[j].visibility, landmarks[j].presence) for j in (11, 12))
                     if confidence[4] >= usable_quality or (gestures and shoulder_quality >= usable_quality):
+                        if gestures:
+                            # 2026-10-13 night (Eva): players are tracked by the shoulder midpoint, not the hips. Every
+                            # role needs the shoulders; hips are often hidden in a row of three, and MediaPipe's guessed
+                            # hip position jumped past max_distance, so P2 lost the role (and the turn) for a moment.
+                            center = shoulder_center(landmarks)
                         observations.append((center, values, confidence, landmarks))
                 # Roles go left to right as the players see themselves in the MIRRORED preview (P1 = the player on
                 # the left of the picture), so they match the P1 · P2 · P3 order under Unity's camera check.
@@ -737,7 +747,7 @@ def main():
                                                  for slot, i in assignments.items()]}
                 if gestures:
                     packet['divaGestures'] = True
-                    gestures.retain(assignments)
+                    gestures.retain(assignments, timestamp / 1000.)   # a few frames missing keep the swing / turn state
                     bodies = {slot: observations[index][3] for slot, index in assignments.items()}
                     p3_slot = 1 if args.people == 1 else 3
                     # Detect hands only while P3 is assigned. Match to ALL observed

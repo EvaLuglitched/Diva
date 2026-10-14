@@ -1,0 +1,7 @@
+#!/bin/sh
+# 🔒 Diva v2.0: the action detection, controls and camera / player lock are password-locked (Tools/lock).
+# A commit that changes a locked file without Eva's password signature is refused. Enable once per clone:
+#   git config core.hooksPath .githooks
+PY=python3
+command -v "$PY" >/dev/null 2>&1 || PY=python
+"$PY" Tools/lock/diva_lock.py verify --staged >/dev/null || { "$PY" Tools/lock/diva_lock.py status --staged; exit 1; }

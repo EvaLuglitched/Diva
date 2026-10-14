@@ -1,7 +1,7 @@
 {
   "min_quality": 0.3,
   "go_window": 1.0,
-  "go_range": 0.1,
+  "go_range": 0.14,
   "go_stop_delay": 0.25,
   "go_step": 0.04,
   "go_hand_min_height": -1.8,
@@ -30,7 +30,12 @@
   "steer_tilt_release": 0.08,
   "steer_tilt_full": 0.4,
   "steer_dropout": 0.3,
-  "go_range_other": 0.05,
+  "go_range_other": 0.08,
   "ult_walk_hold": 0.4,
-  "go_motion_window": 0.2
+  "go_motion_window": 0.2,
+  "go_reach": -0.6,
+  "aim_still_window": 0.5,
+  "player_dropout": 0.6,
+  "thumb_still": 0.15,
+  "thumb_still_window": 0.3
 }
