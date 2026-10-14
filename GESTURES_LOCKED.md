@@ -10,13 +10,14 @@
 | --- | --- |
 | Python 测试（`test_password_lock.py`，跟所有测试一起跑） | 测试失败，列出被改的文件 |
 | git 提交（`.githooks/pre-commit`，每个人 clone 后运行一次 `git config core.hooksPath .githooks`） | 拒绝提交 |
-| GitHub（`.github/workflows/lock.yml`，每次 push / PR） | 检查变红 |
+| GitHub（`.github/workflows/lock.yml`，每次 push / PR；`main` 已开分支保护） | 检查变红，**PR 不能合并**；改到锁定文件的 PR 还必须 Eva 批准（CODEOWNERS），不能直接 push 到 `main` |
 | Unity（`DivaLockCheck.cs`；菜单 **DigiPhant > Diva > Verify Lock**） | 打开时 Console 红字报错；**拒绝打包发布版** |
 
 - 检查锁：`python3 Tools/lock/diva_lock.py verify`（或 `status` 看每个文件）。
 - **Eva 批准修改后**：`python3 Tools/lock/diva_lock.py sign`（输入密码；`--show` 可以看到输入的字），然后照下面的 double check 流程。
   多锁一个文件：`sign --add 路径`；解锁一个：`sign --remove 路径`；换密码：`change-password`（要旧密码）。
 - 手动改 `lock.json`、换公钥、改检查程序，签名都会对不上，检查一样失败。
+- 签名（`sign` / `change-password`）需要 Python 3.10 或更新（macOS 自带的 3.9 只能 `verify`）；用设置密码时那个 `python3` 就可以。
 
 The detection, the controls and the camera / player lock are password-locked since v2.0: `Tools/lock/lock.json` signs
 every locked file with a key from Eva's password; tests, the pre-commit hook, GitHub and Unity all refuse changed files.
