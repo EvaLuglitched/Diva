@@ -17,7 +17,11 @@ from pathlib import Path
 # the thighs, fast swings that blur the wrists and pumping through the top of the head all keep walking.
 # 2026-10-13 later (Eva): P1 stops on time. Motion is measured against the wrist 0.2 s ago, so landmark jitter no
 # longer counts as moving (with per-frame steps it kept walking up to 1 s after the arms stopped); pause 0.25 s.
-DEFAULTS = dict(min_quality=.30, go_window=1.0, go_range=.10, go_range_other=.05,
+# 2026-10-13 night (Eva, compared with Vicky's original GO/STOP data): no walking with the hands hanging. A swing must
+# bring a hand up to go_reach (navel height) at least once in go_window; drifting low-visibility wrists of a player
+# standing with the arms down (three players) walked the elephant. Swing sizes .14 / .08: .10 / .05 were at the
+# level of a player holding still (Vicky's STOP clips: .11 / .09), and the original pumping is about 1.2 / 0.9.
+DEFAULTS = dict(min_quality=.30, go_window=1.0, go_range=.14, go_range_other=.08, go_reach=-.6,
                 go_stop_delay=.25, go_step=.04, go_motion_window=.2, go_hand_min_height=-1.8,
                 # Wrists unclear for less than this (blur, frame edge) keep the swing history and the walking state.
                 go_dropout=.5,
@@ -264,17 +268,19 @@ class DivaGestureDetector:
             motion_step=cfg['go_step']*max(.01,time-ref[0])/.1
             if max(abs(normalized[i]-ref[1][i]) for i in (0,1))>motion_step:
                 self.last_motion[slot]=time
-        history.append((time,normalized))
+        history.append((time,normalized,max(heights)))
         while history and time-history[0][0]>cfg['go_window']:history.popleft()
         ranges=[max(r[1][i] for r in history)-min(r[1][i] for r in history) for i in (0,1)]
+        reach=max(r[2] for r in history)   # highest wrist in the window (torso lengths above the shoulders)
         since_motion=time-self.last_motion.get(slot,-999)
-        if (len(history)>=4 and time-history[0][0]>=.25 and min(heights)>cfg['go_hand_min_height']
+        if (len(history)>=4 and time-history[0][0]>=.25 and min(heights)>cfg['go_hand_min_height'] and reach>cfg['go_reach']
                 and max(ranges)>cfg['go_range'] and min(ranges)>cfg['go_range_other'] and since_motion<cfg['go_stop_delay']):
             out['go']=1.
         # Why GO is on or off this frame (first failing condition), for the bridge's debug log.
         reason=('go' if out['go'] else 'frame-gap-reset' if gap_reset
                 else 'warming-up' if len(history)<4 or time-history[0][0]<.25
                 else 'hands-too-low' if min(heights)<=cfg['go_hand_min_height']
+                else 'hands-not-up' if reach<=cfg['go_reach']
                 else 'swing-too-small' if max(ranges)<=cfg['go_range'] or min(ranges)<=cfg['go_range_other']
                 else 'paused' )
         go_numbers=dict(left_h=round(heights[0],2),right_h=round(heights[1],2),left_range=round(ranges[0],3),

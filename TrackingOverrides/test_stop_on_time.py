@@ -9,7 +9,8 @@ import unittest
 from diva_gestures import DivaGestureDetector
 from test_diva_gestures import body
 
-V13 = dict(go_stop_delay=.5, go_step=.03, go_motion_window=0.)
+# v1.3 as it was: per-frame motion, 0.5 s pause, swing sizes .10 / .05 and no hands-up rule (go_reach came later).
+V13 = dict(go_stop_delay=.5, go_step=.03, go_motion_window=0., go_range=.10, go_range_other=.05, go_reach=-9.)
 
 
 def stop_time(fps, jitter, seed, cfg=None, freq=1.3):
@@ -66,7 +67,9 @@ class StopOnTimeTests(unittest.TestCase):
         self.assertLess(new * 5, old)
 
     def test_starts_without_delay(self):
-        for fps, limit in ((30, .06), (15, .1)):
+        # Within two frames at 30 fps (since the .14 swing size of 2026-10-13 night: one frame later than with .10
+        # for this small swing; Vicky's real clips start as fast as before, 0.20 s on average).
+        for fps, limit in ((30, .07), (15, .1)):
             d = DivaGestureDetector()
             for i in range(fps):
                 d.update(1, body(height=-.6), i / fps)

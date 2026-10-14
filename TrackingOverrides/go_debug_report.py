@@ -16,6 +16,7 @@ REASONS_ZH = {
     'go': '在走',
     'warming-up': '刚开始摆，记录还不够 0.25 秒 / 4 帧',
     'hands-too-low': '手太低（低于 go_hand_min_height）',
+    'hands-not-up': '1 秒内手没抬到肚脐高度（go_reach），手垂着不算走',
     'swing-too-small': '摆动幅度不够（go_range）',
     'paused': '停顿超过 go_stop_delay，判为停下',
     'hands-above-head': '双手举过头（当作大招姿势）',

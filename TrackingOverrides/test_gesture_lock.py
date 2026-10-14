@@ -18,8 +18,10 @@ LOCKED = {
     # Walking (P1 / solo): pump the arms. 2026-10-13 approved change (Eva): one arm .10 + the other .05 (was both .14),
     # 1 s window, 0.5 s pause, slower motion counts, swings down to the thighs, 0.5 s of blurred wrists kept.
     # Later on 2026-10-13 (Eva): stop on time. Motion vs the wrist 0.2 s ago (jitter no longer counts), pause 0.25 s.
-    'min_quality': .30, 'go_window': 1.0, 'go_range': .10, 'go_range_other': .05, 'go_stop_delay': .25, 'go_step': .04,
-    'go_motion_window': .2,
+    # 2026-10-13 night (Eva, checked against Vicky's original GO/STOP data): a hand must come up to the navel (go_reach)
+    # once a second, so hanging hands never walk; swing sizes .14 / .08 (.10 / .05 matched a player holding still).
+    'min_quality': .30, 'go_window': 1.0, 'go_range': .14, 'go_range_other': .08, 'go_reach': -.6,
+    'go_stop_delay': .25, 'go_step': .04, 'go_motion_window': .2,
     'go_hand_min_height': -1.8, 'go_dropout': .5,
     # Turning (P2 / solo): tilt the shoulders or the head, no hips
     'steer_tilt_start': .14, 'steer_tilt_release': .08, 'steer_tilt_full': .40, 'steer_direction': -1.,
@@ -53,6 +55,8 @@ LOCKED_LINES = [
     # 2026-10-13 approved change (Eva, v1.5): one player runs hand / gesture recognition on every other frame.
     ('TrackingOverrides/bridge.py', 'SOLO_HANDS_EVERY = 2'),
     ('TrackingOverrides/bridge.py', 'if p3_slot in bodies and hands_due(args.people, hand_frame, profile, last_hand_rows is not None):'),
+    # 2026-10-13 night approved change (Eva): no walking unless a hand came up to go_reach in the window.
+    ('TrackingOverrides/diva_gestures.py', "reach=max(r[2] for r in history)   # highest wrist in the window (torso lengths above the shoulders)"),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p1 = count == 1 ? (soloRole == 1 || all ? Read(1, now) : null) : Read(1, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p2 = count == 1 ? (soloRole == 2 || all ? Read(1, now) : null) : Read(2, now);'),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p3 = count == 1 ? (soloRole == 3 || all ? Read(1, now) : null) : Read(3, now);'),
