@@ -25,6 +25,8 @@ DEFAULTS = dict(min_quality=.30, go_window=1.0, go_range=.14, go_range_other=.08
                 go_stop_delay=.25, go_step=.04, go_motion_window=.2, go_hand_min_height=-1.8,
                 # Wrists unclear for less than this (blur, frame edge) keep the swing history and the walking state.
                 go_dropout=.5,
+                # A player missing from tracking for less than this keeps their swing history and turn (retain()).
+                player_dropout=.6,
                 # Steering = tilting the shoulders or the head toward one side (no hips needed). Tilt is the slope of
                 # the shoulder line or the ear (eye) line relative to the calibrated neutral; the larger one counts.
                 steer_tilt_start=.14, steer_tilt_release=.08,
@@ -40,6 +42,11 @@ DEFAULTS = dict(min_quality=.30, go_window=1.0, go_range=.14, go_range_other=.08
                 thumb_up_cos=.70, thumb_extension=.5, curled_angle_max=135.,
                 # MediaPipe Gesture Recognizer's pretrained 'Thumb_Up' (when the bridge runs it) also counts.
                 thumb_model_score=.5,
+                # 2026-10-13 night (Eva): a thumbs-up refills only as a held pose: not while that player is walking,
+                # and with that hand moved less than thumb_still (shoulder widths) in the last thumb_still_window.
+                # Solo pumping fists read as Thumb_Up in 26 % of the frames of Vicky's GO clip, and every one stopped
+                # walking and restarted its warm-up (single player could hardly walk).
+                thumb_still=.15, thumb_still_window=.3,
                 # Aim while spraying: both hands pushed toward one side (shooting keeps hands below aim_height).
                 shoot_aim_full_offset=.35, shoot_aim_deadzone=.06,
                 # Ultimate: both wrists well above the head (torso lengths above the shoulders), held still.
@@ -139,7 +146,7 @@ class DivaGestureDetector:
             self.config.update(json.loads(Path(config_path).read_text(encoding='utf-8')))
         self.history={}; self.last_motion={}; self.neutral={}; self.latest_geometry={}
         self.steering={}; self.refill={}; self.ult_since={}
-        self.hand_lost={}; self.last_go={}
+        self.hand_lost={}; self.last_go={}; self.missing={}
         # Per slot: why the last frame was GO or not, with the numbers behind it (the bridge logs this).
         self.go_debug={}
     def _held_steer(self,slot,time):
@@ -159,14 +166,22 @@ class DivaGestureDetector:
         if slot is None:
             self.history.clear();self.last_motion.clear();self.neutral.clear();self.latest_geometry.clear()
             self.steering.clear();self.refill.clear();self.ult_since.clear();self.hand_lost.clear();self.last_go.clear()
+            self.missing.clear()
         else:
             self.history.pop(slot,None);self.last_motion.pop(slot,None);self.steering.pop(slot,None);self.ult_since.pop(slot,None)
             self.refill.pop(slot,None);self.hand_lost.pop(slot,None);self.last_go.pop(slot,None)
             if not preserve_neutral:self.neutral.pop(slot,None)
             self.latest_geometry.pop(slot,None)
-    def retain(self,slots):
-        for slot in set(self.history) | set(self.steering) | set(self.latest_geometry) | set(self.refill):
-            if slot not in slots:self.reset(slot,preserve_neutral=True)
+    def retain(self,slots,time=None):
+        # 2026-10-13 night (Eva): a player missing from tracking for a few frames keeps their state for player_dropout
+        # (the swing history, so walking does not warm up again; the turn). Three-player logs: P1 dropped out 7-16
+        # times a minute, mostly under 0.3 s, and every time had to start the 0.25 s warm-up over. Without a time
+        # (old callers), missing players are cleared at once as before.
+        for slot in set(self.history) | set(self.steering) | set(self.latest_geometry) | set(self.refill) | set(self.missing):
+            if slot in slots:
+                self.missing.pop(slot,None)
+            elif time is None or time-self.missing.setdefault(slot,time)>=self.config['player_dropout']:
+                self.reset(slot,preserve_neutral=True);self.missing.pop(slot,None)
     def update(self,slot,body,time,hands=None,aspect=1.,allow_estimated_mouth=False):
         out=dict(go=0.,steer=0.,aim=0.,shoot=False,drink=False,ult=False,confidence=0.)
         cfg=self.config
@@ -188,7 +203,7 @@ class DivaGestureDetector:
         shoulder=midpoint(b[11],b[12])
         width=max(.03,math.dist(xy(b[11]),xy(b[12])))
         # Either matched hand can refill; the other arm or hips need not be visible.
-        thumb_quality=0.
+        thumb_quality=0.;thumb_wrist=None
         for hand in hands or []:
             points=scale_body(hand['landmarks'],aspect)
             if len(points)!=21 or not all(math.isfinite(c) for c in xyz(points[0])):continue
@@ -197,7 +212,15 @@ class DivaGestureDetector:
                            if quality(b[i])>=cfg['min_quality'] and all(math.isfinite(c) for c in xyz(b[i])))
             if (not matches or matches[0][0]>cfg['hand_match_distance']
                     or len(matches)>1 and matches[1][0]-matches[0][0]<.06):continue
-            thumb_quality=max(thumb_quality,min(q,quality(b[matches[0][1]]),min(quality(p) for p in points)))
+            hand_quality=min(q,quality(b[matches[0][1]]),min(quality(p) for p in points))
+            if hand_quality>thumb_quality:thumb_quality,thumb_wrist=hand_quality,matches[0][1]
+        if thumb_quality>=cfg['min_quality'] and math.isfinite(time):
+            # Held pose only: not while walking, and that wrist (height in shoulder widths) still for thumb_still_window.
+            k=0 if thumb_wrist==15 else 1
+            recent=[r[1][k] for r in self.history.get(slot,()) if 0<=time-r[0]<=cfg['thumb_still_window']]
+            recent.append((shoulder[1]-val(b[thumb_wrist],'y'))/width)
+            if self.last_go.get(slot,0.)>0 or max(recent)-min(recent)>cfg['thumb_still']:
+                thumb_quality=0.
         if thumb_quality>=cfg['min_quality'] and math.isfinite(time):
             previous=self.refill.get(slot)
             if previous is None or time<=previous[1] or time-previous[1]>cfg['thumb_max_gap']:previous=(time,time)
@@ -240,7 +263,10 @@ class DivaGestureDetector:
                     and min(quality(b[i]) for i in (15,16))>=cfg['min_quality'])
         wrist_q=min(quality(b[i]) for i in (15,16))
         if not hand_valid:
-            out['confidence']=min(q,torso_quality)
+            # 2026-10-13 night (Eva): confidence = the shoulders only. With min(shoulders, hips) a P2 whose hips and
+            # wrists were hidden (three players in a row) fell under Unity's 0.3 and the whole frame, turn included, was
+            # dropped. Steering needs only shoulders + head; go here is 0 or the brief wrists-unclear hold.
+            out['confidence']=q
             since=self.hand_lost.setdefault(slot,time)
             if time-since<cfg['go_dropout'] and slot in self.history:
                 # Brief blur / frame edge: keep the swing history and the walking state instead of starting over.

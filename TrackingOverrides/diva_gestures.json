@@ -34,5 +34,8 @@
   "ult_walk_hold": 0.4,
   "go_motion_window": 0.2,
   "go_reach": -0.6,
-  "aim_still_window": 0.5
+  "aim_still_window": 0.5,
+  "player_dropout": 0.6,
+  "thumb_still": 0.15,
+  "thumb_still_window": 0.3
 }

@@ -165,8 +165,15 @@ namespace DigiPhant
         }
         public bool AcceptPacket(string json, float now)
         {
+            // An invalid packet stops every Diva input at once. A valid one updates each player (DivaDemo.AcceptFrame:
+            // a player missing from it keeps the last input for a few frames, 2026-10-13 night, Eva).
+            bool accepted = ReadPacket(json, now);
             var customDemo = GetComponent<DivaDemo>();
-            if (customDemo != null && customDemo.isActiveAndEnabled) customDemo.State.ClearPeople();
+            if (!accepted && customDemo != null && customDemo.isActiveAndEnabled) customDemo.State.ClearPeople();
+            return accepted;
+        }
+        bool ReadPacket(string json, float now)
+        {
             PoseFrame frame;
             try { frame = JsonUtility.FromJson<PoseFrame>(json); }
             catch (ArgumentException) { return false; }

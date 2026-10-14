@@ -79,6 +79,13 @@ namespace DigiPhant.Editor
                 diva.State.Step(10.42f, .02f, 3, 1, true); Check(diva.State.Bursts == 1, "Hold failed to spray");
                 Check(c.AcceptPacket(Packet(Person(1), Person(2)), 10.45f), "Missing-player packet rejected");
                 diva.State.Step(10.45f, .02f, 3, 1, true); Check(!diva.State.Shoot && diva.State.Aim == 0, "Missing P3 kept spraying");
+                // 2026-10-13 night (Eva): a player missing from a packet keeps the last input for MissingHold (0.3 s),
+                // so one-frame tracking dropouts do not stop the elephant or the turn; missing longer, it stops.
+                Check(c.AcceptPacket(Packet(Person(1, 1), Person(2, steer: -.5f), Person(3)), 10.5f), "Packet rejected");
+                Check(c.AcceptPacket(Packet(Person(3)), 10.6f), "Dropout packet rejected");
+                diva.State.Step(10.6f, .02f, 3, 1, true); Check(diva.State.Forward == 1 && diva.State.Turn == -.5f, "A one-frame dropout stopped P1 / P2");
+                Check(c.AcceptPacket(Packet(Person(3)), 10.85f), "Dropout packet rejected");
+                diva.State.Step(10.85f, .02f, 3, 1, true); Check(diva.State.Forward == 0 && diva.State.Turn == 0, "Players missing past the hold kept moving");
                 Check(c.AcceptPacket(Packet(Person(1, 1), Person(2, steer: 1), Person(3)), 11), "Packet rejected");
                 // Carl: the visibility timeout is at least 0.8 s now (a laggy group camera must not flicker players), so check past it.
                 diva.State.Step(11.9f, .02f, 3, 1, true); Check(diva.State.Forward == 0 && diva.State.Turn == 0, "Stale people kept moving");

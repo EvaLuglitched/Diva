@@ -23,6 +23,8 @@ LOCKED = {
     'min_quality': .30, 'go_window': 1.0, 'go_range': .14, 'go_range_other': .08, 'go_reach': -.6,
     'go_stop_delay': .25, 'go_step': .04, 'go_motion_window': .2,
     'go_hand_min_height': -1.8, 'go_dropout': .5,
+    # 2026-10-13 night (Eva): a player missing from tracking under 0.6 s keeps the swing history and the turn.
+    'player_dropout': .6,
     # Turning (P2 / solo): tilt the shoulders or the head, no hips
     'steer_tilt_start': .14, 'steer_tilt_release': .08, 'steer_tilt_full': .40, 'steer_direction': -1.,
     'steer_dropout': .3,
@@ -33,6 +35,8 @@ LOCKED = {
     # Refill (P3 / solo): thumbs-up held 0.4 s (Gesture Recognizer Thumb_Up or the geometric rule)
     'thumb_hold': .4, 'thumb_max_gap': .6, 'thumb_angle_min': 150., 'thumb_up_cos': .70, 'thumb_extension': .5,
     'curled_angle_max': 135., 'thumb_model_score': .5,
+    # 2026-10-13 night (Eva): a thumbs-up refills only held still and not while walking (solo pumping fists read as Thumb_Up).
+    'thumb_still': .15, 'thumb_still_window': .3,
     # Ultimate (anyone): both hands above the head for 0.8 s
     'ult_height': .85, 'ult_hold': .8, 'ult_walk_hold': .4,
 }
@@ -55,6 +59,11 @@ LOCKED_LINES = [
     # 2026-10-13 approved change (Eva, v1.5): one player runs hand / gesture recognition on every other frame.
     ('TrackingOverrides/bridge.py', 'SOLO_HANDS_EVERY = 2'),
     ('TrackingOverrides/bridge.py', 'if p3_slot in bodies and hands_due(args.people, hand_frame, profile, last_hand_rows is not None):'),
+    # 2026-10-13 night approved changes (Eva): P2 never depends on hips or wrists (confidence = shoulders when the wrists
+    # are unclear; players tracked by the shoulder midpoint); a few frames missing keep a player's state.
+    ('TrackingOverrides/bridge.py', 'center = shoulder_center(landmarks)'),
+    ('TrackingOverrides/bridge.py', 'gestures.retain(assignments, timestamp / 1000.)'),
+    ('TrackingOverrides/diva_gestures.py', "elif time is None or time-self.missing.setdefault(slot,time)>=self.config['player_dropout']:"),
     # 2026-10-13 night approved change (Eva): no walking unless a hand came up to go_reach in the window.
     ('TrackingOverrides/diva_gestures.py', "reach=max(r[2] for r in history)   # highest wrist in the window (torso lengths above the shoulders)"),
     ('Assets/DigiPhant/Runtime/DivaControlState.cs', 'var p1 = count == 1 ? (soloRole == 1 || all ? Read(1, now) : null) : Read(1, now);'),

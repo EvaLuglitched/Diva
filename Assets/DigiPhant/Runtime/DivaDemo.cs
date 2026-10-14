@@ -72,13 +72,17 @@ namespace DigiPhant
         public void AcceptFrame(PoseFrame frame, float now)
         {
             if (!isActiveAndEnabled) return;
-            State.ClearPeople();
-            if (!frame.divaGestures) return;
+            if (!frame.divaGestures) { State.ClearPeople(); return; }
+            int present = 0;   // bit per slot in this packet
             foreach (var person in frame.people)
             {
                 var g = person.gestures;
-                if (g != null) State.Accept(person.slot, g.go, g.steer, g.aim, g.shoot, g.drink, g.confidence, now, g.ult);
+                if (g == null || person.slot < 1 || person.slot > 4) continue;
+                State.Accept(person.slot, g.go, g.steer, g.aim, g.shoot, g.drink, g.confidence, now, g.ult);
+                present |= 1 << person.slot;
             }
+            // A player missing from this packet keeps the last input for State.MissingHold (a few frames), then stops.
+            for (int slot = 1; slot <= 4; slot++) if ((present & (1 << slot)) == 0) State.Missing(slot, now);
         }
         public void ResetTracking() { State.Clear(); manualGo = manualTurn = manualAim = 0; manualShoot = manualDrink = false; }
         /// <summary>Calibration hint: who is missing, and the solo option for one-person testing.</summary>

@@ -16,6 +16,12 @@ namespace DigiPhant
         readonly DivaGestureFrame[] people = new DivaGestureFrame[4];
         readonly float[] seen = { -1000, -1000, -1000, -1000 };
         public float Timeout = .5f, MinimumConfidence = .3f, BurstInterval = .12f;
+        /// <summary>
+        /// 2026-10-13 night (Eva): a player missing from a few camera packets keeps their last input this long, so a
+        /// one-frame tracking dropout (P1 dropped out 7-16 times a minute in three-player logs, mostly under 0.3 s)
+        /// no longer stops the elephant or the turn. Missing longer, the input is dropped (see Missing).
+        /// </summary>
+        public float MissingHold = .3f;
         public float HoldDelay = .4f;
         public float WaterPerBurst = .008f, RefillPerSecond = .3f;
         public float Forward { get; private set; }
@@ -49,6 +55,11 @@ namespace DigiPhant
             if (slot < 1 || slot > 4) return;
             people[slot - 1] = new DivaGestureFrame { go = go, steer = steer, aim = aim, shoot = shoot, drink = drink, ult = ult, confidence = confidence };
             seen[slot - 1] = now;
+        }
+        /// <summary>This camera packet has no frame for the player: keep the last one for MissingHold, then drop it.</summary>
+        public void Missing(int slot, float now)
+        {
+            if (slot >= 1 && slot <= 4 && !(now - seen[slot - 1] <= MissingHold)) people[slot - 1] = null;
         }
         public bool Visible(int slot, float now) => slot >= 1 && slot <= 4 && people[slot - 1] != null &&
             now - seen[slot - 1] <= Timeout && people[slot - 1].confidence >= MinimumConfidence;
