@@ -27,7 +27,7 @@ LOCKED = {
     'steer_tilt_start': .14, 'steer_tilt_release': .08, 'steer_tilt_full': .40, 'steer_direction': -1.,
     'steer_dropout': .3,
     # Aim / spray (P3 / solo)
-    'aim_height': .65, 'hand_match_distance': .55, 'finger_angle': 145., 'finger_extension': 1.2,
+    'aim_height': .65, 'aim_still_window': .5, 'hand_match_distance': .55, 'finger_angle': 145., 'finger_extension': 1.2,
     'shoot_min_height': -.55, 'shoot_max_height': .65, 'shoot_forward_z': .20, 'shoot_elbow_angle': 140.,
     'shoot_aim_full_offset': .35, 'shoot_aim_deadzone': .06,
     # Refill (P3 / solo): thumbs-up held 0.4 s (Gesture Recognizer Thumb_Up or the geometric rule)

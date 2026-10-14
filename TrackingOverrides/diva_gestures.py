@@ -31,7 +31,8 @@ DEFAULTS = dict(min_quality=.30, go_window=1.0, go_range=.14, go_range_other=.08
                 steer_tilt_full=.40, steer_direction=-1.,
                 # Shoulders briefly unclear (occluded by a neighbour) keep the current turn this long, then stop.
                 steer_dropout=.3,
-                aim_height=.65, hand_match_distance=.55,
+                # One arm up to aim starts walking only if the other arm moved go_range_other in the last aim_still_window.
+                aim_height=.65, aim_still_window=.5, hand_match_distance=.55,
                 finger_angle=145., finger_extension=1.2,
                 shoot_min_height=-.55, shoot_max_height=.65,
                 shoot_forward_z=.20, shoot_elbow_angle=140.,
@@ -294,6 +295,14 @@ class DivaGestureDetector:
         hand_offset-=neutral.get('hand_offset',0.)
         raised=[h>cfg['aim_height'] for h in heights]
         if raised[0]!=raised[1]:out['aim']=-1. if raised[0] else 1.
+        # 2026-10-13 (approved by Eva, v1.6): one arm up to aim never STARTS walking while the other arm is still. Within
+        # go_window of a stop the still arm's old swing was still in the history, so lifting the other arm to aim walked
+        # the elephant another ~0.45 s. Walking that is already on is unchanged (uneven and high swings keep walking).
+        if out['go'] and out['aim'] and not self.last_go.get(slot,0.):
+            low=1 if raised[0] else 0
+            recent=[r[1][low] for r in history if time-r[0]<=cfg['aim_still_window']]
+            if max(recent)-min(recent)<=cfg['go_range_other']:
+                out['go']=0.;reason='aiming'
         # Ultimate: both hands above the head and held there. Pumping (go) passes through this height
         # only briefly, so the hold time keeps them apart: walking stops once the hands stay up ult_walk_hold.
         if min(heights)>cfg['ult_height']:

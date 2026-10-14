@@ -33,5 +33,6 @@
   "go_range_other": 0.08,
   "ult_walk_hold": 0.4,
   "go_motion_window": 0.2,
-  "go_reach": -0.6
+  "go_reach": -0.6,
+  "aim_still_window": 0.5
 }
