@@ -1,5 +1,15 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-13 (night) — v1.6: lifting one arm to aim no longer restarts walking (you approved)
+
+An offline integration check of v1.5 (your PerformerTracker, extract_features, associate_hands and DivaGestureDetector in
+the bridge's order, three players plus one player at 17 fps) passed every P1 / P2 / P3 check but one: a single player who
+stopped and lifted one arm to aim within 1 s walked about 0.45 s more. The still arm's old swing was still in the 1 s
+history, so "one arm moves 0.10, the other 0.05" held again. 🔒 `diva_gestures.py/json`: when walking is off, one arm up
+to aim with the other arm still for `aim_still_window` (0.5 s, under `go_range_other`) does not start walking. Walking
+that is already on is unchanged. `test_aim_no_start.py` (4): only the stop-then-aim case fails without the change; high
+swings while walking and a high one-arm pump with the other arm moving behave exactly as before. 131 Python tests pass.
+
 ## 2026-10-13 (late night) — v1.5: single player tracks faster (you approved the bridge change), Mac and Windows together
 
 Single player could hardly walk in the app. The tracking ran at 12–16 fps alone but about 30 with three players: solo ran

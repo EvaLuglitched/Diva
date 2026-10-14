@@ -32,5 +32,6 @@
   "steer_dropout": 0.3,
   "go_range_other": 0.05,
   "ult_walk_hold": 0.4,
-  "go_motion_window": 0.2
+  "go_motion_window": 0.2,
+  "aim_still_window": 0.5
 }
