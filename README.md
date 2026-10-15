@@ -22,10 +22,16 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
 
-## Download v1.6 (macOS, Windows) · v1.1 (Vision Pro)
+## Download v2.0 (macOS, Windows) · v1.1 (Vision Pro)
 
-Ready-to-play builds: macOS and Windows **https://github.com/EvaLuglitched/Diva/releases/tag/v1.6**, Vision Pro
+Ready-to-play builds: macOS and Windows **https://github.com/EvaLuglitched/Diva/releases/tag/v2.0**, Vision Pro
 **https://github.com/EvaLuglitched/Diva/releases/tag/v1.1** (all releases: https://github.com/EvaLuglitched/Diva/releases)
+
+v2.0 (macOS, Windows): every player controls reliably. Walking follows Vicky's original data (bring a hand up to the navel
+once a second; hands hanging down never walk), P2 turns with only the shoulders and head (hips and hands may be hidden or
+out of the picture), a player missing from a few camera frames no longer stops the elephant, and in single player a
+pumping fist is no longer taken for a thumbs-up. The action detection, controls and camera / player lock are
+password-locked. The downloads were checked against the v2.0 source: same tracking code, settings, models and game code.
 
 v1.6 (macOS, Windows): lifting one arm to aim right after stopping no longer makes the elephant walk on (one player).
 
@@ -49,8 +55,8 @@ Windows v1.3 and v1.4 had all of the above plus Next camera. Vision Pro has not 
 
 | Platform | File | First start | Camera gestures |
 | --- | --- | --- | --- |
-| macOS, Apple silicon (M1 and newer) | [Diva-v1.6-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.6/Diva-v1.6-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
-| Windows 10 / 11, 64-bit | [Diva-v1.6-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.6/Diva-v1.6-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks; wrong camera: C on the camera check or F1 > Next camera |
+| macOS, Apple silicon (M1 and newer) | [Diva-v2.0-macOS-AppleSilicon.zip](https://github.com/EvaLuglitched/Diva/releases/download/v2.0/Diva-v2.0-macOS-AppleSilicon.zip) | drag `Diva.app` to Applications and open it; it is signed but not notarised, so the first time: System Settings > Privacy & Security > **Open Anyway** (macOS 14 and older: right-click > Open) | built in: macOS asks for the camera when the game opens, one click on Allow |
+| Windows 10 / 11, 64-bit | [Diva-v2.0-Windows-x64.zip](https://github.com/EvaLuglitched/Diva/releases/download/v2.0/Diva-v2.0-Windows-x64.zip) | unzip, run `Diva.exe`; if SmartScreen appears: More info > Run anyway | built in, no Python: allow the camera if Windows asks; wrong camera: C on the camera check or F1 > Next camera |
 | Apple Vision Pro | [Diva-VR-v1.1-visionOS.zip](https://github.com/EvaLuglitched/Diva/releases/download/v1.1/Diva-VR-v1.1-visionOS.zip) | development-signed: installs on the team's registered headsets | headset hand tracking |
 
 The keyboard works in every desktop build without a camera. Each zip has a short READ ME. The very first camera start
