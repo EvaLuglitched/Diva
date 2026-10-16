@@ -22,6 +22,34 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
 
+## Assignment submission
+
+The three-person submission roles are **P1 Vicky** (walking), **P2 Eva** (turning), and **P3 Jiayu**
+(aiming, spraying and refill). Jiayu is the team's confirmed most reliable P3 performer.
+
+| Submission item | Where to find it |
+| --- | --- |
+| Written movement-to-control mapping | [Google Doc](https://docs.google.com/document/d/1JG7p4Rl8R-Komtp9tpJkQp_CWZ3DJvwcPY3GowpBkX0); [mapping table below](#movement--control-mapping) |
+| Playable downloads and source setup | [Release downloads](#download-v20-macos-windows--v11-vision-pro); [fresh-clone restoration](#reconstruct-the-project-from-a-fresh-clone) |
+| Pink candy-town scene | `Assets/DigiPhant/Scenes/Diva.unity` |
+| Individual demonstration videos | **To add manually:** direct video links for P1 Vicky, P2 Eva and P3 Jiayu |
+| Shared course performance video | **To add manually:** direct video link for the three-person course run |
+| Existing recording collection | [Drive video folder](https://drive.google.com/drive/folders/1NAZGp2xYGU9ZVkIdl9RajQ89eXVgnDBF) (collection link; direct submission videos above still need to be added) |
+| Testing and group reflection | [Verification](#verification), [group reflection](#group-reflection), and [setup / validation record](DIGIPHANT_SETUP.md#verification-record-and-limitations) |
+
+## Group reflection
+
+One tested improvement was making P2 steering depend on the shoulders and head without requiring visible hips or
+wrists. The existing v2.0 regression record reports 13 player-parts tests (eight failed against the old code), and a
+replay of Vicky's P2 clip cropped below the chest increased steering delivery to Unity from 0–17% to 100%. This
+addresses the three-person occlusion problem while keeping the steering gesture simple. Evidence and implementation
+history: [GESTURES_LOCKED.md](GESTURES_LOCKED.md) and
+[Eva's update log, items 31–32](docs/EVA_UPDATES.md).
+
+A remaining limitation is that crowding, occlusion and lighting can still affect MediaPipe's detections. The recorded
+clips and regression scenarios do not establish reliability for every room, camera or group of performers. These are
+existing test/replay results; this documentation update did not run a fresh native Unity or live-camera test.
+
 ## Download v2.0 (macOS, Windows) · v1.1 (Vision Pro)
 
 Ready-to-play builds: macOS and Windows **https://github.com/EvaLuglitched/Diva/releases/tag/v2.0**, Vision Pro
@@ -191,8 +219,10 @@ v1.1 checks (2026-10-13), automated unless stated:
   Downloads; the bridge self-test passes (first start 5 s, later 1.3 s); a keyboard race from the home page to the
   race with no errors; with no camera the tracking restarts by itself (2, 4, 8, 16, 30 s); C on the camera check and
   F1 > Next camera restart it and the choice is saved.
-- Not tested yet: live camera play on a Windows PC, a full three-person live performance and a fresh recording; see
-  [docs/PLAYTEST_TODO.md](docs/PLAYTEST_TODO.md) and the limitations in [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md).
+- Historical v1.1 gaps included live camera play on Windows, a full three-person live performance and a fresh recording.
+  See the v2.0 record above for later reported Unity live tests. Windows live-camera play and a new submission recording
+  are not verified by this documentation update; see [docs/PLAYTEST_TODO.md](docs/PLAYTEST_TODO.md) and the limitations in
+  [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md).
 
 ## Credits and licences
 
