@@ -21,16 +21,19 @@ Open **Assets/DigiPhant/Scenes/Diva.unity**. `Assets/StudentWork/DigiPhantStuden
 
 ## Controls
 
-Play → F1 → **Try alone > All > Camera**. Keep shoulders, hips and wrists visible; pick colour and players, START, then stand upright on the camera check: after 5 seconds with everyone recognised (green) the neutral pose is saved and the intro starts. Manual Test controls start immediately. Reassign after changing positions and recalibrate.
+Play → F1 → **Try alone > All > Camera**. Keep the joints needed for your role visible: P1 needs the walking arm motion, P2 needs shoulders/head, and P3 needs the relevant arms/hands. P2 does not require visible hips or wrists in v2.0. Pick colour and players, START, then stand upright on the camera check: after 5 seconds with everyone recognised (green) the neutral pose is saved and the intro starts. Manual Test controls start immediately. Reassign after changing positions and recalibrate.
 
 - Pump both arms for GO; stop pumping for STOP. Holding hands high overhead triggers confirmation/ultimate instead.
 - Tilt the shoulders or the head toward one side to turn (left = the performer's own left), even with GO zero and relaxed arms; hips are not used. Level stops turning; shoulders briefly unclear keep the turn for 0.3 s. Thresholds relative to the calibrated neutral (slope of the shoulder or ear line, the larger counts): start 0.14, release 0.08, full turn 0.40.
-- Torso turning requires valid shoulders/hips but not wrists. Either-hand thumbs-up refill needs only its matched wrist and shoulders; missing wrists still block GO. Calibration records a fresh hip baseline only with valid hips, otherwise retaining an earlier valid baseline or using zero. Ready alone does not prove fresh hip calibration.
+- v2.0 steering confidence uses shoulders when wrists are missing, and role assignment uses shoulder centres rather than hips. Either-hand thumbs-up refill needs its matched wrist and shoulders; the opposite wrist may be hidden. The earlier requirement for visible hips during torso turning is historical and superseded; see [current verification](#current-v20-verification-recorded-2026-10-13).
 - Solo refill/ultimate intentionally suppress turning; spray/refill/ultimate suppress forward motion.
 
 See [docs/DIVA_TRY_IT.md](docs/DIVA_TRY_IT.md) for roles, spray/refill and group instructions. Stop Play to stop Unity's camera bridge.
 
-## Release builds (v1.1)
+## Release builds (desktop v2.0; Vision Pro v1.1)
+
+Use the [current download links in README](README.md#download-v20-macos-windows--v11-vision-pro). The packaging notes
+below describe the release pipeline; the frame-rate comparison records the earlier v1.0/v1.1 investigation.
 
 Downloads: https://github.com/EvaLuglitched/Diva/releases (built with **Diva > Release** in `Assets/DivaShow/Editor/DivaReleaseBuild.cs`,
 packed by `Tools/release/package_release.sh`). Both desktop builds carry the tracking bridge themselves, so players need
@@ -59,18 +62,42 @@ Failed exports retain frozen snapshots until domain reload and partial files for
 
 ## Verification record and limitations
 
-- **2026-10-13**: 93 repository Python tests and the 3 starter recording tests pass (Python 3.13); the four Unity validators pass on the current checkout and on a fresh clone; automatic single-player rounds and a three-player run through a fake camera bridge pass (see the reconstruction test above and README → Verification).
+### Current v2.0 verification (recorded 2026-10-13)
+
+The repository's [README verification record](README.md#verification), [GESTURES_LOCKED.md](GESTURES_LOCKED.md) and
+[Eva's update log, items 30–32](docs/EVA_UPDATES.md) report 161 Python tests, four Unity validators, Verify Lock and
+zero compile errors. The real tracking bridge replayed Vicky's recorded clips in single- and three-player modes;
+Eva also reported successful live single- and three-player tests in Unity. These are existing project records,
+not tests newly performed for this documentation update.
+
+For P2, v2.0 removes the hip/wrist dependency: shoulder confidence and shoulder-based role assignment preserve steering
+when the lower body and hands are hidden. The recorded player-parts regression suite has 13 tests (eight fail with the
+old code); replaying a P2 clip cropped below the chest improved steering delivery from 0–17% to 100%. The same update
+retains a player's last Unity control for 0.3 s and gesture history for 0.6 s across brief detection gaps. These measured
+replays do not prove live performance across different lighting, crowding, cameras or performers. Windows live-camera
+play and a new submission performance recording are not verified by this documentation update.
+
+### Historical checks and limitations
+
+The entries below preserve earlier evidence and open questions at the time. Their test counts, weak-walking report,
+hip-based steering requirement and pending three-person/native checks are not the current v2.0 status; use the
+[current verification above](#current-v20-verification-recorded-2026-10-13) and its linked records for later evidence.
+
+- **Earlier 2026-10-13 reconstruction / v1.1 check**: 93 repository Python tests and the 3 starter recording tests passed (Python 3.13); the four Unity validators passed on that checkout and a fresh clone; automatic single-player rounds and a three-player run through a fake camera bridge passed (see the reconstruction test above and README → Verification).
 - Earlier: 65 Python tests passed (62 repository tests plus three starter recording tests); dependencies and pose/hand model loading passed locally.
-- Earlier native Unity gesture, START guard, stationary-turn and trial-export validators passed. Stationary-turn checks exercise actual locomotion with both yaw directions, zero speed, unchanged xyz, upright/stale stopping and solo action gates. Export checks cover immutable snapshots, identifiers, decimal formatting, JSON escaping, retry/idempotence and component teardown. These historical checks have not been repeated on the current combined checkout.
+- Earlier native Unity gesture, START guard, stationary-turn and trial-export validators passed. Stationary-turn checks exercise actual locomotion with both yaw directions, zero speed, unchanged xyz, upright/stale stopping and solo action gates. Export checks cover immutable snapshots, identifiers, decimal formatting, JSON escaping, retry/idempotence and component teardown. The original note said these had not been repeated on the then-combined checkout; later v2.0 validation is recorded above.
 - Historical local live checks observed camera landmarks, solo GO/STOP and left/right steering with elephant translation/rotation. A silent 35.2-second, 1280×636 MP4 decoded all 352 frames at 10 fps; 156 captured images were held across gaps. A decoded frame visibly contained webcam landmarks and elephant.
 - A historical interrupted trial produced 3,217 route samples through 174.60672 simulation seconds and 13 events. Its duration/end-mode metadata was incorrect due to teardown ordering. Those original local files remain unchanged and their affected metadata is invalid. A caching fix passed native regression; a new post-fix physical finish/shutdown export remains unverified.
-- Thumbs-up refill and restored torso-only steering have automated verification, but no fresh physical test after those changes. Full three-person control, complete course interaction and cross-machine restoration remain pending. Walking is reported weak/intermittent; GO rules are unchanged. Archived low-cadence replay exposes a limitation without establishing the live cause.
+- Historical status before the later v2.0 updates: thumbs-up refill and restored torso-only steering had automated verification but no fresh physical test; full three-person control, complete course interaction and cross-machine restoration were pending. Walking was reported weak/intermittent, with GO rules unchanged at that point. Archived low-cadence replay exposed a limitation without establishing the live cause. These observations must not be read as a new test of v2.0.
 
 [TrackingOverrides/VALIDATION.md](TrackingOverrides/VALIDATION.md) details archived reference-fit tradeoffs. Pretrained MediaPipe plus rules is used; no custom neural action classifier was trained. Calibration alters a steering baseline, not model weights.
 
 Recordings, raw datasets, trial outputs, local logs/backups, environments, caches and licensed shared assets are excluded from Git. The historical evidence above describes local checks and is not included as reproducible test media. Keep new performance evidence separately and document its provenance.
 
-### Latest gesture update verification
+### Historical gesture-restoration verification (65-test stage)
+
+This paragraph records the earlier restoration stage. Its 65-test count and pending checks are historical; the
+[current v2.0 record](#current-v20-verification-recorded-2026-10-13) supersedes them.
 
 P3 refills with either-hand thumbs-up held 0.4 seconds; release stops. The thumbs-up is recognised by MediaPipe's pretrained Gesture Recognizer (`Thumb_Up`, `gesture_recognizer.task`, downloaded on first use) or, as a fallback, the geometric rule. The thumb hand, its associated wrist and shoulders must be visible, but the opposite wrist may be hidden. This also supplies the existing `drink` signal for course eating/drinking. P2 tilts the shoulders or the head toward one side (calibrated; hips are not used and may be hidden); wrists may be hidden. Level stops turning, including while stationary; shoulders briefly unclear keep the turn for 0.3 s.
 
