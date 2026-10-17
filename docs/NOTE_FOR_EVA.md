@@ -1,5 +1,20 @@
 # Note for Eva (from Carl): how the show uses your intro
 
+## 2026-10-17 — Git submission: candy texture on Drive, starter pin, README links (docs and setup only)
+
+Checked the repository against the course's Git requirements (`STUDENT_GIT.md`). No game code, scene or locked file changed.
+
+| Where | What |
+| --- | --- |
+| `Assets/eva大象/Textures/Elephant_D_Candy.jpg` | Left git (now in `.gitignore`): it is a recolour of the starter's `Elephant_D.png`, i.e. a changed excluded shared asset. The `.meta` stays tracked (same GUID). The exact copy and an English restore note are in the team Drive folder (Vicky's "diva digiphant") |
+| `Tools/setup_tracking_mac.sh` | Pins the starter at `4e6dab5` (the commit our `Assets/SavannahCourse` matches; elephant and tracking code unchanged since `8f426f6`) and rebuilds the candy texture byte-identically with `make_candy_texture.py`, checking its SHA-256. It must run before Unity first opens a fresh clone: Unity deletes a `.meta` whose file is missing (tested); the script restores it |
+| `README.md`, `DIGIPHANT_SETUP.md` | Team Drive folder, demo video and the public "Team Control Mapping" doc instead of Vicky's placeholders; Windows steps download the texture from Drive; the product page link points to diva-elephant.github.io; new reconstruction test record |
+
+**Your local clone after pulling:** the pull deletes `Elephant_D_Candy.jpg` from your disk too (git removes files that a
+commit removes). Before you open Unity again, run `bash Tools/setup_tracking_mac.sh` (it rebuilds the texture) or download
+it from the Drive folder into `Assets/eva大象/Textures/`. If Unity was already open and deleted the `.meta`, run
+`git checkout -- "Assets/eva大象/Textures/Elephant_D_Candy.jpg.meta"` first.
+
 ## 2026-10-13 (night) — v1.6: lifting one arm to aim no longer restarts walking (you approved)
 
 An offline integration check of v1.5 (your PerformerTracker, extract_features, associate_hands and DivaGestureDetector in

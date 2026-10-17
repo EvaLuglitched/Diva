@@ -2,7 +2,9 @@
 
 ## Fresh checkout
 
-**Reconstruction test, 2026-10-13** (macOS, M1 Max, done the way `STUDENT_GIT.md` asks, in a separate folder): a new clone
+**Reconstruction test, 2026-10-17** (after the candy texture left git and the starter pin moved to `4e6dab5`), on a Mac in a separate folder: a fresh clone + `bash Tools/setup_tracking_mac.sh` restored the starter at `4e6dab5`, the elephant, the models and the candy texture (rebuilt; its SHA-256 matches the Drive copy); 161 + 3 Python tests and the lock check passed; the first Unity 6000.6.3f1 import had 0 compile errors; the texture kept GUID `3e003aaedaef24be6b55f57fe3cee1b3` and `Elephant Candy.mat` uses it; `Diva.unity` has 1,597 objects, 0 missing scripts, 0 renderers without a material and 11 missing prefabs (the optional Fab clouds and rocket); the four validators passed. Opening Unity before the texture was restored deleted its `.meta`, as expected; running the script again restored both. Not covered: the Windows steps (Drive download), live camera play and an automatic race round.
+
+**Earlier reconstruction test, 2026-10-13** (macOS, M1 Max, done the way `STUDENT_GIT.md` asks, in a separate folder): a new clone
 of `carl/race-meta` (83 MB, 836 tracked files) → `bash Tools/setup_tracking_mac.sh` restored the starter at the pinned
 commit, `Assets/Elephant` with its metadata, the Python environment and the pose / hand models → all 93 repository tests and
 the starter's 3 recording tests passed with Python 3.13 → the first Unity 6000.6.3f1 open imported the project with 0
