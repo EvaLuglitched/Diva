@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Set up Diva camera tracking on macOS: the same steps as the README's PowerShell block.
 # Run from anywhere:  bash Tools/setup_tracking_mac.sh
-# Safe to run again: existing Assets/Elephant and downloaded models are kept.
+# Safe to run again: existing Assets/Elephant, the candy skin texture and downloaded models are kept.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-STARTER_COMMIT=8f426f675f86d938bf3dbec23d6a7ee2479d2c1d
+# The starter commit that added the savannah course (our Assets/SavannahCourse is identical to it). Elephant/, DigiPhant/
+# and Tracking/ are the same as at the earlier 8f426f6 that older notes mention.
+STARTER_COMMIT=4e6dab5271c618d1c0bfb2022c41c0d37cd8d69f
 POSE_URL=https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task
 HAND_URL=https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
 # Python 3.10 or newer: on the macOS system Python 3.9 the locked bridge's three-player detector fails three tests
@@ -46,6 +48,21 @@ if [ -x .venv/bin/python ] && ! .venv/bin/python -c 'import sys; sys.exit(0 if s
 [ -f pose_landmarker_full.task ] || curl -fsSL -o pose_landmarker_full.task "$POSE_URL"
 [ -f hand_landmarker.task ] || curl -fsSL -o hand_landmarker.task "$HAND_URL"
 cd ../..
+
+# The candy skin texture is a recolour of the starter's Elephant_D.png, so it is not in git (exact copy on the team Drive,
+# see README). Rebuild it with the pinned OpenCV before Unity first opens the project: Unity deletes a .meta whose asset
+# is missing, and the tracked .meta holds the GUID that Elephant Candy.mat uses.
+CANDY="Assets/eva大象/Textures/Elephant_D_Candy.jpg"
+CANDY_SHA256=1457e2376b2fe1245e2247624f2c414939c99286e2abbcdaab7f29470afa4c5c
+[ -f "$CANDY.meta" ] || git checkout -- "$CANDY.meta"
+if [ ! -f "$CANDY" ]; then
+  DigiPhantStarter/Tracking/.venv/bin/python "Assets/eva大象/Source~/make_candy_texture.py" Assets/Elephant/Textures/Elephant_D.png "$CANDY"
+fi
+if [ "$(shasum -a 256 "$CANDY" | cut -d' ' -f1)" = "$CANDY_SHA256" ]; then
+  echo "Candy skin texture OK ($CANDY)"
+else
+  echo "Warning: $CANDY differs from the team's copy; download Elephant_D_Candy.jpg from the Drive folder in README."
+fi
 # v2.0 password lock: refuse commits that change a locked file without Eva's signature (see GESTURES_LOCKED.md)
 git config core.hooksPath .githooks 2>/dev/null || true
 # Our tests run where they live (the gesture-lock test checks the tracked files); the starter's recording test runs in Tracking

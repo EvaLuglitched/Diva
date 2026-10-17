@@ -2,7 +2,7 @@
 
 How Diva was made, in one place: the timeline, every release, every pull request, the branches and the app icon, with links to the process notes that already live elsewhere in the repository. Nothing in this folder is
 needed to build or play the game. It was gathered from the git history, the pull requests and the releases on
-2026-10-14; no existing file was moved or changed. Times are Pacific time.
+2026-10-14 and brought up to date on 2026-10-17. Times are Pacific time.
 
 ## Timeline
 
@@ -47,14 +47,19 @@ needed to build or play the game. It was gathered from the git history, the pull
 | [19](https://github.com/EvaLuglitched/Diva/pull/19) | Oct 13, 16:47 | `carl/v1.5` | Single player tracks faster, P2 keeps the steering |
 | [20](https://github.com/EvaLuglitched/Diva/pull/20) | Oct 13, 18:33 | `carl/v1.6` | Lifting one arm to aim no longer restarts walking |
 | [21](https://github.com/EvaLuglitched/Diva/pull/21) | Oct 13, 18:33 | `eva/walk-hands-up` | v2.0: every player controls reliably, password lock |
-| [22](https://github.com/EvaLuglitched/Diva/pull/22) | open | `eva/lock-docs` | Docs for the v2.0 lock on GitHub |
+| [22](https://github.com/EvaLuglitched/Diva/pull/22) | Oct 15, 11:58 | `eva/lock-docs` | Docs for the v2.0 lock on GitHub |
+| [23](https://github.com/EvaLuglitched/Diva/pull/23) | Oct 14, 19:02 | `carl/process-folder` | This `process/` folder |
+| [24](https://github.com/EvaLuglitched/Diva/pull/24) | Oct 15, 12:14 | `eva/v2-downloads` | Download links: v2.0 (macOS, Windows) |
+| [25](https://github.com/EvaLuglitched/Diva/pull/25) | Oct 15, 20:42 | `docs/submission-readme-6ba5bea` | Course submission README and group reflection |
+| [26](https://github.com/EvaLuglitched/Diva/pull/26) | Oct 17 | `carl/git-submission` | Course Git requirements: candy texture on Drive, starter pin, README and setup record |
 
 ## Branches
 
 **Active:** `main` (protected: changes come in through pull requests that pass the lock check), `carl/diva-vr` (the
-Vision Pro version, still on v1.1), `carl/race-meta` (the PC work behind v1.0 and v1.1), and Eva's `eva/*` branches.
+Vision Pro version, still on v1.1, not merged: it needs a Unity Pro licence). Merged into `main` and kept:
+`carl/git-submission` (#26), Eva's `eva/*` branches and Vicky's `docs/submission-readme-6ba5bea`.
 
-**Archived on Oct 14:** these branches were fully merged into `main`, so only their names were removed. Every commit
+**Archived on Oct 14 and Oct 17:** these branches were fully merged into `main`, so only their names were removed. Every commit
 is still in `main`. To bring one back: `git push origin <commit>:refs/heads/<branch>`.
 
 | Branch | Last commit | Pull request |
@@ -66,6 +71,7 @@ is still in `main`. To bring one back: `git push origin <commit>:refs/heads/<bra
 | `carl/diva-show-eva-sync-fixes` | `99c55b077e35e998596bc9b834c946c4d92c3eab` | #5 |
 | `carl/pc-three-player` | `e3538644149f7f440fc4750964f7e50b42d07f1b` | merged into `main` on Oct 12 |
 | `carl/v1.6` | `43183df2b716a5ed293ad90dfbcadfbf41153562` | #20 |
+| `carl/race-meta` | `534500e7612d26c7d801d11f3b1bf23afab8aeac` | #6 to #13 (archived Oct 17) |
 
 ## Process notes elsewhere in the repository
 
@@ -85,7 +91,8 @@ is still in `main`. To bring one back: `git push origin <commit>:refs/heads/<bra
 
 Recordings and large media stay out of the repository, as the course asks:
 
-- **Recordings and the side-by-side video:** the [Drive folder](https://drive.google.com/drive/folders/1NAZGp2xYGU9ZVkIdl9RajQ89eXVgnDBF).
+- **The demo video, the mapping document and the changed elephant texture:** the team's [Drive folder](https://drive.google.com/drive/folders/16mkenRzNIFoxs1Y-Xad8nl92Xh22DkiC).
+- **Earlier recordings:** a second [Drive folder](https://drive.google.com/drive/folders/1NAZGp2xYGU9ZVkIdl9RajQ89eXVgnDBF) (team sign-in).
 - **Gesture examples, recorded sessions and the process journal:** the [MediaPipe data release](https://github.com/EvaLuglitched/Diva/releases/tag/mediapipe-data-2026-10-13).
 - **Screenshots of the finished game:** the product page, [docs/index.html](../docs/index.html), and `docs/img/`.
 
