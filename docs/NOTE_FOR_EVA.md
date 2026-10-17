@@ -1,6 +1,6 @@
 # Note for Eva (from Carl): how the show uses your intro
 
-## 2026-10-17 — Git submission: candy texture on Drive, starter pin, README links (docs and setup only)
+## 2026-10-17 — Git submission: candy texture on Drive, starter pin, README and setup record tidied (docs and setup only)
 
 Checked the repository against the course's Git requirements (`STUDENT_GIT.md`). No game code, scene or locked file changed.
 
@@ -8,7 +8,9 @@ Checked the repository against the course's Git requirements (`STUDENT_GIT.md`).
 | --- | --- |
 | `Assets/eva大象/Textures/Elephant_D_Candy.jpg` | Left git (now in `.gitignore`): it is a recolour of the starter's `Elephant_D.png`, i.e. a changed excluded shared asset. The `.meta` stays tracked (same GUID). The exact copy and an English restore note are in the team Drive folder (Vicky's "diva digiphant") |
 | `Tools/setup_tracking_mac.sh` | Pins the starter at `4e6dab5` (the commit our `Assets/SavannahCourse` matches; elephant and tracking code unchanged since `8f426f6`) and rebuilds the candy texture byte-identically with `make_candy_texture.py`, checking its SHA-256. It must run before Unity first opens a fresh clone: Unity deletes a `.meta` whose file is missing (tested); the script restores it |
-| `README.md`, `DIGIPHANT_SETUP.md` | Team Drive folder, demo video and the public "Team Control Mapping" doc instead of Vicky's placeholders; Windows steps download the texture from Drive; the product page link points to diva-elephant.github.io; new reconstruction test record |
+| `README.md` | Reordered for the course: a "Course submission" table first (Git, Drive folder, demo video, mapping doc, scene, starter pin), then the full team mapping (from Vicky's doc: per performer, formation, timing, shared inputs, Gesture Recognizer, starter mappings kept / changed), the group reflection and the reconstruction steps. The per-version notes now live only on the release pages; the v1.1 check list moved to `DIGIPHANT_SETUP.md` |
+| `DIGIPHANT_SETUP.md` | Same content, grouped: fresh checkout (with the 2026-10-17 test), mappings and controls, recording, release builds, verification, a new explicit **Known limitations** list, then the history |
+| `process/README.md`, branches | PRs #22 to #26 added; `carl/race-meta` (fully merged) archived with its commit in the table; the Drive links point to the team folder. Your `eva/*` branches are all merged too; I left them for you |
 
 **Your local clone after pulling:** the pull deletes `Elephant_D_Candy.jpg` from your disk too (git removes files that a
 commit removes). Before you open Unity again, run `bash Tools/setup_tracking_mac.sh` (it rebuilds the texture) or download
