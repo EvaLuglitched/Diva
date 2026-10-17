@@ -29,6 +29,9 @@ Thumbs.db
 /DigiPhantStarter/
 /Assets/Elephant/
 /Assets/Elephant.meta
+# Changed shared asset: candy recolour of the starter's Elephant/Textures/Elephant_D.png. The exact copy is on the team
+# Drive and Tools/setup_tracking_mac.sh rebuilds it byte-identically (see README). Its .meta stays tracked (GUID).
+/Assets/eva大象/Textures/Elephant_D_Candy.jpg
 *.unitypackage
 .env
 .env.*

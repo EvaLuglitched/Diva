@@ -12,12 +12,12 @@ No custom neural action model was trained: pretrained MediaPipe plus calibrated 
 | | |
 | --- | --- |
 | **Git** | https://github.com/EvaLuglitched/Diva (default branch `main`; Carl's PC work on `carl/race-meta`, Vision Pro on `carl/diva-vr`) |
-| **Drive** (recordings, side-by-side video) | https://drive.google.com/drive/folders/1NAZGp2xYGU9ZVkIdl9RajQ89eXVgnDBF |
+| **Drive** (team submission folder: demo video, control mapping, changed elephant texture) | https://drive.google.com/drive/folders/16mkenRzNIFoxs1Y-Xad8nl92Xh22DkiC |
 | **Scene** | `Assets/DigiPhant/Scenes/Diva.unity` |
 | **Unity** | 6000.6.3f1, Universal Render Pipeline 17.6.0 |
-| **Instructor starter** | https://github.com/kommanderpi/studentstarter.git at commit `8f426f675f86d938bf3dbec23d6a7ee2479d2c1d` |
+| **Instructor starter** | https://github.com/kommanderpi/studentstarter.git at commit `4e6dab5271c618d1c0bfb2022c41c0d37cd8d69f` (the commit that added the savannah course; its `Elephant/`, `DigiPhant/` and `Tracking/` are the same as at the earlier `8f426f6`) |
 | **Tested setup, mappings, recording, limitations** | [DIGIPHANT_SETUP.md](DIGIPHANT_SETUP.md) |
-| **Product page** (downloads, how to play, how we made it) | [docs/index.html](docs/index.html); public at https://evaluglitched.github.io/Diva/ once GitHub Pages is on (Settings > Pages > Deploy from a branch: `main`, `/docs`) |
+| **Product page** (downloads, how to play, how we made it) | [docs/index.html](docs/index.html), published at https://diva-elephant.github.io |
 
 > 🔒 **Gesture controls are locked** (single-player and three-player, 2026-10-12). Read [GESTURES_LOCKED.md](GESTURES_LOCKED.md)
 > before changing anything in `TrackingOverrides/diva_gestures.*`, `bridge.py`, `DivaControlState.cs` or `DivaDemo.cs`.
@@ -29,12 +29,12 @@ The three-person submission roles are **P1 Vicky** (walking), **P2 Eva** (turnin
 
 | Submission item | Where to find it |
 | --- | --- |
-| Written movement-to-control mapping | [Google Doc](https://docs.google.com/document/d/1JG7p4Rl8R-Komtp9tpJkQp_CWZ3DJvwcPY3GowpBkX0); [mapping table below](#movement--control-mapping) |
+| Written movement-to-control mapping | [Diva: Team Control Mapping](https://docs.google.com/document/d/1urKmUug0rV43_86DuJK7KGsfQCot1wsBSexF_cAui0s/edit) (Google Doc in the team Drive folder); [mapping table below](#movement--control-mapping) |
 | Playable downloads and source setup | [Release downloads](#download-v20-macos-windows--v11-vision-pro); [fresh-clone restoration](#reconstruct-the-project-from-a-fresh-clone) |
 | Pink candy-town scene | `Assets/DigiPhant/Scenes/Diva.unity` |
-| Individual demonstration videos | **To add manually:** direct video links for P1 Vicky, P2 Eva and P3 Jiayu |
-| Shared course performance video | **To add manually:** direct video link for the three-person course run |
-| Existing recording collection | [Drive video folder](https://drive.google.com/drive/folders/1NAZGp2xYGU9ZVkIdl9RajQ89eXVgnDBF) (collection link; direct submission videos above still need to be added) |
+| Demo video (performers and elephant side by side) | [diva demo video](https://drive.google.com/file/d/1CX1NiwhmPOBNsl2U8RO0b-O5kjZPcWaQ/view) in the [team Drive folder](https://drive.google.com/drive/folders/16mkenRzNIFoxs1Y-Xad8nl92Xh22DkiC) |
+| Existing recording collection | [Drive video folder](https://drive.google.com/drive/folders/1NAZGp2xYGU9ZVkIdl9RajQ89eXVgnDBF) (earlier recordings) |
+| Changed elephant texture (not in git) | [Elephant_D_Candy.jpg](https://drive.google.com/file/d/1pGykqq3OCjHfO_ycppod0eQB_CUkr98n/view) and its English [restore note](https://drive.google.com/file/d/16gKlvuz9Wy6ZqizBjQG246WxpmfvKkBX/view) in the team Drive folder; see [fresh-clone restoration](#reconstruct-the-project-from-a-fresh-clone) |
 | Testing and group reflection | [Verification](#verification), [group reflection](#group-reflection), and [setup / validation record](DIGIPHANT_SETUP.md#verification-record-and-limitations) |
 
 ## Group reflection
@@ -129,8 +129,8 @@ F2 shows the frame rate. Everything a player sees is described in [docs/DIVA_TRY
 ## Reconstruct the project from a fresh clone
 
 The repository tracks our scenes, scripts, mappings, materials, `.meta` files, `Packages/` and `ProjectSettings/`.
-The instructor's shared elephant, the pose model, the Python environment, Unity caches, builds and recordings are not in
-git (see `.gitignore`); these steps bring them back. Run them from the project folder (the one with `Assets/`).
+The instructor's shared elephant, our candy recolour of its texture, the pose model, the Python environment, Unity caches,
+builds and recordings are not in git (see `.gitignore`); these steps bring them back. Run them from the project folder (the one with `Assets/`).
 
 **macOS** (one script, safe to run again):
 
@@ -142,7 +142,7 @@ bash Tools/setup_tracking_mac.sh
 
 ```powershell
 git clone https://github.com/kommanderpi/studentstarter.git DigiPhantStarter
-git -C DigiPhantStarter checkout 8f426f675f86d938bf3dbec23d6a7ee2479d2c1d
+git -C DigiPhantStarter checkout 4e6dab5271c618d1c0bfb2022c41c0d37cd8d69f
 Copy-Item -LiteralPath DigiPhantStarter/Elephant -Destination Assets/Elephant -Recurse
 Copy-Item -LiteralPath DigiPhantStarter/Elephant.meta -Destination Assets/Elephant.meta
 Get-ChildItem -LiteralPath TrackingOverrides -File | Where-Object { $_.Extension -in '.py', '.json', '.txt' } | Copy-Item -Destination DigiPhantStarter/Tracking -Force
@@ -151,12 +151,20 @@ python -m venv DigiPhantStarter/Tracking/.venv
 Invoke-WebRequest -Uri 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task' -OutFile DigiPhantStarter/Tracking/pose_landmarker_full.task
 Invoke-WebRequest -Uri 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task' -OutFile DigiPhantStarter/Tracking/hand_landmarker.task
 & DigiPhantStarter/Tracking/.venv/Scripts/python.exe -m unittest discover -s DigiPhantStarter/Tracking -p 'test_*.py'
+Invoke-WebRequest -Uri 'https://drive.google.com/uc?export=download&id=1pGykqq3OCjHfO_ycppod0eQB_CUkr98n' -OutFile 'Assets/eva大象/Textures/Elephant_D_Candy.jpg'
+Get-FileHash -LiteralPath 'Assets/eva大象/Textures/Elephant_D_Candy.jpg'  # SHA256 must be 1457E2376B2FE1245E2247624F2C414939C99286E2ABBCDAAB7F29470AFA4C5C
 git config core.hooksPath .githooks
 ```
 
 Both paths: clone the starter **beside** `Assets` as `DigiPhantStarter` at the pinned commit, copy `Elephant/` and
 `Elephant.meta` into `Assets` (keeping their metadata), copy our modified tracking code from `TrackingOverrides/` over the
 starter's `Tracking/`, create the Python environment from `requirements.txt` and download the pose and hand models.
+Restore the candy skin texture `Assets/eva大象/Textures/Elephant_D_Candy.jpg`, our recolour of the starter's
+`Elephant/Textures/Elephant_D.png`: the macOS script rebuilds it byte-identically with `Assets/eva大象/Source~/make_candy_texture.py`,
+the Windows steps download the team's copy from [Drive](https://drive.google.com/file/d/1pGykqq3OCjHfO_ycppod0eQB_CUkr98n/view) (OpenCV cannot write to the non-ASCII folder name on
+Windows). Do this **before** Unity first opens the project: the texture's `.meta` is tracked (GUID
+`3e003aaedaef24be6b55f57fe3cee1b3`, used by `Elephant Candy.mat`) and Unity deletes a `.meta` whose file is missing. If that
+happened, run `git checkout -- "Assets/eva大象/Textures/Elephant_D_Candy.jpg.meta"` and reopen the project.
 Do not copy the starter's `DigiPhant/` or `SavannahCourse/` over ours: ours are adapted and tracked. Then open the scene
 in Unity 6000.6.3f1. The first open imports everything and takes a while.
 

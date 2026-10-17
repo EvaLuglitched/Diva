@@ -95,7 +95,7 @@ boost.SetBoost(1f);   // 固定大火；SetBoost(-1) 回到跟随速度
 | `Runtime/` | 运行时组件（开关、火焰、泡泡、水枪、音效） |
 | `Generated/` | 安装时生成的网格、材质、调色板和粒子贴图 |
 | `Audio/` | 合成音效 |
-| `Textures/Elephant_D_Candy.jpg` | 糖果粉皮肤贴图 |
+| `Textures/Elephant_D_Candy.jpg` | 糖果粉皮肤贴图（starter 大象贴图的改色版，不进 git：`Tools/setup_tracking_mac.sh` 用下面的脚本重新生成，一模一样的原图在团队 Drive，见根目录 README；`.meta` 在 git 里） |
 | `Source~/` | 生成用的源脚本（Unity 不会导入以 `~` 结尾的文件夹） |
 | `Docs~/` | 预览图 |
 
