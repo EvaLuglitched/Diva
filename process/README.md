@@ -51,13 +51,13 @@ needed to build or play the game. It was gathered from the git history, the pull
 | [23](https://github.com/EvaLuglitched/Diva/pull/23) | Oct 14, 19:02 | `carl/process-folder` | This `process/` folder |
 | [24](https://github.com/EvaLuglitched/Diva/pull/24) | Oct 15, 12:14 | `eva/v2-downloads` | Download links: v2.0 (macOS, Windows) |
 | [25](https://github.com/EvaLuglitched/Diva/pull/25) | Oct 15, 20:42 | `docs/submission-readme-6ba5bea` | Course submission README and group reflection |
-| [26](https://github.com/EvaLuglitched/Diva/pull/26) | open | `carl/git-submission` | Course Git requirements: candy texture on Drive, starter pin, README and setup record |
+| [26](https://github.com/EvaLuglitched/Diva/pull/26) | Oct 17 | `carl/git-submission` | Course Git requirements: candy texture on Drive, starter pin, README and setup record |
 
 ## Branches
 
 **Active:** `main` (protected: changes come in through pull requests that pass the lock check), `carl/diva-vr` (the
-Vision Pro version, still on v1.1, not merged: it needs a Unity Pro licence), `carl/git-submission` (#26), Eva's `eva/*`
-branches and Vicky's `docs/submission-readme-6ba5bea` (all merged).
+Vision Pro version, still on v1.1, not merged: it needs a Unity Pro licence). Merged into `main` and kept:
+`carl/git-submission` (#26), Eva's `eva/*` branches and Vicky's `docs/submission-readme-6ba5bea`.
 
 **Archived on Oct 14 and Oct 17:** these branches were fully merged into `main`, so only their names were removed. Every commit
 is still in `main`. To bring one back: `git push origin <commit>:refs/heads/<branch>`.
